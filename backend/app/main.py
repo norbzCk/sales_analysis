@@ -1,11 +1,20 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from backend.database import SessionLocal
-from backend.app.dashboard import dashboard_stats, revenue_by_product, revenue_over_time
+from backend.app.dashboard import dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Dependency
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -25,3 +34,8 @@ def get_revenue_product(db: Session = Depends(get_db)):
 def get_revenue_time(db: Session = Depends(get_db)):
     return revenue_over_time(db)
 
+@app.get("/dashboard/recent-sales")
+def recent_sales(db: Session = Depends(get_db)):
+    return get_recent_sales(db)
+
+    

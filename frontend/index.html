@@ -30,28 +30,36 @@
         <h1>Dashboard Overview</h1>
       </header>
 
-      <section>
-        <div class="stats">
-         <div class="card">
-           <h3>Total Revenue</h3>
-           <p id="totalRevenue">0 TZsh/=</p>
+      <section class="stats">
+        <div class="card">
+         <h4>Total Revenue</h4>
+         <p id="revenue">TZsh/=0</p>
+        </div>
+
+        <div class="card">
+          <h4>Total Orders</h4>
+         <p id="orders">0</p>
+        </div>
+
+        <div class="card">
+          <h4>Units Sold</h4>
+          <p id="units">0</p>
+        </div>
+
+        <div class="card">
+          <h4>Top Product</h4>
+          <p id="top-product">—</p>
          </div>
-         <div class="card">
-           <h3>Total Sales</h3>
-           <p id="totalSales">0</p>
-         </div> 
-         <div class="card">
-           <h3>Top Product</h3>
-           <p id="topProduct">N/A</p>
-    
-         </div>
-       </div>
       </section>
 
       <section class="charts">
             <div class="chart-card">
-                <h3>Revenue Over Time</h3>
-                <canvas id="revenueChart"></canvas>
+                <h3>Revenue by Product</h3>
+                <canvas id="productChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>Revenue Over Time</h3>
+              <canvas id="timeChart"></canvas>
             </div>
         </section>
 
@@ -68,7 +76,7 @@
                         <th>Revenue</th>
                     </tr>
                 </thead>
-                <tbody id="salesTable">
+                <tbody id="recent-sales-body">
                     <tr>
                         <td colspan="5">Loading data…</td>
                     </tr>
