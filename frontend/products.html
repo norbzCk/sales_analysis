@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products | Sales Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="dashboard">
+
+    
+    <aside class="sidebar">
+      <h2>Sales Products</h2>
+      <nav>
+        <ul>
+          <li><a href="index.html">Dashboard</a></li>
+          <li><a href="products.html" class="active">Products</a></li>
+          <li><a href="sales.html">Sales</a></li>
+          <li><a href="orders.html">Orders</a></li>
+          <li><a href="customers.html">Customers</a></li>
+          <li><a href="#">Reports</a></li>
+          <li><a href="#">Settings</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="Topbar">
+        <h1>Products</h1>
+      </header>
+
+  
+      <section class="form-section">
+        <div class="card">
+          <h3>Add New Product</h3>
+          <div class="form-grid">
+            <input id="name" placeholder="Product Name">
+            <input id="category" placeholder="Category">
+            <input id="price" type="number" placeholder="Price (TZsh)">
+            <input id="stock" type="number" placeholder="Stock Quantity">
+            <input id="description" type="text" placeholder="Description">
+            <button class="btn-primary" onclick="addProduct()">Add Product</button>
+          </div>
+        </div>
+      </section>
+
+
+      <section class="table-section">
+        <h3>All Products</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price (TZsh)</th>
+              <th>Stock</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="product-list">
+            <tr>
+              <td colspan="5">Loading products…</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/products.js"></script>
+</body>
+</html>

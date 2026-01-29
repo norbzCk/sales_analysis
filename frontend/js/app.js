@@ -1,113 +1,139 @@
 const API = "http://127.0.0.1:8000";
 
-// ---------- Helpers ----------
+let productChartInstance = null;
+let timeChartInstance = null;
+
+// ======================
+// Utilities
+// ======================
+document.addEventListener("DOMContentLoaded", initDashboard);
+
 function formatMoney(value) {
-  return `$${Number(value).toLocaleString()}`;
+  return `TZS ${Number(value || 0).toLocaleString()}`;
 }
 
-function showError(msg) {
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} failed`);
+  return res.json();
+}
+
+function showTableError(msg) {
   console.error(msg);
-  alert("Failed to load dashboard data");
+  document.getElementById("recent-sales-body").innerHTML =
+    "<tr><td colspan='5'>Failed to load data</td></tr>";
 }
 
-// ---------- STATS ----------
-fetch(`${API}/dashboard/stats`)
-  .then(res => {
-    if (!res.ok) throw new Error("Stats API error");
-    return res.json();
-  })
-  .then(data => {
-    document.getElementById("revenue").innerText =
-      formatMoney(data.total_revenue);
+// ======================
+// Init
+// ======================
+async function initDashboard() {
+  try {
+    await loadStats();
+    await loadProductRevenue();
+    await loadRevenueTime();
+    await loadRecentSales();
+  } catch (err) {
+    console.error("Dashboard error:", err);
+  }
+}
 
-    document.getElementById("orders").innerText =
-      data.total_orders;
+// ======================
+// Stats
+// ======================
+async function loadStats() {
+  const data = await fetchJSON(`${API}/dashboard/stats`);
 
-    document.getElementById("units").innerText =
-      data.total_units;
+  document.getElementById("revenue").textContent =
+    formatMoney(data.total_revenue);
 
-    document.getElementById("top-product").innerText =
-      data.top_product || "—";
-  })
-  .catch(showError);
+  document.getElementById("orders").textContent =
+    data.total_orders ?? 0;
 
-// ---------- REVENUE BY PRODUCT ----------
-fetch(`${API}/dashboard/revenue-product`)
-  .then(res => {
-    if (!res.ok) throw new Error("Product revenue API error");
-    return res.json();
-  })
-  .then(data => {
-    new Chart(document.getElementById("productChart"), {
+  document.getElementById("units").textContent =
+    data.total_units ?? 0;
+
+  document.getElementById("top-product").textContent =
+    data.top_product || "—";
+}
+
+// ======================
+// Revenue by Product
+// ======================
+async function loadProductRevenue() {
+  const data = await fetchJSON(`${API}/dashboard/revenue-product`);
+
+  if (productChartInstance) productChartInstance.destroy();
+
+  productChartInstance = new Chart(
+    document.getElementById("productChart"),
+    {
       type: "bar",
       data: {
         labels: Object.keys(data),
         datasets: [{
-          label: "Revenue",
-          data: Object.values(data),
-          backgroundColor: "#3b82f6"
+          label: "Revenue (TZS)",
+          data: Object.values(data)
         }]
       },
       options: {
         responsive: true,
-        plugins: {
-          legend: { display: false }
-        }
+        plugins: { legend: { display: false } }
       }
-    });
-  })
-  .catch(showError);
+    }
+  );
+}
 
-// ---------- REVENUE OVER TIME ----------
-fetch(`${API}/dashboard/revenue-time`)
-  .then(res => {
-    if (!res.ok) throw new Error("Revenue time API error");
-    return res.json();
-  })
-  .then(data => {
-    new Chart(document.getElementById("timeChart"), {
+// ======================
+// Revenue Over Time
+// ======================
+async function loadRevenueTime() {
+  const data = await fetchJSON(`${API}/dashboard/revenue-time`);
+
+  if (timeChartInstance) timeChartInstance.destroy();
+
+  timeChartInstance = new Chart(
+    document.getElementById("timeChart"),
+    {
       type: "line",
       data: {
         labels: Object.keys(data),
         datasets: [{
-          label: "Revenue",
+          label: "Revenue (TZS)",
           data: Object.values(data),
-          borderColor: "#22c55e",
-          tension: 0.4,
-          fill: false
+          tension: 0.4
         }]
       },
-      options: {
-        responsive: true
-      }
-    });
-  })
-  .catch(showError);
+      options: { responsive: true }
+    }
+  );
+}
 
-  fetch(`${API}/dashboard/recent-sales`)
-  .then(res => res.json())
-  .then(data => {
+// ======================
+// Recent Sales Table
+// ======================
+async function loadRecentSales() {
+  try {
+    const data = await fetchJSON(`${API}/dashboard/recent-sales`);
     const tbody = document.getElementById("recent-sales-body");
-    tbody.innerHTML = "";
 
-    if (data.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='5'>No recent sales</td></tr>";
+    if (!data.length) {
+      tbody.innerHTML =
+        "<tr><td colspan='5'>No recent sales</td></tr>";
       return;
     }
 
-    data.forEach(sale => {
-      tbody.innerHTML += `
-        <tr>
-          <td>${sale.date}</td>
-          <td>${sale.product}</td>
-          <td>${sale.category}</td>
-          <td>${sale.quantity}</td>
-          <td>$${sale.revenue}</td>
-        </tr>
-      `;
-    });
-  })
-  .catch(() => {
-    document.getElementById("recent-sales-body").innerHTML =
-      "<tr><td colspan='5'>Failed to load data</td></tr>";
-  });
+    tbody.innerHTML = data.map(sale => `
+      <tr>
+        <td>${sale.date}</td>
+        <td>${sale.product}</td>
+        <td>${sale.category}</td>
+        <td>${sale.quantity}</td>
+        <td>${formatMoney(sale.revenue)}</td>
+      </tr>
+    `).join("");
+
+  } catch (err) {
+    showTableError(err);
+  }
+}
