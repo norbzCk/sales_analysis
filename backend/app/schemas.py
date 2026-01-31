@@ -1,10 +1,11 @@
-from typing import Optional
+#This defines the schema for creating a new product, you only pass what is needed to be created(product by user)(not the id, it made bugs here)
+#pydantic checks for correct data types and required fields
 from pydantic import BaseModel
 
 class ProductCreate(BaseModel):
-    id : int
     name: str
     category: str
     price: float
     stock: int
-    description: Optional[str] = None
+    description: str
+

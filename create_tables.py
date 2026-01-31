@@ -1,0 +1,7 @@
+# create_tables.py
+from backend.database import engine
+from backend import models  # make sure models are imported
+
+models.Base.metadata.create_all(bind=engine)
+
+print("Tables created successfully")

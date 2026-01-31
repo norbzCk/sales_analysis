@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sales</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <h2>SalesSys</h2>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="orders.html">Orders</a>
+    <a href="customers.html">Customers</a>
+    <a class="active" href="sales.html">Sales</a>
+  </aside>
+
+  <main class="content">
+    <h1>Sales</h1>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Product</th><th>Revenue</th></tr>
+        </thead>
+        <tbody id="salesTable"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/sales.js"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.app.products import router as products_router
 
+
 from backend.app.dashboard import dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
 from fastapi.middleware.cors import CORSMiddleware
 

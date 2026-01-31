@@ -20,7 +20,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
         price=product.price,
         stock=product.stock,
         description=product.description
-    )
+)
     db.add(new_product)
     db.commit()
     db.refresh(new_product)

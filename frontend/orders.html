@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Orders</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <h2>SalesSys</h2>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a class="active" href="orders.html">Orders</a>
+    <a href="customers.html">Customers</a>
+    <a href="sales.html">Sales</a>
+  </aside>
+
+  <main class="content">
+    <h1>Orders</h1>
+
+    <form id="orderForm" class="card">
+      <input id="customer_id" placeholder="Customer ID">
+      <input id="product_id" placeholder="Product ID">
+      <input id="quantity" type="number" placeholder="Quantity">
+      <button>Create Order</button>
+    </form>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Product</th><th>Qty</th></tr>
+        </thead>
+        <tbody id="orderTable"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="js/orders.js"></script>
+</body>
+</html>

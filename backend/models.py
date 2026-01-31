@@ -1,8 +1,9 @@
 from sqlalchemy import Column, Integer, String, Date, Float
 from sqlalchemy.ext.declarative import declarative_base
-
+from backend import models
+from backend.database import engine
 Base = declarative_base()
-
+models.Base.metadata.create_all(bind=engine)
 class Sale(Base):
     __tablename__ = "sales"
 

@@ -1,16 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Customers</title>
-<link rel="stylesheet" href="css/style.css">
+  <title>Customers</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header><nav><a href="index.html">Dashboard</a></nav></header>
-<div class="container">
-<h2>Customers</h2>
-<table id="customerTable"></table>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <h2>SalesSys</h2>
+    <a href="index.html">Dashboard</a>
+    <a href="products.html">Products</a>
+    <a href="orders.html">Orders</a>
+    <a class="active" href="customers.html">Customers</a>
+    <a href="sales.html">Sales</a>
+  </aside>
+
+  <main class="content">
+    <h1>Customers</h1>
+
+    <form id="customerForm" class="card">
+      <input id="name" placeholder="Customer Name" required>
+      <input id="email" placeholder="Email" required>
+      <button>Add Customer</button>
+    </form>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th></tr>
+        </thead>
+        <tbody id="customerTable"></tbody>
+      </table>
+    </div>
+  </main>
 </div>
-<script src="js/app.js"></script>
+
 <script src="js/customers.js"></script>
 </body>
 </html>

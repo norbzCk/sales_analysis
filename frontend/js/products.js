@@ -39,8 +39,8 @@ async function fetchProducts() {
 async function addProduct() {
   const name = document.getElementById("name").value.trim();
   const category = document.getElementById("category").value.trim();
-  const price = Number(document.getElementById("price").value);
-  const stock = Number(document.getElementById("stock").value);
+  const price = parseFloat(document.getElementById("price").value);
+  const stock = parseFloat(document.getElementById("stock").value);
   const description = document.getElementById("description").value.trim();
 
   if (!name || !category || isNaN(price) || isNaN(stock)) {
