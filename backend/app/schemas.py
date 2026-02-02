@@ -9,3 +9,14 @@ class ProductCreate(BaseModel):
     stock: int
     description: str
 
+class CustomerCreate(BaseModel):
+    name: str
+    phone: str
+    email: str | None = None
+    location: str | None = None
+
+class CustomerResponse(CustomerCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
