@@ -1,10 +1,9 @@
 from sqlalchemy import Column, Integer, String, Date, Float
-from sqlalchemy.ext.declarative import declarative_base
-from backend import models
-from sqlalchemy.orm import relationship
-from backend.database import engine
+from sqlalchemy.orm import declarative_base
+
 Base = declarative_base()
-models.Base.metadata.create_all(bind=engine)
+
+
 class Sale(Base):
     __tablename__ = "sales"
 
@@ -31,8 +30,6 @@ class Customer(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    phone = Column(String, unique=True, nullable=False)
+    phone = Column(String, unique=True, nullable=True)
     email = Column(String, nullable=True)
     location = Column(String, nullable=True)
-
-    sales = relationship("Sale", back_populates="customer")

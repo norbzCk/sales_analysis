@@ -1,35 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Sales</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales | SalesSys</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">SalesSys</div>
+      <ul class="nav-links">
+        <li><a href="index.html">Dashboard</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="orders.html">Orders</a></li>
+        <li><a href="customers.html">Customers</a></li>
+        <li><a class="active" href="sales.html">Sales</a></li>
+      </ul>
+    </aside>
 
-<div class="dashboard">
-  <aside class="sidebar">
-    <h2>SalesSys</h2>
-    <a href="index.html">Dashboard</a>
-    <a href="products.html">Products</a>
-    <a href="orders.html">Orders</a>
-    <a href="customers.html">Customers</a>
-    <a class="active" href="sales.html">Sales</a>
-  </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 class="page-title">Sales</h1>
+          <p class="page-subtitle">Record sales quickly and keep an auditable trail.</p>
+        </div>
+      </header>
 
-  <main class="content">
-    <h1>Sales</h1>
+      <div class="flash" id="salesFlash"></div>
 
-    <div class="card">
-      <table>
-        <thead>
-          <tr><th>Date</th><th>Product</th><th>Revenue</th></tr>
-        </thead>
-        <tbody id="salesTable"></tbody>
-      </table>
-    </div>
-  </main>
-</div>
+      <section class="card">
+        <h2 class="section-title">Record Sale</h2>
+        <form id="saleForm" class="form-grid">
+          <input id="sale_date" type="date" required>
+          <input id="sale_product" placeholder="Product name" required>
+          <input id="sale_category" placeholder="Category" required>
+          <input id="sale_quantity" type="number" min="1" step="1" placeholder="Quantity" required>
+          <input id="sale_unit_price" type="number" min="0" step="0.01" placeholder="Unit price" required>
+          <button class="btn btn-primary" type="submit">Save Sale</button>
+        </form>
+      </section>
 
-<script src="js/sales.js"></script>
+      <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Sales Ledger</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody id="salesTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/sales.js"></script>
 </body>
 </html>

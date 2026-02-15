@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.app.products import router as products_router
-from backend.app.customers import customers
+from backend.app.customers import router as customers_router
+from backend.app.sales import router as sales_router
 
 
 from backend.app.dashboard import dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
@@ -23,7 +24,8 @@ app.add_middleware(
 
 
 app.include_router(products_router)
-app.include_router(customers.router, prefix="/customers", tags=["Customers"])
+app.include_router(customers_router)
+app.include_router(sales_router)
 
 
 

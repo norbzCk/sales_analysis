@@ -11,7 +11,7 @@ class ProductCreate(BaseModel):
 
 class CustomerCreate(BaseModel):
     name: str
-    phone: str
+    phone: str | None = None
     email: str | None = None
     location: str | None = None
 

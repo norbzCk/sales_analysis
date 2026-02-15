@@ -1,41 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Customers</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers | SalesSys</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">SalesSys</div>
+      <ul class="nav-links">
+        <li><a href="index.html">Dashboard</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="orders.html">Orders</a></li>
+        <li><a class="active" href="customers.html">Customers</a></li>
+        <li><a href="sales.html">Sales</a></li>
+      </ul>
+    </aside>
 
-<div class="dashboard">
-  <aside class="sidebar">
-    <h2>SalesSys</h2>
-    <a href="index.html">Dashboard</a>
-    <a href="products.html">Products</a>
-    <a href="orders.html">Orders</a>
-    <a class="active" href="customers.html">Customers</a>
-    <a href="sales.html">Sales</a>
-  </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 class="page-title">Customers</h1>
+          <p class="page-subtitle">Keep customer contacts organized for easier follow-up.</p>
+        </div>
+      </header>
 
-  <main class="content">
-    <h1>Customers</h1>
+      <div class="flash" id="customerFlash"></div>
 
-    <form id="customerForm" class="card">
-      <input id="name" placeholder="Customer Name" required>
-      <input id="email" placeholder="Email" required>
-      <button>Add Customer</button>
-    </form>
+      <section class="card">
+        <h2 class="section-title">Add Customer</h2>
+        <form id="customerForm" class="form-grid">
+          <input id="name" placeholder="Customer name" required>
+          <input id="email" type="email" placeholder="Email address">
+          <input id="phone" placeholder="Phone number">
+          <input id="location" placeholder="Location">
+          <button class="btn btn-primary" type="submit">Save Customer</button>
+        </form>
+      </section>
 
-    <div class="card">
-      <table>
-        <thead>
-          <tr><th>Name</th><th>Email</th></tr>
-        </thead>
-        <tbody id="customerTable"></tbody>
-      </table>
-    </div>
-  </main>
-</div>
+      <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Customer List</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="customerTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
-<script src="js/customers.js"></script>
+  <script src="js/customers.js"></script>
 </body>
 </html>
