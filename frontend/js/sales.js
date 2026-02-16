@@ -1,4 +1,3 @@
-const API = "http://127.0.0.1:8000/sales/";
 const table = document.getElementById("salesTable");
 const form = document.getElementById("saleForm");
 const flash = document.getElementById("salesFlash");
@@ -28,9 +27,7 @@ function row(sale) {
 
 async function loadSales() {
   try {
-    const res = await fetch(API);
-    if (!res.ok) throw new Error("Failed loading sales");
-    const data = await res.json();
+    const data = await apiFetch("/sales/");
     if (!data.length) {
       table.innerHTML = `<tr><td class="empty" colspan="6">No sales recorded yet</td></tr>`;
       return;
@@ -38,7 +35,7 @@ async function loadSales() {
     table.innerHTML = data.map(row).join("");
   } catch (err) {
     console.error(err);
-    table.innerHTML = `<tr><td class="empty" colspan="6">Failed to load sales</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="6">${err.message}</td></tr>`;
   }
 }
 
@@ -59,21 +56,21 @@ form.addEventListener("submit", async (e) => {
   }
 
   try {
-    const res = await fetch(API, {
+    await apiFetch("/sales/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Save failed");
     form.reset();
     document.getElementById("sale_date").valueAsDate = new Date();
     showFlash("success", "Sale saved.");
     loadSales();
   } catch (err) {
-    console.error(err);
-    showFlash("error", "Unable to save sale.");
+    showFlash("error", err.message);
   }
 });
 
-document.getElementById("sale_date").valueAsDate = new Date();
-loadSales();
+document.addEventListener("DOMContentLoaded", async () => {
+  await requireAuthPage();
+  document.getElementById("sale_date").valueAsDate = new Date();
+  loadSales();
+});

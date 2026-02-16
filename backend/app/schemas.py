@@ -1,6 +1,6 @@
 #This defines the schema for creating a new product, you only pass what is needed to be created(product by user)(not the id, it made bugs here)
 #pydantic checks for correct data types and required fields
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class ProductCreate(BaseModel):
     name: str
@@ -8,6 +8,7 @@ class ProductCreate(BaseModel):
     price: float
     stock: int
     description: str
+    image_url: str | None = None
 
 class CustomerCreate(BaseModel):
     name: str
@@ -18,5 +19,4 @@ class CustomerCreate(BaseModel):
 class CustomerResponse(CustomerCreate):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

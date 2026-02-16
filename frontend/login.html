@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | SalesSys</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="main" style="max-width: 520px; margin: 40px auto;">
+    <section class="card">
+      <h1 class="page-title">SalesSys Login</h1>
+      <p class="page-subtitle" style="margin-bottom: 16px;">Sign in with your role-based account.</p>
+
+      <div class="flash" id="loginFlash"></div>
+
+      <form id="loginForm" class="grid" style="gap: 12px;">
+        <input id="email" type="email" placeholder="Email" required>
+        <input id="password" type="password" placeholder="Password" required>
+        <button class="btn btn-primary" type="submit">Sign In</button>
+      </form>
+
+      <div class="card" style="margin-top: 14px; background: #f7fbfa; border-style: dashed;">
+        <p class="muted">Default users from `backend/init_db.py`:</p>
+        <p class="muted">`owner@sales.local / Owner@1234` (super_admin)</p>
+        <p class="muted">`admin@sales.local / Admin@1234` (admin)</p>
+        <p class="muted">`user@sales.local / User@1234` (user)</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/session.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

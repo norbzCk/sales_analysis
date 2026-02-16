@@ -1,4 +1,3 @@
-const API = "http://127.0.0.1:8000/customers/";
 const table = document.getElementById("customerTable");
 const form = document.getElementById("customerForm");
 const flash = document.getElementById("customerFlash");
@@ -22,9 +21,7 @@ function row(customer) {
 
 async function loadCustomers() {
   try {
-    const res = await fetch(API);
-    if (!res.ok) throw new Error("Failed loading customers");
-    const data = await res.json();
+    const data = await apiFetch("/customers/");
     if (!data.length) {
       table.innerHTML = `<tr><td class="empty" colspan="4">No customers yet</td></tr>`;
       return;
@@ -32,7 +29,7 @@ async function loadCustomers() {
     table.innerHTML = data.map(row).join("");
   } catch (err) {
     console.error(err);
-    table.innerHTML = `<tr><td class="empty" colspan="4">Failed to load customers</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="4">${err.message}</td></tr>`;
   }
 }
 
@@ -52,19 +49,19 @@ form.addEventListener("submit", async (e) => {
   }
 
   try {
-    const res = await fetch(API, {
+    await apiFetch("/customers/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("Save failed");
     form.reset();
     showFlash("success", "Customer saved.");
     loadCustomers();
   } catch (err) {
-    console.error(err);
-    showFlash("error", "Unable to save customer.");
+    showFlash("error", err.message);
   }
 });
 
-loadCustomers();
+document.addEventListener("DOMContentLoaded", async () => {
+  await requireAuthPage();
+  loadCustomers();
+});

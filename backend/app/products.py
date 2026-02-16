@@ -1,25 +1,76 @@
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
+from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
-from backend.models import Product
+from backend.models import Product, User
 from backend.app.schemas import ProductCreate
 
 router = APIRouter(prefix="/products", tags=["Products"])
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+@router.post("/upload-image")
+async def upload_product_image(
+    file: UploadFile = File(...),
+    _: User = Depends(require_roles("admin", "super_admin")),
+):
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_IMAGE_EXT:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}{suffix}"
+    destination = uploads_dir / filename
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
+
+    destination.write_bytes(content)
+    return {"image_url": f"/uploads/{filename}"}
 
 @router.get("/")
-def get_products(db: Session = Depends(get_db)):
+def get_products(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     return db.query(Product).all()
+
+
+@router.get("/{product_id}")
+def get_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
 
 
 @router.post("/", status_code=201)   
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
+def create_product(
+    product: ProductCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("admin", "super_admin")),
+):
     new_product = Product(
         name=product.name,
         category=product.category,
         price=product.price,
         stock=product.stock,
-        description=product.description
+        description=product.description,
+        image_url=product.image_url,
 )
     db.add(new_product)
     db.commit()
@@ -31,7 +82,11 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     }
 
 @router.delete("/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("admin", "super_admin")),
+):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")

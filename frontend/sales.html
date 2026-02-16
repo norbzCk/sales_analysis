@@ -19,6 +19,7 @@
         <li><a href="orders.html">Orders</a></li>
         <li><a href="customers.html">Customers</a></li>
         <li><a class="active" href="sales.html">Sales</a></li>
+        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
@@ -27,6 +28,10 @@
         <div>
           <h1 class="page-title">Sales</h1>
           <p class="page-subtitle">Record sales quickly and keep an auditable trail.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="user-pill" id="currentUserLabel">-</span>
+          <button class="btn btn-secondary" id="logoutBtn" type="button">Logout</button>
         </div>
       </header>
 
@@ -65,6 +70,7 @@
     </main>
   </div>
 
+  <script src="js/session.js"></script>
   <script src="js/sales.js"></script>
 </body>
 </html>

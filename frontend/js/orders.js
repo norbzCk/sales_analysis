@@ -1,7 +1,8 @@
-const API = "http://127.0.0.1:8000/orders/";
 const table = document.getElementById("orderTable");
 const form = document.getElementById("orderForm");
 const flash = document.getElementById("orderFlash");
+const productSelect = document.getElementById("product_id");
+let currentUser = null;
 
 function formatMoney(value) {
   return `TZS ${Number(value || 0).toLocaleString()}`;
@@ -22,57 +23,74 @@ function row(order) {
       <td>${order.quantity ?? 0}</td>
       <td>${formatMoney(order.total)}</td>
       <td><span class="badge">${order.status ?? "Completed"}</span></td>
+      <td>${order.created_by ?? "-"}</td>
     </tr>
   `;
 }
 
 async function loadOrders() {
   try {
-    const res = await fetch(API);
-    if (!res.ok) throw new Error("Failed loading orders");
-    const data = await res.json();
+    const data = await apiFetch("/orders/");
     if (!data.length) {
-      table.innerHTML = `<tr><td class="empty" colspan="6">No orders yet</td></tr>`;
+      table.innerHTML = `<tr><td class="empty" colspan="7">No orders yet</td></tr>`;
       return;
     }
     table.innerHTML = data.map(row).join("");
   } catch (err) {
     console.error(err);
-    table.innerHTML = `<tr><td class="empty" colspan="6">Failed to load orders</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="7">${err.message}</td></tr>`;
   }
 }
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const payload = {
-    order_date: document.getElementById("order_date").value,
-    product: document.getElementById("product").value.trim(),
-    category: document.getElementById("category").value.trim(),
-    quantity: parseInt(document.getElementById("quantity").value, 10),
-    unit_price: parseFloat(document.getElementById("unit_price").value),
-  };
-
-  if (!payload.order_date || !payload.product || !payload.category || Number.isNaN(payload.quantity) || Number.isNaN(payload.unit_price)) {
-    showFlash("error", "Fill all order fields.");
-    return;
-  }
-
+async function loadProductsForOrders() {
+  if (!productSelect) return;
   try {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("Save failed");
-    form.reset();
-    showFlash("success", "Order created.");
-    loadOrders();
+    const products = await apiFetch("/products/");
+    const options = ['<option value="">Select product</option>'];
+    for (const product of products) {
+      if (Number(product.stock || 0) <= 0) continue;
+      options.push(`<option value="${product.id}">${product.name} (${product.category}) - Stock: ${product.stock}</option>`);
+    }
+    productSelect.innerHTML = options.join("");
   } catch (err) {
-    console.error(err);
-    showFlash("error", "Unable to create order.");
+    showFlash("error", err.message);
   }
-});
+}
 
-document.getElementById("order_date").valueAsDate = new Date();
-loadOrders();
+document.addEventListener("DOMContentLoaded", async () => {
+  currentUser = await requireAuthPage();
+  if (document.getElementById("order_date")) {
+    document.getElementById("order_date").valueAsDate = new Date();
+  }
+  if (currentUser?.role === "user") {
+    loadProductsForOrders();
+  }
+  loadOrders();
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+      order_date: document.getElementById("order_date").value,
+      product_id: parseInt(productSelect.value, 10),
+      quantity: parseInt(document.getElementById("quantity").value, 10),
+    };
+    if (!payload.order_date || Number.isNaN(payload.product_id) || Number.isNaN(payload.quantity) || payload.quantity <= 0) {
+      showFlash("error", "Choose a product and valid quantity.");
+      return;
+    }
+
+    try {
+      await apiFetch("/orders/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      form.reset();
+      document.getElementById("order_date").valueAsDate = new Date();
+      showFlash("success", "Order created.");
+      loadProductsForOrders();
+      loadOrders();
+    } catch (err) {
+      showFlash("error", err.message);
+    }
+  });
+});

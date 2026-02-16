@@ -19,6 +19,7 @@
         <li><a href="orders.html">Orders</a></li>
         <li><a href="customers.html">Customers</a></li>
         <li><a href="sales.html">Sales</a></li>
+        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
@@ -26,13 +27,17 @@
       <header class="topbar">
         <div>
           <h1 class="page-title">Products</h1>
-          <p class="page-subtitle">Manage inventory with quick add and delete actions.</p>
+          <p class="page-subtitle">Owner/Admin manage catalog. Customers can browse product details and place orders.</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="user-pill" id="currentUserLabel">-</span>
+          <button class="btn btn-secondary" id="logoutBtn" type="button">Logout</button>
         </div>
       </header>
 
       <div class="flash" id="productFlash"></div>
 
-      <section class="card">
+      <section class="card" id="productFormCard" data-role-min="admin">
         <h2 class="section-title">Add Product</h2>
         <form id="productForm" class="form-grid">
           <input id="name" placeholder="Product name" required>
@@ -40,31 +45,37 @@
           <input id="price" type="number" step="0.01" placeholder="Unit price" required>
           <input id="stock" type="number" step="1" min="0" placeholder="Stock" required>
           <input id="description" placeholder="Description">
+          <input id="image_url" placeholder="Image URL (https://...)">
+          <input id="image_file" type="file" accept="image/*">
           <button class="btn btn-primary" type="submit">Save Product</button>
         </form>
       </section>
 
       <section class="card" style="margin-top: 18px;">
         <h2 class="section-title">Product Catalog</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Description</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="product-list"></tbody>
-          </table>
+        <p class="muted" id="productRoleHint" style="margin-bottom: 10px;"></p>
+        <div class="catalog-toolbar">
+          <input id="productSearch" placeholder="Search product or category">
+          <select id="productSort">
+            <option value="featured">Sort: Featured</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+            <option value="stock_high">Stock: High to Low</option>
+          </select>
+          <button class="btn btn-secondary" id="refreshProducts" type="button">Refresh</button>
+          <span class="badge cart-badge" id="cartCountBadge">Cart: 0</span>
         </div>
+        <div id="product-list" class="product-grid"></div>
+      </section>
+
+      <section class="card" style="margin-top: 18px;" id="productViewCard">
+        <h2 class="section-title">Product View</h2>
+        <div id="productViewContent" class="muted">Select "View" from a product row to see details.</div>
       </section>
     </main>
   </div>
 
+  <script src="js/session.js"></script>
   <script src="js/products.js"></script>
 </body>
 </html>

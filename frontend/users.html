@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Customers | SalesSys</title>
+  <title>Users | SalesSys</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -17,17 +17,17 @@
         <li><a href="index.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
         <li><a href="orders.html">Orders</a></li>
-        <li><a class="active" href="customers.html">Customers</a></li>
+        <li><a href="customers.html">Customers</a></li>
         <li><a href="sales.html">Sales</a></li>
-        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
+        <li><a class="active role-admin" data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <h1 class="page-title">Customers</h1>
-          <p class="page-subtitle">Keep customer contacts organized for easier follow-up.</p>
+          <h1 class="page-title">User Administration</h1>
+          <p class="page-subtitle">Create and review users by role.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -35,32 +35,37 @@
         </div>
       </header>
 
-      <div class="flash" id="customerFlash"></div>
+      <div class="flash" id="usersFlash"></div>
 
-      <section class="card">
-        <h2 class="section-title">Add Customer</h2>
-        <form id="customerForm" class="form-grid">
-          <input id="name" placeholder="Customer name" required>
-          <input id="email" type="email" placeholder="Email address">
-          <input id="phone" placeholder="Phone number">
-          <input id="location" placeholder="Location">
-          <button class="btn btn-primary" type="submit">Save Customer</button>
+      <section class="card" data-role-min="admin">
+        <h2 class="section-title">Create User</h2>
+        <form id="userForm" class="form-grid">
+          <input id="name" placeholder="Full name" required>
+          <input id="email" type="email" placeholder="Email" required>
+          <input id="password" type="password" placeholder="Password (8+ chars)" required>
+          <select id="role" required>
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+            <option value="super_admin">super_admin</option>
+          </select>
+          <button class="btn btn-primary" type="submit">Create User</button>
         </form>
       </section>
 
       <section class="card" style="margin-top: 18px;">
-        <h2 class="section-title">Customer List</h2>
+        <h2 class="section-title">User List</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Phone</th>
-                <th>Location</th>
+                <th>Role</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody id="customerTable"></tbody>
+            <tbody id="usersTable"></tbody>
           </table>
         </div>
       </section>
@@ -68,6 +73,6 @@
   </div>
 
   <script src="js/session.js"></script>
-  <script src="js/customers.js"></script>
+  <script src="js/users.js"></script>
 </body>
 </html>
