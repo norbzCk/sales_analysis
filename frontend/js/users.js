@@ -38,7 +38,11 @@ async function loadUsers() {
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
   if (!currentUser || !(currentUser.role === "admin" || currentUser.role === "super_admin")) {
-    window.location.href = "index.html";
+    if (currentUser) {
+      redirectToPostLogin(currentUser);
+    } else {
+      window.location.href = "login.html";
+    }
     return;
   }
 

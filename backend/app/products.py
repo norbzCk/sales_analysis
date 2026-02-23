@@ -45,6 +45,24 @@ def get_products(
     return db.query(Product).all()
 
 
+@router.get("/public")
+def get_public_products(
+    db: Session = Depends(get_db),
+):
+    items = db.query(Product).order_by(Product.id.desc()).limit(12).all()
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "category": p.category,
+            "price": p.price,
+            "image_url": p.image_url,
+            "in_stock": bool((p.stock or 0) > 0),
+        }
+        for p in items
+    ]
+
+
 @router.get("/{product_id}")
 def get_product(
     product_id: int,

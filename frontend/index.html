@@ -14,12 +14,15 @@
     <aside class="sidebar">
       <div class="brand">SalesSys</div>
       <ul class="nav-links">
-        <li><a class="active" href="index.html">Dashboard</a></li>
+        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+        <li><a class="active" data-role-min="admin" href="index.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
-        <li><a href="orders.html">Orders</a></li>
-        <li><a href="customers.html">Customers</a></li>
-        <li><a href="sales.html">Sales</a></li>
-        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
+        <li><a href="orders.html">My Orders</a></li>
+        <li><a data-role-only="user" href="payments.html">Payments</a></li>
+        <li><a data-role-only="user" href="profile.html">Profile</a></li>
+        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
+        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
+        <li><a data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 

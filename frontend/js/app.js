@@ -194,7 +194,11 @@ async function initDashboard() {
 document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("refreshDashboard")?.addEventListener("click", initDashboard);
   try {
-    await requireAuthPage();
+    const currentUser = await requireAuthPage();
+    if (!currentUser || currentUser.role === "user") {
+      window.location.href = "customer-dashboard.html";
+      return;
+    }
     await initDashboard();
   } catch (err) {
     console.error("Dashboard failed", err);

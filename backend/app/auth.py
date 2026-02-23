@@ -98,6 +98,47 @@ def require_roles(*allowed: str):
     return checker
 
 
+@router.post("/register")
+def register(payload: dict, db: Session = Depends(get_db)):
+    name = (payload.get("name") or "").strip()
+    email = (payload.get("email") or "").strip().lower()
+    password = payload.get("password") or ""
+
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    model = User(
+        name=name,
+        email=email,
+        phone=(payload.get("phone") or "").strip() or None,
+        address=(payload.get("address") or "").strip() or None,
+        password_hash=hash_password(password),
+        role="user",
+        is_active=True,
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+
+    return {
+        "id": model.id,
+        "name": model.name,
+        "email": model.email,
+        "phone": model.phone,
+        "address": model.address,
+        "role": model.role,
+        "is_active": model.is_active,
+    }
+
+
 @router.post("/login")
 def login(payload: dict, db: Session = Depends(get_db)):
     email = (payload.get("email") or "").strip().lower()
@@ -128,9 +169,59 @@ def me(current: User = Depends(get_current_user)):
         "id": current.id,
         "name": current.name,
         "email": current.email,
+        "phone": current.phone,
+        "address": current.address,
         "role": current.role,
         "is_active": current.is_active,
     }
+
+
+@router.put("/me")
+def update_me(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    name = (payload.get("name") or current.name or "").strip()
+    phone = (payload.get("phone") or "").strip() or None
+    address = (payload.get("address") or "").strip() or None
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
+
+    current.name = name
+    current.phone = phone
+    current.address = address
+    db.add(current)
+    db.commit()
+    db.refresh(current)
+    return {
+        "id": current.id,
+        "name": current.name,
+        "email": current.email,
+        "phone": current.phone,
+        "address": current.address,
+        "role": current.role,
+        "is_active": current.is_active,
+    }
+
+
+@router.post("/change-password")
+def change_password(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    current_password = payload.get("current_password") or ""
+    new_password = payload.get("new_password") or ""
+    if not verify_password(current_password, current.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+    current.password_hash = hash_password(new_password)
+    db.add(current)
+    db.commit()
+    return {"message": "Password updated"}
 
 
 @router.post("/users")

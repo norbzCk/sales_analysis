@@ -3,32 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login | SalesSys</title>
+  <title>Welcome | SalesSys</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <main class="main" style="max-width: 520px; margin: 40px auto;">
-    <section class="card">
-      <h1 class="page-title">SalesSys Login</h1>
-      <p class="page-subtitle" style="margin-bottom: 16px;">Sign in with your role-based account.</p>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-hero">
+      <p class="auth-kicker">SalesSys</p>
+      <p><a href="home.html">Back to public site</a></p>
+      <h1 class="auth-title">Real sales operations start with secure access.</h1>
+      <p class="auth-copy">Create your account first, then sign in to manage products, customers, and sales in one place.</p>
+      <ul class="auth-points">
+        <li>Register a personal account in under a minute</li>
+        <li>Sign in and continue where you left off</li>
+        <li>Protected dashboard and business modules</li>
+      </ul>
+    </section>
 
-      <div class="flash" id="loginFlash"></div>
-
-      <form id="loginForm" class="grid" style="gap: 12px;">
-        <input id="email" type="email" placeholder="Email" required>
-        <input id="password" type="password" placeholder="Password" required>
-        <button class="btn btn-primary" type="submit">Sign In</button>
-      </form>
-
-      <div class="card" style="margin-top: 14px; background: #f7fbfa; border-style: dashed;">
-        <p class="muted">Default users from `backend/init_db.py`:</p>
-        <p class="muted">`owner@sales.local / Owner@1234` (super_admin)</p>
-        <p class="muted">`admin@sales.local / Admin@1234` (admin)</p>
-        <p class="muted">`user@sales.local / User@1234` (user)</p>
+    <section class="card auth-card" id="authCard" data-mode="login">
+      <div class="auth-tabs" role="tablist" aria-label="Authentication options">
+        <button class="auth-tab active" type="button" role="tab" aria-selected="true" data-mode="login">Login</button>
+        <button class="auth-tab" type="button" role="tab" aria-selected="false" data-mode="register">Register</button>
       </div>
+
+      <section class="auth-panel active" data-mode="login">
+        <h2 class="section-title">Sign in</h2>
+        <p class="muted auth-subtitle">Enter your account credentials to continue.</p>
+
+        <div class="flash" id="loginFlash"></div>
+
+        <form id="loginForm" class="grid auth-form">
+          <input id="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          <button class="btn btn-primary" type="submit">Sign In</button>
+        </form>
+      </section>
+
+      <section class="auth-panel" data-mode="register">
+        <h2 class="section-title">Create account</h2>
+        <p class="muted auth-subtitle">Register first, then use your new account to log in.</p>
+
+        <div class="flash" id="registerFlash"></div>
+
+        <form id="registerForm" class="grid auth-form">
+          <input id="registerName" placeholder="Full name" autocomplete="name" required>
+          <input id="registerEmail" type="email" placeholder="Email" autocomplete="email" required>
+          <input id="registerPassword" type="password" placeholder="Password (8+ chars, letters + numbers)" autocomplete="new-password" required>
+          <input id="registerConfirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
+          <button class="btn btn-primary" type="submit">Create Account</button>
+        </form>
+      </section>
     </section>
   </main>
 

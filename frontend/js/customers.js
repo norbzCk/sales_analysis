@@ -62,6 +62,14 @@ form.addEventListener("submit", async (e) => {
 });
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await requireAuthPage();
+  const currentUser = await requireAuthPage();
+  if (!currentUser || currentUser.role !== "super_admin") {
+    if (currentUser) {
+      redirectToPostLogin(currentUser);
+    } else {
+      window.location.href = "login.html";
+    }
+    return;
+  }
   loadCustomers();
 });

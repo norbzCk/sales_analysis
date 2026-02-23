@@ -14,12 +14,15 @@
     <aside class="sidebar">
       <div class="brand">SalesSys</div>
       <ul class="nav-links">
-        <li><a href="index.html">Dashboard</a></li>
+        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
-        <li><a class="active" href="orders.html">Orders</a></li>
-        <li><a href="customers.html">Customers</a></li>
-        <li><a href="sales.html">Sales</a></li>
-        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
+        <li><a class="active" href="orders.html">My Orders</a></li>
+        <li><a data-role-only="user" href="payments.html">Payments</a></li>
+        <li><a data-role-only="user" href="profile.html">Profile</a></li>
+        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
+        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
+        <li><a data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
@@ -27,7 +30,7 @@
       <header class="topbar">
         <div>
           <h1 class="page-title">Orders</h1>
-          <p class="page-subtitle">Customers place orders from product catalog. Admin/Owner can track all orders.</p>
+          <p class="page-subtitle">Create orders from available products and track all recent order activity.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -51,27 +54,58 @@
 
       <section class="card" data-role-except="user">
         <h2 class="section-title">Order Entry</h2>
-        <p class="muted">Only customers can create new orders. You can review all submitted orders below.</p>
+        <p class="muted">Order creation is available from customer accounts. You can review all submitted orders below.</p>
       </section>
 
       <section class="card" style="margin-top: 18px;">
         <h2 class="section-title">Recent Orders</h2>
+        <div class="order-insights" id="orderInsights">
+          <article class="card">
+            <p class="stat-label">Total Orders</p>
+            <p class="stat-value" id="orderTotalCount">0</p>
+          </article>
+          <article class="card">
+            <p class="stat-label">Open Orders</p>
+            <p class="stat-value" id="orderOpenCount">0</p>
+          </article>
+          <article class="card">
+            <p class="stat-label">Delivered</p>
+            <p class="stat-value" id="orderDeliveredCount">0</p>
+          </article>
+        </div>
+        <div class="catalog-toolbar" style="margin-top: 12px;">
+          <input id="orderSearch" placeholder="Search by product or category">
+          <select id="orderStatusFilter" title="Filter order status">
+            <option value="all">Status: All</option>
+            <option value="Processing">Processing</option>
+            <option value="Shipped">Shipped</option>
+            <option value="Delivered">Delivered</option>
+          </select>
+          <button class="btn btn-secondary" id="refreshOrders" type="button">Refresh</button>
+          <span class="badge" id="ordersShownBadge">Showing: 0</span>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>Order ID</th>
                 <th>Date</th>
                 <th>Product</th>
                 <th>Category</th>
                 <th>Qty</th>
                 <th>Total</th>
-                <th>Status</th>
-                <th>By User</th>
+                <th>Payment</th>
+                <th>Delivery</th>
               </tr>
             </thead>
             <tbody id="orderTable"></tbody>
           </table>
         </div>
+      </section>
+
+      <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Order Tracking</h2>
+        <div id="orderTrackingPanel" class="muted">Select an order to view its shipping progress.</div>
       </section>
     </main>
   </div>

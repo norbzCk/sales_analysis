@@ -22,7 +22,7 @@ def _sales_query_for_current_user(db: Session, current: User):
 @router.get("/sales/")
 def get_sales(
     db: Session = Depends(get_db),
-    current: User = Depends(get_current_user),
+    current: User = Depends(require_roles("super_admin")),
 ):
     query = _sales_query_for_current_user(db, current)
     sales = query.order_by(Sale.date.desc(), Sale.id.desc()).all()
@@ -45,7 +45,7 @@ def get_sales(
 def create_sale(
     payload: dict,
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("user", "admin", "super_admin")),
+    current: User = Depends(require_roles("super_admin")),
 ):
     sale_date = payload.get("date")
     model = Sale(

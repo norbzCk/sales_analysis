@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Users | SalesSys</title>
+  <title>My Dashboard | SalesSys</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -14,23 +14,23 @@
     <aside class="sidebar">
       <div class="brand">SalesSys</div>
       <ul class="nav-links">
-        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
+        <li><a class="active" data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
         <li><a href="orders.html">My Orders</a></li>
         <li><a data-role-only="user" href="payments.html">Payments</a></li>
         <li><a data-role-only="user" href="profile.html">Profile</a></li>
+        <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
         <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
         <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
-        <li><a class="active" data-role-min="admin" href="users.html">Users</a></li>
+        <li><a data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <h1 class="page-title">User Administration</h1>
-          <p class="page-subtitle">Create and review user accounts and access levels.</p>
+          <h1 class="page-title">Welcome Back</h1>
+          <p class="page-subtitle">Track your latest orders and account activity.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -38,37 +38,45 @@
         </div>
       </header>
 
-      <div class="flash" id="usersFlash"></div>
-
-      <section class="card" data-role-min="admin">
-        <h2 class="section-title">Create User</h2>
-        <form id="userForm" class="form-grid">
-          <input id="name" placeholder="Full name" required>
-          <input id="email" type="email" placeholder="Email" required>
-          <input id="password" type="password" placeholder="Password (8+ chars)" required>
-          <select id="role" required>
-            <option value="user">user</option>
-            <option value="admin">admin</option>
-            <option value="super_admin">super_admin</option>
-          </select>
-          <button class="btn btn-primary" type="submit">Create User</button>
-        </form>
+      <section class="grid grid-4">
+        <article class="card">
+          <p class="stat-label">Recent Orders</p>
+          <p class="stat-value" id="cdOrdersCount">0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Pending Orders</p>
+          <p class="stat-value" id="cdPendingCount">0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Delivered Orders</p>
+          <p class="stat-value" id="cdDeliveredCount">0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Total Spent</p>
+          <p class="stat-value" id="cdTotalSpent">TZS 0</p>
+        </article>
       </section>
 
       <section class="card" style="margin-top: 18px;">
-        <h2 class="section-title">User List</h2>
+        <h2 class="section-title">Notifications</h2>
+        <ul id="cdNotifications" class="notice-list"></ul>
+      </section>
+
+      <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Recent Orders</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Total</th>
                 <th>Status</th>
               </tr>
             </thead>
-            <tbody id="usersTable"></tbody>
+            <tbody id="cdOrdersTable"></tbody>
           </table>
         </div>
       </section>
@@ -76,6 +84,6 @@
   </div>
 
   <script src="js/session.js"></script>
-  <script src="js/users.js"></script>
+  <script src="js/customer-dashboard.js"></script>
 </body>
 </html>

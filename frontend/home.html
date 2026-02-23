@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SalesSys | Welcome</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="public-page">
+  <header class="public-nav">
+    <div class="public-brand">
+      <div class="public-logo" aria-hidden="true">SS</div>
+      <div>
+        <p class="auth-kicker">SalesSys</p>
+        <p class="muted">Business Commerce Platform</p>
+      </div>
+    </div>
+    <div class="public-actions">
+      <a class="btn btn-secondary" href="login.html">Login</a>
+      <a class="btn btn-primary" href="login.html?mode=register">Register</a>
+    </div>
+  </header>
+
+  <main class="public-wrap">
+    <section class="public-hero">
+      <h1 class="public-title">Modern ordering for serious businesses.</h1>
+      <p class="public-subtitle">Browse products, place orders, and track fulfillment with confidence.</p>
+    </section>
+
+    <section class="card" style="margin-top: 18px;">
+      <h2 class="section-title">Products Preview</h2>
+      <p class="muted">Public preview of our latest products.</p>
+      <div class="public-toolbar">
+        <input id="publicSearch" placeholder="Search product or category">
+        <select id="publicSort" title="Sort products">
+          <option value="featured">Sort: Featured</option>
+          <option value="price_low">Price: Low to High</option>
+          <option value="price_high">Price: High to Low</option>
+          <option value="in_stock">In stock first</option>
+        </select>
+        <span class="badge" id="publicShownBadge">Showing: 0</span>
+      </div>
+      <div id="publicCategories" class="public-categories"></div>
+      <div id="publicProducts" class="public-product-grid"></div>
+    </section>
+
+    <section class="public-contact card" style="margin-top: 18px;">
+      <h2 class="section-title">Contact</h2>
+      <div class="public-contact-grid">
+        <p><strong>Email:</strong> sales@yourcompany.com</p>
+        <p><strong>Phone:</strong> +255 700 000 000</p>
+        <p><strong>Address:</strong> Dar es Salaam, Tanzania</p>
+        <p><strong>Working Hours:</strong> Mon - Sat, 08:00 - 18:00</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="public-modal" id="publicModal">
+    <div class="public-modal-card">
+      <button class="public-modal-close" id="publicModalClose" type="button">Close</button>
+      <div id="publicModalBody"></div>
+      <div class="public-modal-actions">
+        <a class="btn btn-secondary" href="login.html">Login to Continue</a>
+        <a class="btn btn-primary" href="login.html?mode=register">Create Account</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/session.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

@@ -14,12 +14,15 @@
     <aside class="sidebar">
       <div class="brand">SalesSys</div>
       <ul class="nav-links">
-        <li><a href="index.html">Dashboard</a></li>
+        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
         <li><a class="active" href="products.html">Products</a></li>
-        <li><a href="orders.html">Orders</a></li>
-        <li><a href="customers.html">Customers</a></li>
-        <li><a href="sales.html">Sales</a></li>
-        <li><a class="role-admin" data-role-min="admin" href="users.html">Users</a></li>
+        <li><a href="orders.html">My Orders</a></li>
+        <li><a data-role-only="user" href="payments.html">Payments</a></li>
+        <li><a data-role-only="user" href="profile.html">Profile</a></li>
+        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
+        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
+        <li><a data-role-min="admin" href="users.html">Users</a></li>
       </ul>
     </aside>
 
@@ -27,7 +30,7 @@
       <header class="topbar">
         <div>
           <h1 class="page-title">Products</h1>
-          <p class="page-subtitle">Owner/Admin manage catalog. Customers can browse product details and place orders.</p>
+          <p class="page-subtitle">Browse the catalog, compare pricing, and open full product details instantly.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -45,18 +48,17 @@
           <input id="price" type="number" step="0.01" placeholder="Unit price" required>
           <input id="stock" type="number" step="1" min="0" placeholder="Stock" required>
           <input id="description" placeholder="Description">
-          <input id="image_url" placeholder="Image URL (https://...)">
-          <input id="image_file" type="file" accept="image/*">
+          <input id="image_file" type="file" accept="image/*" placeholder="Product image">
           <button class="btn btn-primary" type="submit">Save Product</button>
         </form>
       </section>
 
-      <section class="card" style="margin-top: 18px;">
+      <section class="card catalog-section">
         <h2 class="section-title">Product Catalog</h2>
-        <p class="muted" id="productRoleHint" style="margin-bottom: 10px;"></p>
+        <p class="muted product-role-hint" id="productRoleHint">Loading product catalog...</p>
         <div class="catalog-toolbar">
           <input id="productSearch" placeholder="Search product or category">
-          <select id="productSort">
+          <select id="productSort" title="Sort products by">
             <option value="featured">Sort: Featured</option>
             <option value="price_low">Price: Low to High</option>
             <option value="price_high">Price: High to Low</option>
@@ -68,9 +70,9 @@
         <div id="product-list" class="product-grid"></div>
       </section>
 
-      <section class="card" style="margin-top: 18px;" id="productViewCard">
-        <h2 class="section-title">Product View</h2>
-        <div id="productViewContent" class="muted">Select "View" from a product row to see details.</div>
+      <section class="card product-view-section" id="productViewCard">
+        <h2 class="section-title">Selected Product</h2>
+        <div id="productViewContent" class="muted">Choose any product card to preview details here.</div>
       </section>
     </main>
   </div>

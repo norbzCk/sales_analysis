@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from backend.app.auth import get_current_user, require_roles
+from backend.app.auth import require_roles
 from backend.app.schemas import CustomerCreate
 from backend.database import get_db
 from backend.models import Customer, User
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 @router.get("/")
 def get_customers(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("super_admin")),
 ):
     return db.query(Customer).all()
 
@@ -22,7 +22,7 @@ def get_customers(
 def create_customer(
     customer: CustomerCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("user", "admin", "super_admin")),
+    _: User = Depends(require_roles("super_admin")),
 ):
     new_customer = Customer(
         name=customer.name,

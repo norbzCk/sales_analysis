@@ -12,9 +12,10 @@ const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6b
 
 let currentUser = null;
 let allProducts = [];
+let selectedProductId = null;
 
 function formatMoney(value) {
-  return `TZS ${Number(value || 0).toLocaleString()}`;
+  return `TZS ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 function escapeHtml(value) {
@@ -24,6 +25,14 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function resolveImageUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return FALLBACK_IMAGE;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/")) return `${window.API_BASE}${raw}`;
+  return `${window.API_BASE}/${raw.replace(/^\/+/, "")}`;
 }
 
 function showFlash(type, message) {
@@ -69,15 +78,35 @@ function canOrder() {
   return currentUser && currentUser.role === "user";
 }
 
+function stockLabel(stock) {
+  const units = Number(stock || 0);
+  if (units <= 0) return "Out of stock";
+  if (canManage()) {
+    if (units < 5) return `Only ${units} left`;
+    return `In stock: ${units}`;
+  }
+  return "In stock";
+}
+
+function renderStars(ratingValue) {
+  const rating = Number(ratingValue || 0);
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return `${"★".repeat(full)}${half ? "☆" : ""}${"✩".repeat(empty)}`;
+}
+
 function card(product) {
-  const outOfStock = Number(product.stock || 0) <= 0;
+  const stock = Number(product.stock || 0);
+  const outOfStock = stock <= 0;
   const rating = productRating(product);
   const sold = soldCount(product);
+  const imageUrl = resolveImageUrl(product.image_url);
 
   return `
-    <article class="product-card reveal-item" data-product-id="${product.id}">
+    <article class="product-card reveal-item" data-product-id="${product.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(product.name || "product")} details">
       <div class="product-media-wrap">
-        <img class="product-media" src="${escapeHtml(product.image_url || FALLBACK_IMAGE)}" alt="${escapeHtml(product.name || "Product image")}" loading="lazy" onerror="this.src='${FALLBACK_IMAGE}'">
+        <img class="product-media" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || "Product image")}" loading="lazy" onerror="this.src='${FALLBACK_IMAGE}'">
         <span class="badge product-category">${escapeHtml(product.category || "General")}</span>
       </div>
       <div class="product-body">
@@ -85,19 +114,20 @@ function card(product) {
         <p class="product-desc">${escapeHtml(product.description || "No description available")}</p>
 
         <div class="product-meta">
-          <span class="rating-stars">${"★".repeat(4)}☆</span>
-          <span class="muted">${rating} | ${sold}+ sold</span>
+          <span class="rating-stars" title="Rating">${renderStars(rating)}</span>
+          <span class="muted">${rating} rating</span>
+          <span class="muted">${sold}+ sold</span>
         </div>
 
         <div class="product-row">
           <p class="product-price">${formatMoney(product.price)}</p>
-          <p class="stock ${outOfStock ? "out" : "in"}">${outOfStock ? "Out of stock" : `Stock: ${product.stock}`}</p>
+          <p class="stock ${outOfStock ? "out" : "in"}">${stockLabel(stock)}</p>
         </div>
 
-        <div class="product-actions">
-          <button class="btn btn-secondary" onclick="viewProduct(${product.id})">View</button>
+        <div class="product-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary" onclick="viewProduct(${product.id})">Quick View</button>
           ${canManage() ? `<button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>` : ""}
-          ${canOrder() ? `<button class="btn btn-secondary" ${outOfStock ? "disabled" : ""} onclick="addToCart(${product.id})">Add to Cart</button>` : ""}
+          ${canOrder() ? `<button class="btn btn-secondary" ${outOfStock ? "disabled" : ""} onclick="addToCart()">Add to Cart</button>` : ""}
           ${canOrder() ? `<button class="btn btn-primary" ${outOfStock ? "disabled" : ""} onclick="orderProduct(${product.id})">Buy Now</button>` : ""}
         </div>
       </div>
@@ -122,25 +152,75 @@ function applyFilters(products) {
   } else if (sort === "stock_high") {
     filtered = filtered.sort((a, b) => Number(b.stock || 0) - Number(a.stock || 0));
   } else {
-    filtered = filtered.sort((a, b) => (Number(a.id || 0) - Number(b.id || 0)));
+    filtered = filtered.sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
   }
 
   return filtered;
 }
 
+function bindCardEvents() {
+  const cards = [...grid.querySelectorAll(".product-card")];
+  cards.forEach((el, idx) => {
+    setTimeout(() => el.classList.add("is-visible"), 55 * idx);
+    el.addEventListener("click", () => viewProduct(Number(el.dataset.productId)));
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        viewProduct(Number(el.dataset.productId));
+      }
+    });
+  });
+}
+
+function updateCatalogHint(visibleCount) {
+  const total = allProducts.length;
+  roleHint.textContent = `${visibleCount} of ${total} products shown.`;
+}
+
 function renderProducts() {
   const items = applyFilters(allProducts);
   if (!items.length) {
+    updateCatalogHint(0);
     grid.innerHTML = `<div class="empty">No products found for this filter.</div>`;
     return;
   }
 
   grid.innerHTML = items.map(card).join("");
+  updateCatalogHint(items.length);
+  bindCardEvents();
 
-  const cards = [...grid.querySelectorAll(".reveal-item")];
-  cards.forEach((el, idx) => {
-    setTimeout(() => el.classList.add("is-visible"), 70 * idx);
-  });
+  if (selectedProductId && items.some((p) => Number(p.id) === Number(selectedProductId))) {
+    const selectedCard = grid.querySelector(`[data-product-id="${selectedProductId}"]`);
+    selectedCard?.classList.add("selected");
+  }
+}
+
+function findProduct(productId) {
+  return allProducts.find((item) => Number(item.id) === Number(productId)) || null;
+}
+
+function renderProductView(product) {
+  const rating = productRating(product);
+  const sold = soldCount(product);
+  const imageUrl = resolveImageUrl(product.image_url);
+
+  productView.innerHTML = `
+    <div class="product-view-panel">
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || "Product")}" class="product-view-image" onerror="this.src='${FALLBACK_IMAGE}'">
+      <div>
+        <h3 class="product-view-name">${escapeHtml(product.name || "Unnamed product")}</h3>
+        <p class="product-view-price">${formatMoney(product.price)}</p>
+        <div class="product-meta">
+          <span class="rating-stars">${renderStars(rating)}</span>
+          <span class="muted">${rating} rating</span>
+          <span class="muted">${sold}+ sold</span>
+        </div>
+        <p class="product-view-line"><strong>Category:</strong> ${escapeHtml(product.category || "-")}</p>
+        <p class="product-view-line"><strong>Availability:</strong> ${stockLabel(product.stock)}</p>
+        <p class="product-view-description">${escapeHtml(product.description || "No description available for this item.")}</p>
+      </div>
+    </div>
+  `;
 }
 
 async function fetchProducts() {
@@ -150,8 +230,13 @@ async function fetchProducts() {
     const products = await apiFetch("/products/");
     allProducts = Array.isArray(products) ? products : [];
     renderProducts();
+
+    if (!selectedProductId && allProducts.length) {
+      viewProduct(allProducts[0].id);
+    }
   } catch (err) {
     console.error(err);
+    roleHint.textContent = "Catalog unavailable right now.";
     grid.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
   } finally {
     refreshBtn.disabled = false;
@@ -161,20 +246,14 @@ async function fetchProducts() {
 
 async function viewProduct(id) {
   try {
-    const product = await apiFetch(`/products/${id}`);
-    productView.innerHTML = `
-      <div class="product-view-panel">
-        <img src="${escapeHtml(product.image_url || FALLBACK_IMAGE)}" alt="${escapeHtml(product.name)}" class="product-view-image" onerror="this.src='${FALLBACK_IMAGE}'">
-        <div>
-          <p><strong>Name:</strong> ${escapeHtml(product.name || "-")}</p>
-          <p><strong>Category:</strong> ${escapeHtml(product.category || "-")}</p>
-          <p><strong>Unit Price:</strong> ${formatMoney(product.price)}</p>
-          <p><strong>Available Stock:</strong> ${product.stock ?? 0}</p>
-          <p><strong>Description:</strong> ${escapeHtml(product.description || "-")}</p>
-          <p><strong>Image URL:</strong> ${escapeHtml(product.image_url || "-")}</p>
-        </div>
-      </div>
-    `;
+    const cached = findProduct(id);
+    const product = cached || await apiFetch(`/products/${id}`);
+    selectedProductId = Number(product.id);
+    renderProductView(product);
+
+    [...grid.querySelectorAll(".product-card")].forEach((el) => {
+      el.classList.toggle("selected", Number(el.dataset.productId) === selectedProductId);
+    });
   } catch (err) {
     productView.textContent = err.message;
   }
@@ -211,32 +290,77 @@ async function orderProduct(id) {
   }
 }
 
-form?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const payload = {
-    name: document.getElementById("name").value.trim(),
-    category: document.getElementById("category").value.trim(),
-    price: parseFloat(document.getElementById("price").value),
-    stock: parseInt(document.getElementById("stock").value, 10),
-    description: document.getElementById("description").value.trim(),
-    image_url: document.getElementById("image_url").value.trim() || null,
-  };
+async function uploadProductImage(file) {
+  const formData = new FormData();
+  formData.append("file", file);
 
-  if (!payload.name || !payload.category || Number.isNaN(payload.price) || Number.isNaN(payload.stock)) {
-    showFlash("error", "Fill all required product fields.");
-    return;
+  const token = getToken();
+  const response = await fetch(`${window.API_BASE}/products/upload-image`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let detail = "Image upload failed";
+    try {
+      const data = await response.json();
+      detail = data.detail || detail;
+    } catch (_err) {
+      const text = await response.text();
+      detail = text || detail;
+    }
+    throw new Error(detail);
   }
 
+  const data = await response.json();
+  return data.image_url || null;
+}
+
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Saving...";
+
   try {
+    const fileInput = document.getElementById("image_file");
+    const selectedFile = fileInput?.files?.[0] || null;
+    let imageUrl = null;
+
+    if (selectedFile) {
+      imageUrl = await uploadProductImage(selectedFile);
+    }
+
+    const payload = {
+      name: document.getElementById("name").value.trim(),
+      category: document.getElementById("category").value.trim(),
+      price: parseFloat(document.getElementById("price").value),
+      stock: parseInt(document.getElementById("stock").value, 10),
+      description: document.getElementById("description").value.trim(),
+      image_url: imageUrl,
+    };
+
+    if (!payload.name || !payload.category || Number.isNaN(payload.price) || Number.isNaN(payload.stock)) {
+      showFlash("error", "Fill all required product fields.");
+      return;
+    }
+
     await apiFetch("/products/", {
       method: "POST",
       body: JSON.stringify(payload),
     });
+
     form.reset();
     showFlash("success", "Product saved successfully.");
     fetchProducts();
   } catch (err) {
     showFlash("error", err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Save Product";
   }
 });
 
@@ -245,6 +369,12 @@ async function deleteProduct(id) {
   try {
     await apiFetch(`/products/${id}`, { method: "DELETE" });
     showFlash("success", "Product deleted.");
+
+    if (Number(selectedProductId) === Number(id)) {
+      selectedProductId = null;
+      productView.textContent = "Choose any product card to preview details here.";
+    }
+
     fetchProducts();
   } catch (err) {
     showFlash("error", err.message);
@@ -253,14 +383,6 @@ async function deleteProduct(id) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
-  if (currentUser?.role === "user") {
-    roleHint.textContent = "Customer mode: compare, add items to cart, then buy now.";
-  } else if (currentUser?.role === "super_admin") {
-    roleHint.textContent = "Owner mode: upload product details and image URLs to curate the catalog.";
-  } else {
-    roleHint.textContent = "Admin mode: maintain stock, pricing, and product content.";
-  }
-
   updateCartBadge();
   fetchProducts();
 

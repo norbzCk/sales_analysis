@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Customers | SalesSys</title>
+  <title>Payments | SalesSys</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -15,12 +15,12 @@
       <div class="brand">SalesSys</div>
       <ul class="nav-links">
         <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
         <li><a href="orders.html">My Orders</a></li>
-        <li><a data-role-only="user" href="payments.html">Payments</a></li>
+        <li><a class="active" data-role-only="user" href="payments.html">Payments</a></li>
         <li><a data-role-only="user" href="profile.html">Profile</a></li>
-        <li><a class="active" data-role-only="super_admin" href="customers.html">Customers</a></li>
+        <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
+        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
         <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
         <li><a data-role-min="admin" href="users.html">Users</a></li>
       </ul>
@@ -29,8 +29,8 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <h1 class="page-title">Customers</h1>
-          <p class="page-subtitle">Keep customer contacts organized for easier follow-up.</p>
+          <h1 class="page-title">Payments</h1>
+          <p class="page-subtitle">Review your payment history and outstanding balance.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -38,32 +38,39 @@
         </div>
       </header>
 
-      <div class="flash" id="customerFlash"></div>
-
-      <section class="card">
-        <h2 class="section-title">Add Customer</h2>
-        <form id="customerForm" class="form-grid">
-          <input id="name" placeholder="Customer name" required>
-          <input id="email" type="email" placeholder="Email address">
-          <input id="phone" placeholder="Phone number">
-          <input id="location" placeholder="Location">
-          <button class="btn btn-primary" type="submit">Save Customer</button>
-        </form>
+      <section class="grid grid-4">
+        <article class="card">
+          <p class="stat-label">Total Orders Value</p>
+          <p class="stat-value" id="payTotalValue">TZS 0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Paid Amount</p>
+          <p class="stat-value" id="payPaidAmount">TZS 0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Balance Remaining</p>
+          <p class="stat-value" id="payBalance">TZS 0</p>
+        </article>
+        <article class="card">
+          <p class="stat-label">Paid Orders</p>
+          <p class="stat-value" id="payPaidOrders">0</p>
+        </article>
       </section>
 
       <section class="card" style="margin-top: 18px;">
-        <h2 class="section-title">Customer List</h2>
+        <h2 class="section-title">Payment History</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Location</th>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Total</th>
+                <th>Payment Status</th>
               </tr>
             </thead>
-            <tbody id="customerTable"></tbody>
+            <tbody id="paymentsTable"></tbody>
           </table>
         </div>
       </section>
@@ -71,6 +78,6 @@
   </div>
 
   <script src="js/session.js"></script>
-  <script src="js/customers.js"></script>
+  <script src="js/payments.js"></script>
 </body>
 </html>

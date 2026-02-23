@@ -16,17 +16,20 @@ function clearSession() {
 
 function logout() {
   clearSession();
-  window.location.href = "login.html";
+  window.location.href = "home.html";
+}
+
+function getPostLoginPath(user) {
+  if (user?.role === "user") return "customer-dashboard.html";
+  return "index.html";
+}
+
+function redirectToPostLogin(user) {
+  window.location.href = getPostLoginPath(user);
 }
 
 function hasAdminAccess(role) {
   return role === "admin" || role === "super_admin";
-}
-
-function roleLabel(role) {
-  if (role === "super_admin") return "owner";
-  if (role === "admin") return "admin";
-  return "customer";
 }
 
 async function apiFetch(path, options = {}) {
@@ -83,7 +86,7 @@ async function requireAuthPage() {
 function applyUserToUi(user) {
   const label = document.getElementById("currentUserLabel");
   if (label && user) {
-    label.textContent = `${user.name} (${roleLabel(user.role)})`;
+    label.textContent = user.name;
   }
 
   const adminOnly = document.querySelectorAll('[data-role-min="admin"]');
