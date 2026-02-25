@@ -11,8 +11,12 @@ class Sale(Base):
     date = Column(Date)
     product = Column(String)
     category = Column(String)
+    product_id = Column(Integer, nullable=True)
     quantity = Column(Integer)
     unit_price = Column(Float)
+    status = Column(String, nullable=False, default="Pending")
+    rating = Column(Integer, nullable=True)
+    rated_at = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(Integer, nullable=True)
 
 
@@ -26,6 +30,8 @@ class Product(Base):
     stock = Column(Integer , nullable=False)
     description = Column(String)
     image_url = Column(String, nullable=True)
+    rating_avg = Column(Float, nullable=False, default=0.0)
+    rating_count = Column(Integer, nullable=False, default=0)
 
 class Customer(Base):
     __tablename__ = "customers"

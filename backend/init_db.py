@@ -39,6 +39,56 @@ session.execute(
     )
 )
 session.commit()
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS products
+        ADD COLUMN IF NOT EXISTS rating_avg DOUBLE PRECISION DEFAULT 0
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS products
+        ADD COLUMN IF NOT EXISTS rating_count INTEGER DEFAULT 0
+        """
+    )
+)
+session.commit()
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS product_id INTEGER
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Delivered'
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS rating INTEGER
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ
+        """
+    )
+)
+session.commit()
 
 # Normalize legacy schemas where sales.created_by was varchar/text.
 session.execute(

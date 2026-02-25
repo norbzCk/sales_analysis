@@ -32,12 +32,21 @@ function resolveImageUrl(url) {
 }
 
 function productRating(product) {
-  const seed = Number(product.id || 1);
-  return (4 + ((seed * 7) % 10) / 10).toFixed(1);
+  return Number(product.rating_avg || 0);
+}
+
+function ratingCount(product) {
+  return Number(product.rating_count || 0);
+}
+
+function renderStars(ratingValue) {
+  const rounded = Math.max(0, Math.min(5, Math.round(Number(ratingValue || 0))));
+  return `${"★".repeat(rounded)}${"✩".repeat(5 - rounded)}`;
 }
 
 function card(item) {
   const rating = productRating(item);
+  const count = ratingCount(item);
   return `
     <article class="public-product-card" data-product-id="${item.id}" tabindex="0" role="button" aria-label="View ${escapeHtml(item.name || "product")}">
       <img src="${escapeHtml(resolveImageUrl(item.image_url))}" alt="${escapeHtml(item.name || "Product")}" loading="lazy">
@@ -45,8 +54,8 @@ function card(item) {
         <h3>${escapeHtml(item.name || "Product")}</h3>
         <p class="muted">${escapeHtml(item.category || "General")}</p>
         <div class="public-meta">
-          <span class="rating-stars">★★★★☆</span>
-          <span class="muted">${rating}</span>
+          <span class="rating-stars">${renderStars(rating)}</span>
+          <span class="muted">${count ? `${rating.toFixed(1)} (${count})` : "No ratings yet"}</span>
         </div>
         <p class="public-price">${formatMoney(item.price)}</p>
         <span class="badge">${item.in_stock ? "In stock" : "Out of stock"}</span>

@@ -5,6 +5,7 @@ const roleHint = document.getElementById("productRoleHint");
 const productView = document.getElementById("productViewContent");
 const searchInput = document.getElementById("productSearch");
 const sortSelect = document.getElementById("productSort");
+const categorySelect = document.getElementById("productCategoryFilter");
 const refreshBtn = document.getElementById("refreshProducts");
 const cartCountBadge = document.getElementById("cartCountBadge");
 
@@ -60,16 +61,6 @@ function updateCartBadge() {
   writeCartCount(readCartCount());
 }
 
-function productRating(product) {
-  const seed = Number(product.id || 1);
-  return (4 + ((seed * 7) % 10) / 10).toFixed(1);
-}
-
-function soldCount(product) {
-  const seed = Number(product.id || 1);
-  return 40 + (seed * 17) % 600;
-}
-
 function canManage() {
   return currentUser && (currentUser.role === "admin" || currentUser.role === "super_admin");
 }
@@ -88,19 +79,32 @@ function stockLabel(stock) {
   return "In stock";
 }
 
+function productRating(product) {
+  return Number(product.rating_avg || 0);
+}
+
+function ratingCount(product) {
+  return Number(product.rating_count || 0);
+}
+
 function renderStars(ratingValue) {
   const rating = Number(ratingValue || 0);
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  return `${"★".repeat(full)}${half ? "☆" : ""}${"✩".repeat(empty)}`;
+  const rounded = Math.round(rating);
+  const full = Math.max(0, Math.min(5, rounded));
+  const empty = 5 - full;
+  return `${"★".repeat(full)}${"✩".repeat(empty)}`;
+}
+
+function ratingLabel(product) {
+  const count = ratingCount(product);
+  if (count <= 0) return "No ratings yet";
+  return `${productRating(product).toFixed(1)} (${count})`;
 }
 
 function card(product) {
   const stock = Number(product.stock || 0);
   const outOfStock = stock <= 0;
   const rating = productRating(product);
-  const sold = soldCount(product);
   const imageUrl = resolveImageUrl(product.image_url);
 
   return `
@@ -115,8 +119,7 @@ function card(product) {
 
         <div class="product-meta">
           <span class="rating-stars" title="Rating">${renderStars(rating)}</span>
-          <span class="muted">${rating} rating</span>
-          <span class="muted">${sold}+ sold</span>
+          <span class="muted">${ratingLabel(product)}</span>
         </div>
 
         <div class="product-row">
@@ -135,11 +138,26 @@ function card(product) {
   `;
 }
 
+function populateCategoryFilter(products) {
+  if (!categorySelect) return;
+  const current = categorySelect.value || "all";
+  const categories = Array.from(new Set(products.map((p) => String(p.category || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const options = [
+    '<option value="all">Category: All</option>',
+    ...categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`),
+  ];
+  categorySelect.innerHTML = options.join("");
+  categorySelect.value = categories.includes(current) ? current : "all";
+}
+
 function applyFilters(products) {
   const text = (searchInput?.value || "").trim().toLowerCase();
   const sort = sortSelect?.value || "featured";
+  const activeCategory = categorySelect?.value || "all";
 
   let filtered = products.filter((p) => {
+    const inCategory = activeCategory === "all" || String(p.category || "").trim() === activeCategory;
+    if (!inCategory) return false;
     if (!text) return true;
     const hay = `${p.name || ""} ${p.category || ""}`.toLowerCase();
     return hay.includes(text);
@@ -152,7 +170,7 @@ function applyFilters(products) {
   } else if (sort === "stock_high") {
     filtered = filtered.sort((a, b) => Number(b.stock || 0) - Number(a.stock || 0));
   } else {
-    filtered = filtered.sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    filtered = filtered.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
   }
 
   return filtered;
@@ -201,7 +219,6 @@ function findProduct(productId) {
 
 function renderProductView(product) {
   const rating = productRating(product);
-  const sold = soldCount(product);
   const imageUrl = resolveImageUrl(product.image_url);
 
   productView.innerHTML = `
@@ -212,8 +229,7 @@ function renderProductView(product) {
         <p class="product-view-price">${formatMoney(product.price)}</p>
         <div class="product-meta">
           <span class="rating-stars">${renderStars(rating)}</span>
-          <span class="muted">${rating} rating</span>
-          <span class="muted">${sold}+ sold</span>
+          <span class="muted">${ratingLabel(product)}</span>
         </div>
         <p class="product-view-line"><strong>Category:</strong> ${escapeHtml(product.category || "-")}</p>
         <p class="product-view-line"><strong>Availability:</strong> ${stockLabel(product.stock)}</p>
@@ -229,6 +245,7 @@ async function fetchProducts() {
   try {
     const products = await apiFetch("/products/");
     allProducts = Array.isArray(products) ? products : [];
+    populateCategoryFilter(allProducts);
     renderProducts();
 
     if (!selectedProductId && allProducts.length) {
@@ -388,6 +405,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   searchInput?.addEventListener("input", renderProducts);
   sortSelect?.addEventListener("change", renderProducts);
+  categorySelect?.addEventListener("change", renderProducts);
   refreshBtn?.addEventListener("click", fetchProducts);
 });
 

@@ -8,12 +8,23 @@ const refreshOrdersBtn = document.getElementById("refreshOrders");
 const ordersShownBadge = document.getElementById("ordersShownBadge");
 const trackingPanel = document.getElementById("orderTrackingPanel");
 
+const TRACKING_STEPS = ["Pending", "Confirmed", "Shipped", "Delivered"];
+
 let currentUser = null;
 let allOrders = [];
 let selectedOrderId = null;
 
 function formatMoney(value) {
   return `TZS ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function showFlash(type, message) {
@@ -24,67 +35,153 @@ function showFlash(type, message) {
   }, 2500);
 }
 
-function inferredStatus(order) {
-  const fixed = String(order.status || "").trim();
-  if (["Processing", "Shipped", "Delivered"].includes(fixed)) {
-    return fixed;
+function isAdmin() {
+  return currentUser?.role === "admin" || currentUser?.role === "super_admin";
+}
+
+function normalizedStatus(order) {
+  const value = String(order.status || "").trim();
+  if (["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"].includes(value)) {
+    return value;
   }
-  const seed = Number(order.id || 0) % 3;
-  if (seed === 0) return "Delivered";
-  if (seed === 1) return "Shipped";
-  return "Processing";
+  return "Delivered";
 }
 
 function statusBadgeClass(status) {
   if (status === "Delivered") return "success";
   if (status === "Shipped") return "info";
+  if (status === "Cancelled") return "danger";
   return "warn";
 }
 
-function paymentStatus(order) {
-  return Number(order.id || 0) % 3 === 2 ? "Pending" : "Paid";
+function ratingLabel(order) {
+  const rating = Number(order.rating || 0);
+  if (!rating) return "-";
+  return `${"★".repeat(rating)}${"✩".repeat(5 - rating)}`;
 }
 
 function row(order) {
-  const status = inferredStatus(order);
+  const status = normalizedStatus(order);
   return `
     <tr data-order-id="${order.id}">
       <td>#${order.id}</td>
       <td>${order.order_date ?? "-"}</td>
-      <td>${order.product ?? "-"}</td>
-      <td>${order.category ?? "-"}</td>
+      <td>${escapeHtml(order.product ?? "-")}</td>
+      <td>${escapeHtml(order.category ?? "-")}</td>
       <td>${order.quantity ?? 0}</td>
       <td>${formatMoney(order.total)}</td>
-      <td><span class="badge">${paymentStatus(order)}</span></td>
       <td><span class="badge order-status ${statusBadgeClass(status)}">${status}</span></td>
+      <td>${ratingLabel(order)}</td>
     </tr>
   `;
 }
 
+function adminActionButtons(order) {
+  const status = normalizedStatus(order);
+  const controls = [];
+
+  if (status === "Pending") {
+    controls.push('<button class="btn btn-primary" data-set-status="Confirmed" type="button">Confirm Order</button>');
+    controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
+  }
+  if (status === "Confirmed") {
+    controls.push('<button class="btn btn-primary" data-set-status="Shipped" type="button">Mark Shipped</button>');
+    controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
+  }
+  if (status === "Shipped") {
+    controls.push('<button class="btn btn-primary" data-set-status="Delivered" type="button">Mark Delivered</button>');
+  }
+
+  if (!controls.length) return '<p class="muted">No admin actions for this stage.</p>';
+  return `<div class="tracking-actions">${controls.join("")}</div>`;
+}
+
+function customerActionControls(order) {
+  const status = normalizedStatus(order);
+  const controls = [];
+
+  if (["Pending", "Confirmed"].includes(status)) {
+    controls.push('<button class="btn btn-danger" id="cancelOrderBtn" type="button">Cancel Order</button>');
+  }
+
+  if (status === "Delivered" && !order.rating) {
+    controls.push(`
+      <div class="rating-actions">
+        <select id="ratingValue" title="Rate this order">
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Good</option>
+          <option value="3">3 - Average</option>
+          <option value="2">2 - Poor</option>
+          <option value="1">1 - Bad</option>
+        </select>
+        <button class="btn btn-primary" id="submitRatingBtn" type="button">Submit Rating</button>
+      </div>
+    `);
+  }
+
+  if (order.rating) {
+    controls.push(`<p class="muted">Your rating: ${ratingLabel(order)}</p>`);
+  }
+
+  if (!controls.length) return '<p class="muted">No customer actions available for this stage.</p>';
+  return controls.join("");
+}
+
 function renderTracking(order) {
-  const status = inferredStatus(order);
-  const steps = ["Processing", "Shipped", "Delivered"];
-  const currentIdx = steps.indexOf(status);
+  const status = normalizedStatus(order);
+  const currentIdx = TRACKING_STEPS.indexOf(status);
 
   trackingPanel.innerHTML = `
     <div class="tracking-head">
       <p><strong>Order:</strong> #${order.id}</p>
-      <p><strong>Product:</strong> ${order.product ?? "-"}</p>
+      <p><strong>Product:</strong> ${escapeHtml(order.product ?? "-")}</p>
       <p><strong>Date:</strong> ${order.order_date ?? "-"}</p>
       <p><strong>Total:</strong> ${formatMoney(order.total)}</p>
     </div>
     <div class="tracking-steps">
-      ${steps
-        .map((step, idx) => `<div class="tracking-step ${idx <= currentIdx ? "done" : ""}">${step}</div>`)
+      ${TRACKING_STEPS
+        .map((step, idx) => `<div class="tracking-step ${status !== "Cancelled" && idx <= currentIdx ? "done" : ""}">${step}</div>`)
         .join("")}
     </div>
+    ${status === "Cancelled" ? '<p class="muted" style="margin-top: 12px;">This order was cancelled.</p>' : ""}
+    <div class="tracking-controls">
+      <h3 class="section-title" style="margin-top: 14px;">Actions</h3>
+      ${isAdmin() ? adminActionButtons(order) : customerActionControls(order)}
+    </div>
   `;
+
+  if (isAdmin()) {
+    trackingPanel.querySelectorAll("[data-set-status]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await updateOrderStatus(order.id, btn.dataset.setStatus);
+      });
+    });
+  } else {
+    const cancelBtn = document.getElementById("cancelOrderBtn");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", async () => {
+        if (!confirm("Cancel this order?")) return;
+        await cancelOrder(order.id);
+      });
+    }
+
+    const rateBtn = document.getElementById("submitRatingBtn");
+    if (rateBtn) {
+      rateBtn.addEventListener("click", async () => {
+        const value = Number(document.getElementById("ratingValue")?.value || 0);
+        await submitRating(order.id, value);
+      });
+    }
+  }
 }
 
 function updateInsightCards(orders) {
   const total = orders.length;
-  const open = orders.filter((o) => inferredStatus(o) !== "Delivered").length;
-  const delivered = orders.filter((o) => inferredStatus(o) === "Delivered").length;
+  const open = orders.filter((o) => {
+    const status = normalizedStatus(o);
+    return status !== "Delivered" && status !== "Cancelled";
+  }).length;
+  const delivered = orders.filter((o) => normalizedStatus(o) === "Delivered").length;
 
   document.getElementById("orderTotalCount").textContent = String(total);
   document.getElementById("orderOpenCount").textContent = String(open);
@@ -98,7 +195,7 @@ function filteredOrders() {
   return allOrders.filter((order) => {
     const okText =
       !text || `${order.product || ""} ${order.category || ""}`.toLowerCase().includes(text);
-    const currentStatus = inferredStatus(order);
+    const currentStatus = normalizedStatus(order);
     const okStatus = status === "all" || currentStatus === status;
     return okText && okStatus;
   });
@@ -157,12 +254,59 @@ async function loadOrders() {
     renderOrders();
   } catch (err) {
     console.error(err);
-    table.innerHTML = `<tr><td class="empty" colspan="8">${err.message}</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="8">${escapeHtml(err.message)}</td></tr>`;
   } finally {
     if (refreshOrdersBtn) {
       refreshOrdersBtn.disabled = false;
       refreshOrdersBtn.textContent = "Refresh";
     }
+  }
+}
+
+async function updateOrderStatus(orderId, status) {
+  try {
+    await apiFetch(`/orders/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    selectedOrderId = Number(orderId);
+    showFlash("success", `Order updated to ${status}.`);
+    await loadOrders();
+  } catch (err) {
+    showFlash("error", err.message);
+  }
+}
+
+async function cancelOrder(orderId) {
+  try {
+    await apiFetch(`/orders/${orderId}/cancel`, {
+      method: "POST",
+    });
+    selectedOrderId = Number(orderId);
+    showFlash("success", "Order cancelled.");
+    await loadOrders();
+    await loadProductsForOrders();
+  } catch (err) {
+    showFlash("error", err.message);
+  }
+}
+
+async function submitRating(orderId, rating) {
+  if (rating < 1 || rating > 5) {
+    showFlash("error", "Choose a rating from 1 to 5.");
+    return;
+  }
+
+  try {
+    await apiFetch(`/orders/${orderId}/rating`, {
+      method: "POST",
+      body: JSON.stringify({ rating }),
+    });
+    selectedOrderId = Number(orderId);
+    showFlash("success", "Rating submitted.");
+    await loadOrders();
+  } catch (err) {
+    showFlash("error", err.message);
   }
 }
 
@@ -173,7 +317,7 @@ async function loadProductsForOrders() {
     const options = ['<option value="">Select product</option>'];
     for (const product of products) {
       if (Number(product.stock || 0) <= 0) continue;
-      options.push(`<option value="${product.id}">${product.name} (${product.category})</option>`);
+      options.push(`<option value="${product.id}">${escapeHtml(product.name)} (${escapeHtml(product.category)})</option>`);
     }
     productSelect.innerHTML = options.join("");
   } catch (err) {
@@ -188,10 +332,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (currentUser?.role === "user") {
-    loadProductsForOrders();
+    await loadProductsForOrders();
   }
 
-  loadOrders();
+  await loadOrders();
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -206,15 +350,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      await apiFetch("/orders/", {
+      const created = await apiFetch("/orders/", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       form.reset();
       document.getElementById("order_date").valueAsDate = new Date();
+      selectedOrderId = Number(created?.id || selectedOrderId);
       showFlash("success", "Order created.");
-      loadProductsForOrders();
-      loadOrders();
+      await loadProductsForOrders();
+      await loadOrders();
     } catch (err) {
       showFlash("error", err.message);
     }

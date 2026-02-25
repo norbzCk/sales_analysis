@@ -2,6 +2,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
@@ -58,9 +59,27 @@ def get_public_products(
             "price": p.price,
             "image_url": p.image_url,
             "in_stock": bool((p.stock or 0) > 0),
+            "rating_avg": p.rating_avg or 0,
+            "rating_count": p.rating_count or 0,
         }
         for p in items
     ]
+
+
+@router.get("/categories")
+def get_product_categories(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(func.trim(Product.category))
+        .filter(Product.category.isnot(None))
+        .distinct()
+        .order_by(func.trim(Product.category).asc())
+        .all()
+    )
+    categories = [row[0] for row in rows if (row[0] or "").strip()]
+    return {"categories": categories}
 
 
 @router.get("/{product_id}")

@@ -34,6 +34,22 @@ def ensure_schema_columns():
         conn.execute(
             text(
                 """
+                ALTER TABLE IF EXISTS products
+                ADD COLUMN IF NOT EXISTS rating_avg DOUBLE PRECISION DEFAULT 0
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS products
+                ADD COLUMN IF NOT EXISTS rating_count INTEGER DEFAULT 0
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
                 ALTER TABLE IF EXISTS users
                 ADD COLUMN IF NOT EXISTS phone VARCHAR
                 """
@@ -44,6 +60,38 @@ def ensure_schema_columns():
                 """
                 ALTER TABLE IF EXISTS users
                 ADD COLUMN IF NOT EXISTS address VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS product_id INTEGER
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Delivered'
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS rating INTEGER
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ
                 """
             )
         )

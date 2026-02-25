@@ -17,7 +17,7 @@
         <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
         <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
         <li><a href="products.html">Products</a></li>
-        <li><a class="active" href="orders.html">My Orders</a></li>
+        <li><a class="active" href="orders.html">Orders</a></li>
         <li><a data-role-only="user" href="payments.html">Payments</a></li>
         <li><a data-role-only="user" href="profile.html">Profile</a></li>
         <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
@@ -30,7 +30,7 @@
       <header class="topbar">
         <div>
           <h1 class="page-title">Orders</h1>
-          <p class="page-subtitle">Create orders from available products and track all recent order activity.</p>
+          <p class="page-subtitle">Create orders, track fulfillment stages, and manage confirmation, shipping, cancellation, and ratings.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -77,9 +77,11 @@
           <input id="orderSearch" placeholder="Search by product or category">
           <select id="orderStatusFilter" title="Filter order status">
             <option value="all">Status: All</option>
-            <option value="Processing">Processing</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
             <option value="Shipped">Shipped</option>
             <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
           <button class="btn btn-secondary" id="refreshOrders" type="button">Refresh</button>
           <span class="badge" id="ordersShownBadge">Showing: 0</span>
@@ -94,8 +96,8 @@
                 <th>Category</th>
                 <th>Qty</th>
                 <th>Total</th>
-                <th>Payment</th>
-                <th>Delivery</th>
+                <th>Status</th>
+                <th>Rating</th>
               </tr>
             </thead>
             <tbody id="orderTable"></tbody>
@@ -104,7 +106,7 @@
       </section>
 
       <section class="card" style="margin-top: 18px;">
-        <h2 class="section-title">Order Tracking</h2>
+        <h2 class="section-title">Order Tracking & Actions</h2>
         <div id="orderTrackingPanel" class="muted">Select an order to view its shipping progress.</div>
       </section>
     </main>
@@ -114,3 +116,6 @@
   <script src="js/orders.js"></script>
 </body>
 </html>
+
+<!--place categories
+if users cancels the orders -->

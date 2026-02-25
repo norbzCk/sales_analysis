@@ -345,6 +345,11 @@ th {
   color: #92400e;
 }
 
+.order-status.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .tracking-head {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -354,7 +359,7 @@ th {
 
 .tracking-steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -372,6 +377,25 @@ th {
   border-color: #10b981;
   color: #065f46;
   background: #ecfdf5;
+}
+
+.tracking-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rating-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.rating-actions select {
+  width: auto;
 }
 
 tr.row-selected td {
@@ -574,7 +598,7 @@ tr.row-selected td {
 .catalog-toolbar {
   display: grid;
   gap: 10px;
-  grid-template-columns: 2fr 1fr auto auto;
+  grid-template-columns: 2fr 1fr 1fr auto auto;
   align-items: center;
   margin-bottom: 12px;
 }
