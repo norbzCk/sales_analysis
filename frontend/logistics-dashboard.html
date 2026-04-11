@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Dashboard | Kariakoo Delivery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .driver-sidebar {
+      background: linear-gradient(165deg, #1e3a5f 0%, #0f766e 100%);
+      color: #fff;
+      padding: 24px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .driver-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 28px;
+    }
+    .driver-brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #ff6a00, #ff9f40);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+    .driver-nav {
+      list-style: none;
+      display: grid;
+      gap: 6px;
+    }
+    .driver-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .driver-nav a:hover, .driver-nav a.active {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    .driver-nav a.active {
+      border-left: 3px solid #ff6a00;
+    }
+    .driver-main {
+      padding: 24px;
+      background: #f8f9fa;
+    }
+    .driver-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .driver-header h1 {
+      font-size: 1.6rem;
+      color: #333;
+    }
+    .driver-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .driver-status-pill.online {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .driver-status-pill.offline {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .driver-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .driver-stat-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .driver-stat-label {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+    .driver-stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #333;
+    }
+    .driver-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .driver-section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .delivery-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .delivery-icon {
+      width: 44px;
+      height: 44px;
+      background: #fff7ed;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .delivery-info {
+      flex: 1;
+    }
+    .delivery-id {
+      font-weight: 700;
+      color: #333;
+    }
+    .delivery-route {
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .delivery-status {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .delivery-status.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .delivery-status.in-transit {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .delivery-status.delivered {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .driver-profile-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .driver-avatar {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #ff6a00, #ff9f40);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: #fff;
+    }
+    .driver-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .driver-info-item label {
+      display: block;
+      color: #666;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+    .driver-info-item span {
+      font-weight: 600;
+      color: #333;
+    }
+    .btn-toggle-status {
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-toggle-status.accepting {
+      background: #166534;
+      color: #fff;
+    }
+    .btn-toggle-status.not-accepting {
+      background: #991b1b;
+      color: #fff;
+    }
+    @media (max-width: 1100px) {
+      .driver-dashboard { grid-template-columns: 1fr; }
+      .driver-sidebar { position: static; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="driver-dashboard">
+    <aside class="driver-sidebar">
+      <div class="driver-brand">
+        <div class="driver-brand-icon">🚚</div>
+        <span>Kariakoo Delivery</span>
+      </div>
+      <ul class="driver-nav">
+        <li><a href="logistics-dashboard.html" class="active">📊 Dashboard</a></li>
+        <li><a href="#" id="deliveriesLink">📦 My Deliveries</a></li>
+        <li><a href="#" id="earningsLink">💰 Earnings</a></li>
+        <li><a href="#" id="ordersLink">📋 Pending Orders</a></li>
+        <li><a href="#" id="profileLink">👤 My Profile</a></li>
+        <li><a href="#" id="vehicleLink">🚗 Vehicle Info</a></li>
+        <li><a href="#" id="settingsLink">⚙️ Settings</a></li>
+        <li><a href="home.html" id="logoutLink">🚪 Logout</a></li>
+      </ul>
+    </aside>
+
+    <main class="driver-main">
+      <header class="driver-header">
+        <div>
+          <h1>Welcome back, <span id="driverName">Driver</span>!</h1>
+          <p class="muted">Here's your delivery overview for today</p>
+        </div>
+        <div class="driver-header-actions">
+          <div class="driver-status-pill online" id="statusPill">
+            <span>●</span> Online - Accepting Orders
+          </div>
+          <button class="btn-toggle-status accepting" id="statusBtn">Go Online</button>
+        </div>
+      </header>
+
+      <section class="driver-stats">
+        <article class="driver-stat-card">
+          <p class="driver-stat-label">Today's Deliveries</p>
+          <p class="driver-stat-value" id="todayDeliveries">0</p>
+        </article>
+        <article class="driver-stat-card">
+          <p class="driver-stat-label">This Week</p>
+          <p class="driver-stat-value" id="weekDeliveries">0</p>
+        </article>
+        <article class="driver-stat-card">
+          <p class="driver-stat-label">Total Earnings</p>
+          <p class="driver-stat-value" id="totalEarnings">TZS 0</p>
+        </article>
+        <article class="driver-stat-card">
+          <p class="driver-stat-label">Rating</p>
+          <p class="driver-stat-value" id="driverRating">-</p>
+        </article>
+      </section>
+
+      <section class="driver-section">
+        <h2 class="driver-section-title">📦 Pending Deliveries</h2>
+        <div id="pendingDeliveries">
+          <p class="muted">No pending deliveries. Go online to receive new orders!</p>
+        </div>
+      </section>
+
+      <section class="driver-section">
+        <h2 class="driver-section-title">📋 Recent Deliveries</h2>
+        <div id="recentDeliveries">
+          <p class="muted">No deliveries yet. Complete your first delivery to see it here.</p>
+        </div>
+      </section>
+
+      <section class="driver-section">
+        <h2 class="driver-section-title">👤 My Profile</h2>
+        <div class="driver-profile-card">
+          <div class="driver-avatar" id="driverAvatar">🚚</div>
+          <div class="driver-info-grid driver-info-flex">
+            <div class="driver-info-item">
+              <label>Full Name</label>
+              <span id="profileName">-</span>
+            </div>
+            <div class="driver-info-item">
+              <label>Phone</label>
+              <span id="profilePhone">-</span>
+            </div>
+            <div class="driver-info-item">
+              <label>Vehicle Type</label>
+              <span id="profileVehicle">-</span>
+            </div>
+            <div class="driver-info-item">
+              <label>Plate Number</label>
+              <span id="profilePlate">-</span>
+            </div>
+            <div class="driver-info-item">
+              <label>Base Area</label>
+              <span id="profileArea">-</span>
+            </div>
+            <div class="driver-info-item">
+              <label>Member Since</label>
+              <span id="profileJoined">-</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/session.js"></script>
+  <script>
+    const token = localStorage.getItem("access_token");
+    const userType = localStorage.getItem("user_type");
+    const user = JSON.parse(localStorage.getItem("session_user") || "{}");
+
+    if (!token || userType !== "logistics") {
+      window.location.href = "login.html";
+    }
+
+    document.getElementById("driverName").textContent = user.name || "Driver";
+    document.getElementById("profileName").textContent = user.name || "-";
+    document.getElementById("profilePhone").textContent = user.phone || "-";
+    document.getElementById("profileVehicle").textContent = user.vehicle_type || "-";
+    document.getElementById("profilePlate").textContent = user.plate_number || "-";
+    document.getElementById("profileArea").textContent = user.base_area || "-";
+    document.getElementById("profileJoined").textContent = user.created_at ? new Date(user.created_at).toLocaleDateString() : "-";
+
+    async function loadDeliveries() {
+      try {
+        const res = await fetch(`${window.API_BASE}/logistics/deliveries`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          renderDeliveries(data.deliveries || []);
+        }
+      } catch (err) {
+        console.error("Failed to load deliveries:", err);
+      }
+    }
+
+    function renderDeliveries(deliveries) {
+      const pendingDiv = document.getElementById("pendingDeliveries");
+      if (!deliveries || deliveries.length === 0) {
+        pendingDiv.innerHTML = '<p class="muted">No pending deliveries. Go online to receive new orders!</p>';
+        return;
+      }
+
+      const pending = deliveries.filter(d => d.status === "pending");
+      if (pending.length > 0) {
+        pendingDiv.innerHTML = pending.map(d => `
+          <div class="delivery-card">
+            <div class="delivery-icon">📦</div>
+            <div class="delivery-info">
+              <p class="delivery-id">Order #${d.id}</p>
+              <p class="delivery-route">${d.pickup_location} → ${d.delivery_location}</p>
+            </div>
+            <span class="delivery-status pending">${d.status}</span>
+            <button class="btn btn-primary" onclick="acceptDelivery(${d.id})">Accept</button>
+          </div>
+        `).join("");
+      } else {
+        pendingDiv.innerHTML = '<p class="muted">No pending deliveries. Go online to receive new orders!</p>';
+      }
+    }
+
+    async function acceptDelivery(id) {
+      try {
+        const res = await fetch(`${window.API_BASE}/logistics/deliveries/${id}/accept`, {
+          method: "POST",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (res.ok) {
+          alert("Delivery accepted!");
+          loadDeliveries();
+        }
+      } catch (err) {
+        alert("Failed to accept delivery");
+      }
+    }
+
+    document.getElementById("statusBtn").addEventListener("click", async () => {
+      const isOnline = document.getElementById("statusBtn").classList.contains("accepting");
+      const newStatus = isOnline ? "offline" : "online";
+      
+      try {
+        const res = await fetch(`${window.API_BASE}/logistics/status`, {
+          method: "PUT",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status: newStatus })
+        });
+        
+        if (res.ok) {
+          const btn = document.getElementById("statusBtn");
+          const pill = document.getElementById("statusPill");
+          
+          if (newStatus === "online") {
+            btn.textContent = "Go Offline";
+            btn.className = "btn-toggle-status not-accepting";
+            pill.className = "driver-status-pill online";
+            pill.innerHTML = "<span>●</span> Online - Accepting Orders";
+          } else {
+            btn.textContent = "Go Online";
+            btn.className = "btn-toggle-status accepting";
+            pill.className = "driver-status-pill offline";
+            pill.innerHTML = "<span>●</span> Offline";
+          }
+        }
+      } catch (err) {
+        alert("Failed to update status");
+      }
+    });
+
+    document.getElementById("logoutLink").addEventListener("click", (e) => {
+      e.preventDefault();
+      clearSession();
+      window.location.href = "home.html";
+    });
+
+    loadDeliveries();
+  </script>
+</body>
+</html>

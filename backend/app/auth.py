@@ -11,13 +11,20 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.models import User
+from backend.models import User, BusinessUser
 
 TOKEN_TTL_SECONDS = 60 * 60 * 8
 SECRET_KEY = os.getenv("APP_SECRET_KEY", "change-me-in-production")
 security = HTTPBearer(auto_error=False)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+def _normalize_role(value: str | None) -> str:
+    role = (value or "").strip().lower()
+    if role == "customer":
+        return "user"
+    return role
 
 
 def hash_password(password: str) -> str:
@@ -81,17 +88,45 @@ def get_current_user(
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = decode_token(credentials.credentials)
+    user_type = payload.get("user_type")
+    if user_type == "business":
+        user_id = payload.get("user_id") or payload.get("sub")
+        business = None
+        if user_id is not None:
+            try:
+                business = db.query(BusinessUser).filter(BusinessUser.id == int(user_id)).first()
+            except (TypeError, ValueError):
+                business = None
+        if not business:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not business.is_active:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        business.role = _normalize_role(business.role)
+        return business
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    return _get_user_by_id(db, int(user_id))
+    user = _get_user_by_id(db, int(user_id))
+    user.role = _normalize_role(user.role)
+    return user
 
 
 def require_roles(*allowed: str):
-    allowed_set = set(allowed)
+    allowed_set = {_normalize_role(role) for role in allowed}
 
     def checker(user: User = Depends(get_current_user)) -> User:
-        if user.role not in allowed_set:
+        role = _normalize_role(user.role)
+        user.role = role
+        # Owner is the highest role and can perform super_admin/admin operations.
+        if role == "owner" and ("super_admin" in allowed_set or "admin" in allowed_set):
+            return user
+        # Allow sellers to access admin-level endpoints where appropriate.
+        if role == "seller" and "admin" in allowed_set:
+            return user
+        # super_admin can perform admin operations.
+        if role == "super_admin" and "admin" in allowed_set:
+            return user
+        if role not in allowed_set:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return user
 
@@ -139,18 +174,70 @@ def register(payload: dict, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/register-customer")
+def register_customer(payload: dict, db: Session = Depends(get_db)):
+    name = (payload.get("name") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    email = (payload.get("email") or "").strip().lower() or None
+    password = payload.get("password") or ""
+    location = (payload.get("location") or "").strip() or None
+    
+    if not name or not phone or not password:
+        raise HTTPException(status_code=400, detail="Name, phone and password are required")
+    
+    existing = db.query(User).filter(User.phone == phone).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+    
+    model = User(
+        name=name,
+        email=email,
+        phone=phone,
+        address=location,
+        password_hash=hash_password(password),
+        role="user",
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+    
+    token = create_token({"sub": model.id, "role": "user", "email": model.email})
+    return {
+        "token": token,
+        "user": {
+            "id": model.id,
+            "name": model.name,
+            "email": model.email,
+            "phone": model.phone,
+            "address": model.address,
+            "role": "user",
+        }
+    }
+
+
 @router.post("/login")
 def login(payload: dict, db: Session = Depends(get_db)):
     email = (payload.get("email") or "").strip().lower()
+    phone = (payload.get("phone") or "").strip()
     password = payload.get("password") or ""
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Email and password are required")
-
-    user = db.query(User).filter(User.email == email).first()
+    
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    
+    # Support login by email OR phone
+    user = None
+    if email:
+        user = db.query(User).filter(User.email == email).first()
+    elif phone:
+        user = db.query(User).filter(User.phone == phone).first()
+    
     if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid phone or password")
 
-    token = create_token({"sub": user.id, "role": user.role, "email": user.email})
+    role = _normalize_role(user.role)
+    user.role = role
+
+    token = create_token({"sub": user.id, "role": role, "email": user.email, "phone": user.phone})
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -158,7 +245,8 @@ def login(payload: dict, db: Session = Depends(get_db)):
             "id": user.id,
             "name": user.name,
             "email": user.email,
-            "role": user.role,
+            "phone": user.phone,
+            "role": role,
         },
     }
 
@@ -228,16 +316,16 @@ def change_password(
 def create_user(
     payload: dict,
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("admin", "super_admin")),
+    current: User = Depends(require_roles("admin", "super_admin", "owner")),
 ):
     name = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
-    role = (payload.get("role") or "user").strip()
-    if role not in {"user", "admin", "super_admin"}:
+    role = _normalize_role(payload.get("role") or "user")
+    if role not in {"user", "admin", "super_admin", "owner"}:
         raise HTTPException(status_code=400, detail="Invalid role")
-    if role == "super_admin" and current.role != "super_admin":
-        raise HTTPException(status_code=403, detail="Only super_admin can create super_admin")
+    if role in {"super_admin", "owner"} and current.role not in {"super_admin", "owner"}:
+        raise HTTPException(status_code=403, detail="Only super_admin/owner can create super_admin or owner")
     if not name or not email or len(password) < 8:
         raise HTTPException(status_code=400, detail="Invalid user payload")
     existing = db.query(User).filter(User.email == email).first()
@@ -266,7 +354,7 @@ def create_user(
 @router.get("/users")
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "super_admin")),
+    _: User = Depends(require_roles("admin", "super_admin", "owner")),
 ):
     rows = db.query(User).order_by(User.id.asc()).all()
     return [

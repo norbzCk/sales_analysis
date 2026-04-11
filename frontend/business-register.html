@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Registration | Kariakoo Sales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="public-page">
+  <div class="register-container">
+    <div class="register-card">
+      <h1 class="register-heading">🏪 Create Business Account</h1>
+      <p class="muted register-subtitle">Join Kariakoo's digital marketplace</p>
+      
+      <div class="flash" id="flash"></div>
+      
+      <form id="registerForm">
+        <div class="form-section">
+          <h3>👤 Owner Information</h3>
+          <div class="form-row">
+            <input id="ownerName" class="full-width" placeholder="Full Name *" required>
+            <input id="phone" type="tel" class="full-width" placeholder="Phone Number *" required pattern="[0-9]{10,}">
+          </div>
+          <div class="form-row">
+            <input id="email" type="email" class="full-width" placeholder="Email (optional)">
+            <input id="password" type="password" class="full-width" placeholder="Password *" required minlength="6">
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3>🏢 Business Information</h3>
+          <div class="form-row">
+            <input id="businessName" class="full-width" placeholder="Business Name *" required>
+            <select id="businessType" class="full-width" required>
+              <option value="">Business Type *</option>
+              <option value="individual">Individual Trader</option>
+              <option value="company">Registered Company</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <select id="category" class="full-width">
+              <option value="">Category (optional)</option>
+              <option value="clothes">Clothes & Fashion</option>
+              <option value="electronics">Electronics</option>
+              <option value="food">Food & Beverages</option>
+              <option value="wholesale">Wholesale</option>
+              <option value="retail">Retail</option>
+              <option value="other">Other</option>
+            </select>
+            <textarea id="description" class="full-width" placeholder="Business Description (optional)" rows="2"></textarea>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3>📍 Location (Kariakoo Area)</h3>
+          <div class="form-row">
+            <select id="region" class="full-width">
+              <option value="Dar es Salaam">Dar es Salaam</option>
+            </select>
+            <select id="area" class="full-width">
+              <option value="">Select Area</option>
+              <option value="Kariakoo">Kariakoo</option>
+              <option value="Ilala">Ilala</option>
+              <option value="Kinondoni">Kinondoni</option>
+              <option value="Ubungo">Ubungo</option>
+              <option value="Kigamboni">Kigamboni</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <input id="street" class="full-width" placeholder="Street (optional)">
+            <input id="shopNumber" class="full-width" placeholder="Shop Number/Block (optional)">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <!-- Business account is always a seller -->
+        </div>
+        
+        <button class="btn btn-primary full-width register-submit" type="submit">Create Business Account</button>
+      </form>
+      
+      <p class="toggle-link">Already have a business account? <a href="login.html">Login here</a></p>
+      <p class="toggle-link register-toggle">Want to buy only? <a href="customer-register.html">Register as Customer</a></p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/session.js"></script>
+  <script>
+    const API_BASE = window.API_BASE || window.__APP_CONFIG__?.API_BASE || "http://127.0.0.1:8000";
+  </script>
+  <script>
+    const form = document.getElementById("registerForm");
+    const flash = document.getElementById("flash");
+
+    function showFlash(type, message) {
+      flash.className = `flash show ${type}`;
+      flash.textContent = message;
+      setTimeout(() => flash.className = "flash", 4000);
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const payload = {
+        owner_name: document.getElementById("ownerName").value.trim(),
+        business_name: document.getElementById("businessName").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        email: document.getElementById("email").value.trim() || null,
+        password: document.getElementById("password").value,
+        business_type: document.getElementById("businessType").value,
+        category: document.getElementById("category").value || null,
+        description: document.getElementById("description").value.trim() || null,
+        region: document.getElementById("region").value,
+        area: document.getElementById("area").value || null,
+        street: document.getElementById("street").value.trim() || null,
+        shop_number: document.getElementById("shopNumber").value.trim() || null,
+        role: "seller" // Business accounts are always sellers
+      };
+
+      if (!payload.owner_name || !payload.business_name || !payload.phone || !payload.password || !payload.business_type) {
+        showFlash("error", "Please fill all required fields");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/business/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.detail || "Registration failed");
+        
+        setSession(data.token, { ...data.user, role: data.user?.role || "seller" }, "business");
+        
+        showFlash("success", "Business account created! Redirecting...");
+        setTimeout(() => window.location.href = "index.html", 1500);
+      } catch (err) {
+        showFlash("error", err.message);
+      }
+    });
+  </script>
+</body>
+</html>

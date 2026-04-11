@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Registration | Kariakoo Sales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="public-page">
+  <div class="register-container">
+    <div class="register-card">
+      <h1 class="register-heading">🛒 Create Customer Account</h1>
+      <p class="muted register-subtitle">Shop from Kariakoo's marketplace</p>
+      
+      <div class="flash" id="flash"></div>
+      
+      <form id="registerForm">
+        <div class="form-row">
+          <input id="name" class="full-width" placeholder="Full Name *" required>
+          <input id="phone" type="tel" class="full-width" placeholder="Phone Number *" required pattern="[0-9]{10,}">
+          <input id="email" type="email" class="full-width" placeholder="Email (optional)">
+          <input id="password" type="password" class="full-width" placeholder="Password *" required minlength="6">
+        </div>
+        
+        <div class="form-row">
+          <select id="region" class="full-width">
+            <option value="Dar es Salaam">Dar es Salaam</option>
+          </select>
+          <select id="area" class="full-width">
+            <option value="">Select Area (optional)</option>
+            <option value="Kariakoo">Kariakoo</option>
+            <option value="Ilala">Ilala</option>
+            <option value="Kinondoni">Kinondoni</option>
+            <option value="Ubungo">Ubungo</option>
+            <option value="Kigamboni">Kigamboni</option>
+          </select>
+        </div>
+        
+        <button class="btn btn-primary full-width register-submit" type="submit">Create Account</button>
+      </form>
+      
+      <p class="toggle-link">Already have an account? <a href="login.html">Login here</a></p>
+      <p class="toggle-link register-toggle">Want to sell on Kariakoo? <a href="business-register.html">Register as Business</a></p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/session.js"></script>
+  <script>
+    const API_BASE = window.API_BASE || window.__APP_CONFIG__?.API_BASE || "http://127.0.0.1:8000";
+    const form = document.getElementById("registerForm");
+    const flash = document.getElementById("flash");
+
+    function showFlash(type, message) {
+      flash.className = `flash show ${type}`;
+      flash.textContent = message;
+      setTimeout(() => flash.className = "flash", 4000);
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const payload = {
+        name: document.getElementById("name").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        email: document.getElementById("email").value.trim() || null,
+        password: document.getElementById("password").value,
+        location: document.getElementById("area").value || null,
+        role: "customer"
+      };
+
+      if (!payload.name || !payload.phone || !payload.password) {
+        showFlash("error", "Please fill all required fields");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/register-customer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.detail || "Registration failed");
+        
+        setSession(data.token, { ...data.user, role: "user" }, "user");
+        
+        showFlash("success", "Account created! Redirecting...");
+        setTimeout(() => window.location.href = "customer-dashboard.html", 1500);
+      } catch (err) {
+        showFlash("error", err.message);
+      }
+    });
+  </script>
+</body>
+</html>

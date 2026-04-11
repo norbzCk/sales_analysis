@@ -13,7 +13,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 @router.get("/")
 def get_customers(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("super_admin")),
+    _: User = Depends(require_roles("super_admin", "owner")),
 ):
     return db.query(Customer).all()
 
@@ -22,7 +22,7 @@ def get_customers(
 def create_customer(
     customer: CustomerCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("super_admin")),
+    _: User = Depends(require_roles("super_admin", "owner")),
 ):
     new_customer = Customer(
         name=customer.name,

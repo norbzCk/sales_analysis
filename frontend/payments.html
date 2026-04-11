@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payments | SalesSys</title>
+  <title>Payments | Kariakoo Sales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -12,31 +12,34 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">SalesSys</div>
+      <div class="brand">Kariakoo Sales</div>
       <ul class="nav-links">
-        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a href="products.html">Products</a></li>
-        <li><a href="orders.html">My Orders</a></li>
-        <li><a class="active" data-role-only="user" href="payments.html">Payments</a></li>
-        <li><a data-role-only="user" href="profile.html">Profile</a></li>
-        <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
-        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
-        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
-        <li><a data-role-min="admin" href="users.html">Users</a></li>
-      </ul>
+  <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+  <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
+  <li><a href="products.html">Products</a></li>
+  <li><a data-role-min="admin" href="providers.html">Providers</a></li>
+  <li><a href="orders.html">Orders</a></li>
+  <li><a class="active" data-role-only="user" href="payments.html">Payments</a></li>
+  <li><a data-role-only="user" href="profile.html">Profile</a></li>
+  <li><a data-role-min="super_admin" href="customers.html">Customers</a></li>
+  <li><a data-role-min="super_admin" href="sales.html">Sales</a></li>
+  <li><a data-role-min="admin" href="users.html">Users</a></li>
+</ul>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
           <h1 class="page-title">Payments</h1>
-          <p class="page-subtitle">Review your payment history and outstanding balance.</p>
+          <p class="page-subtitle">Manage your payments with mobile money integration for Tanzania.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
           <button class="btn btn-secondary" id="logoutBtn" type="button">Logout</button>
         </div>
       </header>
+
+      <div class="flash" id="paymentFlash"></div>
 
       <section class="grid grid-4">
         <article class="card">
@@ -58,25 +61,47 @@
       </section>
 
       <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Payment Methods</h2>
+        <p class="muted">Choose your preferred payment method. Mobile money (M-Pesa, Airtel Money, Tigo Pesa) available for Tanzania.</p>
+        <div id="paymentMethods" class="payment-methods-grid"></div>
+      </section>
+
+      <section class="card" style="margin-top: 18px;">
+        <h2 class="section-title">Make a Payment</h2>
+        <form id="paymentForm" class="form-grid">
+          <input id="paymentOrderId" type="number" placeholder="Order ID" required>
+          <input id="paymentAmount" type="number" step="0.01" placeholder="Amount (TZS)" required>
+          <select id="paymentMethodSelect" required>
+            <option value="">Select payment method</option>
+          </select>
+          <input id="paymentPhone" type="tel" placeholder="Phone number (for mobile money)" style="display: none;">
+          <button class="btn btn-primary" type="submit">Initiate Payment</button>
+        </form>
+        <div id="paymentResult" class="payment-result"></div>
+      </section>
+
+      <section class="card" style="margin-top: 18px;">
         <h2 class="section-title">Payment History</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Order ID</th>
-                <th>Date</th>
+                <th>Transaction ID</th>
+                <th>Order</th>
                 <th>Product</th>
-                <th>Total</th>
-                <th>Payment Status</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
               </tr>
             </thead>
-            <tbody id="paymentsTable"></tbody>
+            <tbody id="paymentHistoryTable"></tbody>
           </table>
         </div>
       </section>
     </main>
   </div>
 
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
   <script src="js/payments.js"></script>
 </body>

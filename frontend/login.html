@@ -3,63 +3,158 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome | SalesSys</title>
+  <title>Login | Kariakoo Sales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-page">
-  <main class="auth-shell">
-    <section class="auth-hero">
-      <p class="auth-kicker">SalesSys</p>
-      <p><a href="home.html">Back to public site</a></p>
-      <h1 class="auth-title">Real sales operations start with secure access.</h1>
-      <p class="auth-copy">Create your account first, then sign in to manage products, customers, and sales in one place.</p>
-      <ul class="auth-points">
-        <li>Register a personal account in under a minute</li>
-        <li>Sign in and continue where you left off</li>
-        <li>Protected dashboard and business modules</li>
+  <div class="login-wrapper">
+    <div class="login-hero">
+      <div class="login-hero-logo">
+        <img src="salesLOGO.png" alt="Kariakoo Sales" class="login-logo-img">
+        <div class="login-hero-title">Kariakoo</div>
+      </div>
+      <h2 class="login-hero-heading">Welcome Back!</h2>
+      <p class="login-hero-subtitle">Sign in to access your personalized dashboard</p>
+      <ul class="login-hero-features">
+        <li><span>✓</span> Browse millions of products</li>
+        <li><span>✓</span> Connect with verified suppliers</li>
+        <li><span>✓</span> Track your orders in real-time</li>
+        <li><span>✓</span> Secure payment protection</li>
       </ul>
-    </section>
+    </div>
 
-    <section class="card auth-card" id="authCard" data-mode="login">
-      <div class="auth-tabs" role="tablist" aria-label="Authentication options">
-        <button class="auth-tab active" type="button" role="tab" aria-selected="true" data-mode="login">Login</button>
-        <button class="auth-tab" type="button" role="tab" aria-selected="false" data-mode="register">Register</button>
+    <div class="login-form-side">
+      <div class="login-header">
+        <h1>Sign In</h1>
+        <p>Enter your phone or email to access your account</p>
       </div>
 
-      <section class="auth-panel active" data-mode="login">
-        <h2 class="section-title">Sign in</h2>
-        <p class="muted auth-subtitle">Enter your account credentials to continue.</p>
+      <div class="flash" id="loginFlash"></div>
 
-        <div class="flash" id="loginFlash"></div>
+      <form class="login-form" id="loginForm">
+        <input id="loginIdentifier" type="text" placeholder="Phone number OR Email" autocomplete="off">
+        <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="btn" type="submit" id="loginBtn">Sign In</button>
+      </form>
 
-        <form id="loginForm" class="grid auth-form">
-          <input id="email" type="email" placeholder="Email" autocomplete="email" required>
-          <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-          <button class="btn btn-primary" type="submit">Sign In</button>
-        </form>
-      </section>
+      <div class="login-divider">or</div>
 
-      <section class="auth-panel" data-mode="register">
-        <h2 class="section-title">Create account</h2>
-        <p class="muted auth-subtitle">Register first, then use your new account to log in.</p>
+      <div class="login-footer">
+        <p>Don't have an account?</p>
+        <p><a href="customer-register.html">Join as Customer</a> · <a href="business-register.html">Sell on Kariakoo</a> · <a href="logistics-register.html">Become a Driver</a></p>
+      </div>
+    </div>
+  </div>
 
-        <div class="flash" id="registerFlash"></div>
-
-        <form id="registerForm" class="grid auth-form">
-          <input id="registerName" placeholder="Full name" autocomplete="name" required>
-          <input id="registerEmail" type="email" placeholder="Email" autocomplete="email" required>
-          <input id="registerPassword" type="password" placeholder="Password (8+ chars, letters + numbers)" autocomplete="new-password" required>
-          <input id="registerConfirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" required>
-          <button class="btn btn-primary" type="submit">Create Account</button>
-        </form>
-      </section>
-    </section>
-  </main>
-
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
-  <script src="js/login.js"></script>
+  <script>
+    const form = document.getElementById("loginForm");
+    const flash = document.getElementById("loginFlash");
+    const loginBtn = document.getElementById("loginBtn");
+
+    const API_BASE = window.API_BASE || window.__APP_CONFIG__?.API_BASE || "http://127.0.0.1:8000";
+
+    function showFlash(type, message) {
+      flash.className = `flash show ${type}`;
+      flash.textContent = message;
+      setTimeout(() => flash.className = "flash", 4000);
+    }
+
+    function getWelcomeForUser(user, role) {
+      const names = {
+        admin: "Administrator",
+        seller: user?.business_name || user?.owner_name || "Business Owner",
+        logistics: user?.name || "Driver",
+        customer: user?.name || "Shopper"
+      };
+      return `Welcome back, ${names[role] || names.customer}!`;
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const identifier = document.getElementById("loginIdentifier").value.trim();
+      const password = document.getElementById("loginPassword").value;
+
+      if (!identifier || !password) {
+        showFlash("error", "Please enter your credentials");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in...";
+
+      const isEmail = identifier.includes('@');
+      const identifierField = isEmail ? "email" : "phone";
+      
+      const loginAttempts = [
+        { url: "/business/login", userType: "business", role: "seller" },
+        { url: "/logistics/login", userType: "logistics", role: "logistics" },
+        { url: "/auth/login", userType: "user", role: "user" }
+      ];
+
+      let lastError = "Invalid credentials";
+
+      for (const attempt of loginAttempts) {
+        try {
+          const payload = { password: password };
+          if (identifierField === 'email' && identifier.includes('@')) {
+            payload.email = identifier.toLowerCase();
+          } else {
+            payload.phone = identifier;
+          }
+
+          console.log('Trying login at:', API_BASE + attempt.url, 'with payload:', payload);
+
+          const res = await fetch(`${API_BASE}${attempt.url}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const text = await res.text();
+          console.log('Response status:', res.status, 'text:', text);
+          
+          if (!text || text.trim() === "") {
+            lastError = "Server returned empty response";
+            continue;
+          }
+
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            console.log('JSON parse error:', e);
+            lastError = "Invalid server response - please try again";
+            continue;
+          }
+
+          if (res.ok) {
+            const token = data.token || data.access_token;
+            const user = data.user || data;
+            const merged = { ...user, role: user.role || attempt.role };
+            setSession(token, merged, attempt.userType);
+            
+            const welcomeMsg = getWelcomeForUser(user, attempt.role);
+            showFlash("success", welcomeMsg);
+            redirectToPostLogin(merged);
+            return;
+          }
+          
+          lastError = data.detail || "Login failed";
+        } catch (err) {
+          lastError = err.message || "Connection error";
+        }
+      }
+
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Sign In";
+      showFlash("error", lastError);
+    });
+  </script>
 </body>
 </html>

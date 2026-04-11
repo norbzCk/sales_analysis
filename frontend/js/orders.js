@@ -7,8 +7,12 @@ const orderStatusFilter = document.getElementById("orderStatusFilter");
 const refreshOrdersBtn = document.getElementById("refreshOrders");
 const ordersShownBadge = document.getElementById("ordersShownBadge");
 const trackingPanel = document.getElementById("orderTrackingPanel");
+const deliveryAddressInput = document.getElementById("delivery_address");
+const deliveryPhoneInput = document.getElementById("delivery_phone");
+const deliveryMethodInput = document.getElementById("delivery_method");
+const deliveryNotesInput = document.getElementById("delivery_notes");
 
-const TRACKING_STEPS = ["Pending", "Confirmed", "Shipped", "Delivered"];
+const TRACKING_STEPS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"];
 
 let currentUser = null;
 let allOrders = [];
@@ -36,20 +40,21 @@ function showFlash(type, message) {
 }
 
 function isAdmin() {
-  return currentUser?.role === "admin" || currentUser?.role === "super_admin";
+  return ["admin", "super_admin", "owner", "seller"].includes(currentUser?.role);
 }
 
 function normalizedStatus(order) {
   const value = String(order.status || "").trim();
-  if (["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"].includes(value)) {
+  if (value === "Delivered") return "Received";
+  if (["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received", "Cancelled"].includes(value)) {
     return value;
   }
-  return "Delivered";
+  return "Received";
 }
 
 function statusBadgeClass(status) {
-  if (status === "Delivered") return "success";
-  if (status === "Shipped") return "info";
+  if (status === "Received") return "success";
+  if (status === "Shipped" || status === "Ready For Shipping") return "info";
   if (status === "Cancelled") return "danger";
   return "warn";
 }
@@ -60,6 +65,29 @@ function ratingLabel(order) {
   return `${"★".repeat(rating)}${"✩".repeat(5 - rating)}`;
 }
 
+function formatDate(value) {
+  if (!value) return null;
+  const parts = String(value).split("-");
+  const d = parts.length === 3
+    ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString();
+}
+
+function deliveryEta(order) {
+  const base = formatDate(order.order_date);
+  if (!base) return null;
+  const parts = String(order.order_date || "").split("-");
+  const date = parts.length === 3
+    ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    : new Date(order.order_date);
+  const method = String(order.delivery_method || "Standard").toLowerCase();
+  const addDays = method === "express" ? 1 : method === "pickup" ? 0 : 3;
+  date.setDate(date.getDate() + addDays);
+  return formatDate(date);
+}
+
 function row(order) {
   const status = normalizedStatus(order);
   return `
@@ -67,6 +95,7 @@ function row(order) {
       <td>#${order.id}</td>
       <td>${order.order_date ?? "-"}</td>
       <td>${escapeHtml(order.product ?? "-")}</td>
+      <td>${escapeHtml(order.provider_name ?? "-")}</td>
       <td>${escapeHtml(order.category ?? "-")}</td>
       <td>${order.quantity ?? 0}</td>
       <td>${formatMoney(order.total)}</td>
@@ -85,11 +114,16 @@ function adminActionButtons(order) {
     controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
   }
   if (status === "Confirmed") {
-    controls.push('<button class="btn btn-primary" data-set-status="Shipped" type="button">Mark Shipped</button>');
+    controls.push('<button class="btn btn-primary" data-set-status="Packed" type="button">Mark Packed</button>');
     controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
   }
-  if (status === "Shipped") {
-    controls.push('<button class="btn btn-primary" data-set-status="Delivered" type="button">Mark Delivered</button>');
+  if (status === "Packed") {
+    controls.push('<button class="btn btn-primary" data-set-status="Ready For Shipping" type="button">Ready for Shipping</button>');
+    controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
+  }
+  if (status === "Ready For Shipping") {
+    controls.push('<button class="btn btn-primary" data-set-status="Shipped" type="button">Mark Shipped</button>');
+    controls.push('<button class="btn btn-danger" data-set-status="Cancelled" type="button">Cancel Order</button>');
   }
 
   if (!controls.length) return '<p class="muted">No admin actions for this stage.</p>';
@@ -104,7 +138,11 @@ function customerActionControls(order) {
     controls.push('<button class="btn btn-danger" id="cancelOrderBtn" type="button">Cancel Order</button>');
   }
 
-  if (status === "Delivered" && !order.rating) {
+  if (status === "Shipped") {
+    controls.push('<button class="btn btn-primary" id="markReceivedBtn" type="button">Mark Received</button>');
+  }
+
+  if (status === "Received" && !order.rating) {
     controls.push(`
       <div class="rating-actions">
         <select id="ratingValue" title="Rate this order">
@@ -130,6 +168,11 @@ function customerActionControls(order) {
 function renderTracking(order) {
   const status = normalizedStatus(order);
   const currentIdx = TRACKING_STEPS.indexOf(status);
+  const deliveryAddress = order.delivery_address || "Not provided";
+  const deliveryPhone = order.delivery_phone || "Not provided";
+  const deliveryMethod = order.delivery_method || "Standard";
+  const eta = deliveryEta(order);
+  const providerLine = order.provider_name ? `<p><strong>Provider:</strong> ${escapeHtml(order.provider_name)}</p>` : "";
 
   trackingPanel.innerHTML = `
     <div class="tracking-head">
@@ -137,6 +180,14 @@ function renderTracking(order) {
       <p><strong>Product:</strong> ${escapeHtml(order.product ?? "-")}</p>
       <p><strong>Date:</strong> ${order.order_date ?? "-"}</p>
       <p><strong>Total:</strong> ${formatMoney(order.total)}</p>
+      ${providerLine}
+    </div>
+    <div class="tracking-meta">
+      <p><strong>Delivery:</strong> ${escapeHtml(deliveryMethod)}</p>
+      <p><strong>Address:</strong> ${escapeHtml(deliveryAddress)}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(deliveryPhone)}</p>
+      ${eta ? `<p><strong>ETA:</strong> ${escapeHtml(eta)}</p>` : ""}
+      ${order.delivery_notes ? `<p><strong>Notes:</strong> ${escapeHtml(order.delivery_notes)}</p>` : ""}
     </div>
     <div class="tracking-steps">
       ${TRACKING_STEPS
@@ -165,6 +216,13 @@ function renderTracking(order) {
       });
     }
 
+    const markReceivedBtn = document.getElementById("markReceivedBtn");
+    if (markReceivedBtn) {
+      markReceivedBtn.addEventListener("click", async () => {
+        await markReceived(order.id);
+      });
+    }
+
     const rateBtn = document.getElementById("submitRatingBtn");
     if (rateBtn) {
       rateBtn.addEventListener("click", async () => {
@@ -179,9 +237,9 @@ function updateInsightCards(orders) {
   const total = orders.length;
   const open = orders.filter((o) => {
     const status = normalizedStatus(o);
-    return status !== "Delivered" && status !== "Cancelled";
+    return status !== "Received" && status !== "Cancelled";
   }).length;
-  const delivered = orders.filter((o) => normalizedStatus(o) === "Delivered").length;
+  const delivered = orders.filter((o) => normalizedStatus(o) === "Received").length;
 
   document.getElementById("orderTotalCount").textContent = String(total);
   document.getElementById("orderOpenCount").textContent = String(open);
@@ -221,7 +279,7 @@ function renderOrders() {
   updateInsightCards(allOrders);
 
   if (!shown.length) {
-    table.innerHTML = `<tr><td class="empty" colspan="8">No orders match this filter</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="9">No orders match this filter</td></tr>`;
     trackingPanel.textContent = "Select an order to view its shipping progress.";
     return;
   }
@@ -254,7 +312,7 @@ async function loadOrders() {
     renderOrders();
   } catch (err) {
     console.error(err);
-    table.innerHTML = `<tr><td class="empty" colspan="8">${escapeHtml(err.message)}</td></tr>`;
+    table.innerHTML = `<tr><td class="empty" colspan="9">${escapeHtml(err.message)}</td></tr>`;
   } finally {
     if (refreshOrdersBtn) {
       refreshOrdersBtn.disabled = false;
@@ -291,6 +349,19 @@ async function cancelOrder(orderId) {
   }
 }
 
+async function markReceived(orderId) {
+  try {
+    await apiFetch(`/orders/${orderId}/receive`, {
+      method: "POST",
+    });
+    selectedOrderId = Number(orderId);
+    showFlash("success", "Order marked as received.");
+    await loadOrders();
+  } catch (err) {
+    showFlash("error", err.message);
+  }
+}
+
 async function submitRating(orderId, rating) {
   if (rating < 1 || rating > 5) {
     showFlash("error", "Choose a rating from 1 to 5.");
@@ -317,7 +388,8 @@ async function loadProductsForOrders() {
     const options = ['<option value="">Select product</option>'];
     for (const product of products) {
       if (Number(product.stock || 0) <= 0) continue;
-      options.push(`<option value="${product.id}">${escapeHtml(product.name)} (${escapeHtml(product.category)})</option>`);
+      const provider = product.provider?.name ? ` - ${product.provider.name}` : "";
+      options.push(`<option value="${product.id}">${escapeHtml(product.name)} (${escapeHtml(product.category)})${escapeHtml(provider)}</option>`);
     }
     productSelect.innerHTML = options.join("");
   } catch (err) {
@@ -332,6 +404,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (currentUser?.role === "user") {
+    if (deliveryAddressInput && !deliveryAddressInput.value) {
+      deliveryAddressInput.value = currentUser.address || "";
+    }
+    if (deliveryPhoneInput && !deliveryPhoneInput.value) {
+      deliveryPhoneInput.value = currentUser.phone || "";
+    }
     await loadProductsForOrders();
   }
 
@@ -343,6 +421,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       order_date: document.getElementById("order_date").value,
       product_id: parseInt(productSelect.value, 10),
       quantity: parseInt(document.getElementById("quantity").value, 10),
+      delivery_address: deliveryAddressInput?.value?.trim() || null,
+      delivery_phone: deliveryPhoneInput?.value?.trim() || null,
+      delivery_method: deliveryMethodInput?.value || "Standard",
+      delivery_notes: deliveryNotesInput?.value?.trim() || null,
     };
     if (!payload.order_date || Number.isNaN(payload.product_id) || Number.isNaN(payload.quantity) || payload.quantity <= 0) {
       showFlash("error", "Choose a product and valid quantity.");
@@ -356,6 +438,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       form.reset();
       document.getElementById("order_date").valueAsDate = new Date();
+      if (deliveryAddressInput) {
+        deliveryAddressInput.value = currentUser?.address || "";
+      }
+      if (deliveryPhoneInput) {
+        deliveryPhoneInput.value = currentUser?.phone || "";
+      }
       selectedOrderId = Number(created?.id || selectedOrderId);
       showFlash("success", "Order created.");
       await loadProductsForOrders();

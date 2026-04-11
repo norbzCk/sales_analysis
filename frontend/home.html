@@ -3,51 +3,205 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SalesSys | Welcome</title>
+  <title>Kariakoo Sales | Global Commerce</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="public-page">
-  <header class="public-nav">
-    <div class="public-brand">
-      <div class="public-logo" aria-hidden="true">SS</div>
-      <div>
-        <p class="auth-kicker">SalesSys</p>
-        <p class="muted">Business Commerce Platform</p>
+  <nav class="alibaba-nav">
+    <div class="alibaba-topbar">
+      <a href="home.html">Home</a>
+      <a href="#">Help Center</a>
+      <a href="#">Sell on Kariakoo</a>
+      <a href="#">Deliver to Dar es Salaam</a>
+    </div>
+    <div class="alibaba-mainbar">
+      <a href="home.html" class="alibaba-logo">
+        <div class="alibaba-logo-icon">
+          <img src="salesLOGO.png" alt="Kariakoo Sales">
+        </div>
+        <div class="alibaba-logo-text"><span>Kariakoo</span></div>
+      </a>
+      <div class="alibaba-search-bar">
+        <input type="text" placeholder="Search products, manufacturers, or categories">
+        <button type="button">Search</button>
+      </div>
+      <div class="alibaba-actions">
+        <a href="login.html" class="nav-signin">Sign In</a>
+        <a href="customer-register.html" class="btn btn-primary btn-join-free">Join Free</a>
       </div>
     </div>
-    <div class="public-actions">
-      <a class="btn btn-secondary" href="login.html">Login</a>
-      <a class="btn btn-primary" href="login.html?mode=register">Register</a>
+    <div class="alibaba-nav-links">
+      <a href="#categories">Categories</a>
+      <a href="#products">Products</a>
+      <a href="#suppliers">Manufacturers</a>
+      <a href="#rfq">Request for Quotation</a>
+      <a href="#">Sell Products</a>
+      <a href="#">Become a Supplier</a>
+      <a href="#">Delivery Services</a>
     </div>
-  </header>
+  </nav>
 
   <main class="public-wrap">
-    <section class="public-hero">
-      <h1 class="public-title">Modern ordering for serious businesses.</h1>
-      <p class="public-subtitle">Browse products, place orders, and track fulfillment with confidence.</p>
+    <section class="market-hero" id="marketplace">
+      <div class="hero-main">
+        <div class="hero-tabs" role="tablist" aria-label="Marketplace filters">
+          <button class="hero-tab active" type="button">AI Mode</button>
+          <button class="hero-tab" type="button">Products</button>
+          <button class="hero-tab" type="button">Manufacturers</button>
+          <button class="hero-tab" type="button">Worldwide</button>
+        </div>
+
+        <h1 class="market-title">Source verified products, build confident supply chains.</h1>
+        <p class="market-subtitle">Search by product, request quotes, and track fulfillment with live supplier insights.</p>
+
+        <div class="hero-search">
+          <input id="publicSearch" placeholder="Search products, categories, or manufacturers" aria-label="Search products">
+          <select id="publicSort" title="Sort results">
+            <option value="featured">Sort: Featured</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+            <option value="in_stock">In stock first</option>
+          </select>
+          <button class="btn btn-primary" id="publicSearchBtn" type="button">Search</button>
+        </div>
+
+        <div class="hero-search-meta">
+          <label class="image-search" for="imageSearchInput">
+            <input id="imageSearchInput" type="file" accept="image/*">
+            <span>Image Search</span>
+          </label>
+          <div id="imageSearchPreview" class="image-preview"></div>
+          <span class="hero-tip">Try: smart watches, custom packaging, mobile phones</span>
+        </div>
+
+        <div id="publicSuggestions" class="hero-suggestions"></div>
+
+        <div class="hero-metrics">
+          <article class="metric-card">
+            <p class="metric-label">Products</p>
+            <p class="metric-value" id="statProducts">0</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">Active suppliers</p>
+            <p class="metric-value" id="statSuppliers">0</p>
+          </article>
+          <article class="metric-card">
+            <p class="metric-label">In stock today</p>
+            <p class="metric-value" id="statInStock">0</p>
+          </article>
+        </div>
+      </div>
+
+      <aside class="hero-aside">
+        <article class="hero-card">
+          <p class="badge">Trade Assurance</p>
+          <h3>Protect every payment.</h3>
+          <p class="muted">Verified suppliers, transparent pricing, and delivery protection built in.</p>
+          <button class="btn btn-secondary" type="button" data-scroll="#rfq">Get protected</button>
+        </article>
+        <article class="hero-card highlight">
+          <p class="badge">Request for Quotation</p>
+          <h3>Send one RFQ, get multiple offers.</h3>
+          <p class="muted">Describe your sourcing needs and receive curated supplier responses.</p>
+          <button class="btn btn-primary" type="button" data-scroll="#rfq">Start RFQ</button>
+        </article>
+        <article class="hero-card glass">
+          <p class="badge">Top ranking</p>
+          <h3>Trusted manufacturers.</h3>
+          <p class="muted">Compare ratings, response times, and fulfillment history.</p>
+        </article>
+      </aside>
     </section>
 
-    <section class="card" style="margin-top: 18px;">
-      <h2 class="section-title">Products Preview</h2>
-      <p class="muted">Public preview of our latest products.</p>
-      <div class="public-toolbar">
-        <input id="publicSearch" placeholder="Search product or category">
-        <select id="publicSort" title="Sort products">
-          <option value="featured">Sort: Featured</option>
-          <option value="price_low">Price: Low to High</option>
-          <option value="price_high">Price: High to Low</option>
-          <option value="in_stock">In stock first</option>
-        </select>
+    <section class="market-highlights">
+      <article class="highlight-tile">
+        <h3>Request for Quotation</h3>
+        <p class="muted">One form, multiple suppliers, faster pricing.</p>
+      </article>
+      <article class="highlight-tile">
+        <h3>Top ranking</h3>
+        <p class="muted">See which suppliers deliver on time.</p>
+      </article>
+      <article class="highlight-tile">
+        <h3>Fast customization</h3>
+        <p class="muted">MOQ-friendly options for custom orders.</p>
+      </article>
+    </section>
+
+    <section class="market-discovery">
+      <aside class="market-categories">
+        <h2 class="section-title">Categories for you</h2>
+        <div id="publicCategoryList" class="category-list"></div>
+      </aside>
+
+      <div class="market-featured">
+        <div class="featured-card">
+          <div class="featured-head">
+            <h3>Frequently searched</h3>
+            <span class="badge">Updated hourly</span>
+          </div>
+          <div id="publicFrequent" class="frequent-grid"></div>
+        </div>
+        <div class="featured-card hot-picks">
+          <div class="featured-head">
+            <h3>Hot picks</h3>
+            <span class="badge">Trending now</span>
+          </div>
+          <div id="publicHotPicks" class="hot-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card market-products" id="products">
+      <div class="market-products-head">
+        <div>
+          <h2 class="section-title">Recommended for your business</h2>
+          <p class="muted">Verified suppliers and trade-ready products.</p>
+        </div>
         <span class="badge" id="publicShownBadge">Showing: 0</span>
       </div>
       <div id="publicCategories" class="public-categories"></div>
       <div id="publicProducts" class="public-product-grid"></div>
     </section>
 
-    <section class="public-contact card" style="margin-top: 18px;">
+    <section class="market-suppliers" id="suppliers">
+      <div class="market-products-head">
+        <div>
+          <h2 class="section-title">Manufacturers you can trust</h2>
+          <p class="muted">Compare suppliers by region, verification, and response time.</p>
+        </div>
+      </div>
+      <div id="publicSuppliers" class="supplier-grid"></div>
+    </section>
+
+    <section class="card market-rfq" id="rfq">
+      <div class="rfq-copy">
+        <h2 class="section-title">Request for quotation</h2>
+        <p class="muted">Describe what you need and let suppliers compete for your order.</p>
+        <ul class="rfq-points">
+          <li>Match with verified suppliers in minutes.</li>
+          <li>Share specs, quantities, and target pricing once.</li>
+          <li>Track responses inside your dashboard.</li>
+        </ul>
+      </div>
+      <form id="rfqForm" class="rfq-form">
+        <input id="rfqCompany" placeholder="Company name" required>
+        <input id="rfqContact" placeholder="Contact name" required>
+        <input id="rfqEmail" type="email" placeholder="Email" required>
+        <input id="rfqPhone" placeholder="Phone (optional)">
+        <input id="rfqProduct" placeholder="Product or category" required>
+        <input id="rfqQuantity" type="number" min="1" step="1" placeholder="Estimated quantity" required>
+        <input id="rfqBudget" placeholder="Target budget (optional)">
+        <textarea id="rfqNotes" rows="3" placeholder="Specifications, customization, or delivery notes"></textarea>
+        <button class="btn btn-primary" type="submit">Submit RFQ</button>
+        <p id="rfqStatus" class="muted"></p>
+      </form>
+    </section>
+
+    <section class="public-contact card" id="support">
       <h2 class="section-title">Contact</h2>
       <div class="public-contact-grid">
         <p><strong>Email:</strong> sales@yourcompany.com</p>
@@ -69,6 +223,7 @@
     </div>
   </div>
 
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
   <script src="js/home.js"></script>
 </body>

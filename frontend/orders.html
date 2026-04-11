@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Orders | SalesSys</title>
+  <title>Orders | Kariakoo Sales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -12,25 +12,26 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">SalesSys</div>
+      <div class="brand">Kariakoo Sales</div>
       <ul class="nav-links">
-        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
-        <li><a href="products.html">Products</a></li>
-        <li><a class="active" href="orders.html">Orders</a></li>
-        <li><a data-role-only="user" href="payments.html">Payments</a></li>
-        <li><a data-role-only="user" href="profile.html">Profile</a></li>
-        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
-        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
-        <li><a data-role-min="admin" href="users.html">Users</a></li>
-      </ul>
+  <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+  <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
+  <li><a href="products.html">Products</a></li>
+  <li><a data-role-min="admin" href="providers.html">Providers</a></li>
+  <li><a class="active" href="orders.html">Orders</a></li>
+  <li><a data-role-only="user" href="payments.html">Payments</a></li>
+  <li><a data-role-only="user" href="profile.html">Profile</a></li>
+  <li><a data-role-min="super_admin" href="customers.html">Customers</a></li>
+  <li><a data-role-min="super_admin" href="sales.html">Sales</a></li>
+  <li><a data-role-min="admin" href="users.html">Users</a></li>
+</ul>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
           <h1 class="page-title">Orders</h1>
-          <p class="page-subtitle">Create orders, track fulfillment stages, and manage confirmation, shipping, cancellation, and ratings.</p>
+          <p class="page-subtitle">Create provider-linked orders, track delivery stages, and manage packing, shipping, and confirmations.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -48,6 +49,14 @@
             <option value="">Select product</option>
           </select>
           <input id="quantity" type="number" step="1" min="1" placeholder="Quantity" required>
+          <input id="delivery_address" placeholder="Delivery address">
+          <input id="delivery_phone" placeholder="Delivery phone">
+          <select id="delivery_method">
+            <option value="Standard">Delivery: Standard</option>
+            <option value="Express">Delivery: Express</option>
+            <option value="Pickup">Pickup at Kariakoo</option>
+          </select>
+          <textarea id="delivery_notes" rows="1" placeholder="Delivery notes (optional)"></textarea>
           <button class="btn btn-primary" type="submit">Create Order</button>
         </form>
       </section>
@@ -69,7 +78,7 @@
             <p class="stat-value" id="orderOpenCount">0</p>
           </article>
           <article class="card">
-            <p class="stat-label">Delivered</p>
+            <p class="stat-label">Received</p>
             <p class="stat-value" id="orderDeliveredCount">0</p>
           </article>
         </div>
@@ -79,8 +88,10 @@
             <option value="all">Status: All</option>
             <option value="Pending">Pending</option>
             <option value="Confirmed">Confirmed</option>
+            <option value="Packed">Packed</option>
+            <option value="Ready For Shipping">Ready For Shipping</option>
             <option value="Shipped">Shipped</option>
-            <option value="Delivered">Delivered</option>
+            <option value="Received">Received</option>
             <option value="Cancelled">Cancelled</option>
           </select>
           <button class="btn btn-secondary" id="refreshOrders" type="button">Refresh</button>
@@ -93,6 +104,7 @@
                 <th>Order ID</th>
                 <th>Date</th>
                 <th>Product</th>
+                <th>Provider</th>
                 <th>Category</th>
                 <th>Qty</th>
                 <th>Total</th>
@@ -112,6 +124,7 @@
     </main>
   </div>
 
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
   <script src="js/orders.js"></script>
 </body>

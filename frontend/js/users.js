@@ -37,7 +37,8 @@ async function loadUsers() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
-  if (!currentUser || !(currentUser.role === "admin" || currentUser.role === "super_admin")) {
+  const canManageUsers = ["admin", "super_admin", "owner"].includes(currentUser?.role);
+  if (!currentUser || !canManageUsers) {
     if (currentUser) {
       redirectToPostLogin(currentUser);
     } else {
@@ -46,9 +47,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  if (currentUser.role !== "super_admin") {
+  if (!["super_admin", "owner"].includes(currentUser.role)) {
     const roleSelect = document.getElementById("role");
-    roleSelect.querySelector('option[value="super_admin"]').remove();
+    roleSelect.querySelector('option[value="super_admin"]')?.remove();
+    roleSelect.querySelector('option[value="owner"]')?.remove();
   }
 
   loadUsers();

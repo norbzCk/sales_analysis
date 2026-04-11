@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from backend.app.auth import hash_password
 from backend.database import engine
-from backend.models import Base, Sale, User
+from backend.models import Base, Provider, Sale, User
 
 Base.metadata.create_all(bind=engine)
 print("Database tables created successfully.")
@@ -59,6 +59,15 @@ session.commit()
 session.execute(
     text(
         """
+        ALTER TABLE IF EXISTS products
+        ADD COLUMN IF NOT EXISTS provider_id INTEGER
+        """
+    )
+)
+session.commit()
+session.execute(
+    text(
+        """
         ALTER TABLE IF EXISTS sales
         ADD COLUMN IF NOT EXISTS product_id INTEGER
         """
@@ -68,7 +77,7 @@ session.execute(
     text(
         """
         ALTER TABLE IF EXISTS sales
-        ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Delivered'
+        ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Received'
         """
     )
 )
@@ -85,6 +94,55 @@ session.execute(
         """
         ALTER TABLE IF EXISTS sales
         ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ
+        """
+    )
+)
+session.commit()
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS provider_id INTEGER
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS provider_name VARCHAR
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS delivery_address VARCHAR
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS delivery_phone VARCHAR
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS delivery_notes VARCHAR
+        """
+    )
+)
+session.execute(
+    text(
+        """
+        ALTER TABLE IF EXISTS sales
+        ADD COLUMN IF NOT EXISTS delivery_method VARCHAR DEFAULT 'Standard'
         """
     )
 )
@@ -133,8 +191,20 @@ if session.query(Sale).count() == 0:
 else:
     print("Sales already seeded, skipping.")
 
+if session.query(Provider).count() == 0:
+    sample_providers = [
+        Provider(name="Kariakoo Electronics", location="Dar es Salaam", verified=True, response_time="< 6 hrs", min_order_qty="100 pcs"),
+        Provider(name="Ushirika Textiles", location="Dar es Salaam", verified=True, response_time="< 8 hrs", min_order_qty="200 pcs"),
+        Provider(name="Kariakoo Home Goods", location="Dar es Salaam", verified=False, response_time="< 12 hrs", min_order_qty="150 pcs"),
+    ]
+    session.add_all(sample_providers)
+    session.commit()
+    print("Sample providers inserted.")
+else:
+    print("Providers already seeded, skipping.")
+
 defaults = [
-    ("System Owner", "owner@sales.local", "super_admin", "Owner@1234"),
+    ("System Owner", "owner@sales.local", "owner", "Owner@1234"),
     ("Business Admin", "admin@sales.local", "admin", "Admin@1234"),
     ("Sales User", "user@sales.local", "user", "User@1234"),
 ]
@@ -142,6 +212,9 @@ defaults = [
 for name, email, role, password in defaults:
     existing = session.query(User).filter(User.email == email).first()
     if existing:
+        if email == "owner@sales.local" and existing.role != "owner":
+            existing.role = "owner"
+            session.add(existing)
         continue
     session.add(
         User(

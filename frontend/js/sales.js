@@ -71,7 +71,7 @@ form.addEventListener("submit", async (e) => {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const currentUser = await requireAuthPage();
-  if (!currentUser || currentUser.role !== "super_admin") {
+  if (!currentUser || !["super_admin", "owner"].includes(currentUser.role)) {
     if (currentUser) {
       redirectToPostLogin(currentUser);
     } else {

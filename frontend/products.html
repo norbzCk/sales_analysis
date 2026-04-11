@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Products | SalesSys</title>
+  <title>Products | Kariakoo Sales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -12,25 +12,26 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">SalesSys</div>
+      <div class="brand">Kariakoo Sales</div>
       <ul class="nav-links">
-        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a data-role-min="admin" href="index.html">Dashboard</a></li>
-        <li><a class="active" href="products.html">Products</a></li>
-        <li><a href="orders.html">My Orders</a></li>
-        <li><a data-role-only="user" href="payments.html">Payments</a></li>
-        <li><a data-role-only="user" href="profile.html">Profile</a></li>
-        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
-        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
-        <li><a data-role-min="admin" href="users.html">Users</a></li>
-      </ul>
+  <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+  <li><a data-role-min="admin" href="index.html">Business Dashboard</a></li>
+  <li><a class="active" href="products.html">Products</a></li>
+  <li><a data-role-min="admin" href="providers.html">Providers</a></li>
+  <li><a href="orders.html">Orders</a></li>
+  <li><a data-role-only="user" href="payments.html">Payments</a></li>
+  <li><a data-role-only="user" href="profile.html">Profile</a></li>
+  <li><a data-role-min="super_admin" href="customers.html">Customers</a></li>
+  <li><a data-role-min="super_admin" href="sales.html">Sales</a></li>
+  <li><a data-role-min="admin" href="users.html">Users</a></li>
+</ul>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
           <h1 class="page-title">Products</h1>
-          <p class="page-subtitle">Browse the catalog, compare pricing, and open full product details instantly.</p>
+          <p class="page-subtitle">Browse the catalog, compare pricing, and source directly from your trusted providers.</p>
         </div>
         <div class="topbar-actions">
           <span class="user-pill" id="currentUserLabel">-</span>
@@ -45,6 +46,9 @@
         <form id="productForm" class="form-grid">
           <input id="name" placeholder="Product name" required>
           <input id="category" placeholder="Category" required>
+          <select id="provider_id">
+            <option value="">Select provider</option>
+          </select>
           <input id="price" type="number" step="0.01" placeholder="Unit price" required>
           <input id="stock" type="number" step="1" min="0" placeholder="Stock" required>
           <input id="description" placeholder="Description">
@@ -60,6 +64,9 @@
           <input id="productSearch" placeholder="Search product or category">
           <select id="productCategoryFilter" title="Filter products by category">
             <option value="all">Category: All</option>
+          </select>
+          <select id="productProviderFilter" title="Filter products by provider">
+            <option value="all">Provider: All</option>
           </select>
           <select id="productSort" title="Sort products by">
             <option value="featured">Sort: Featured</option>
@@ -80,6 +87,7 @@
     </main>
   </div>
 
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
   <script src="js/products.js"></script>
 </body>

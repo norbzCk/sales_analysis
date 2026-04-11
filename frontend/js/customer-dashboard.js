@@ -6,9 +6,11 @@ function formatMoney(value) {
 }
 
 function statusFromOrder(order) {
-  const base = Number(order.id || 0) % 3;
-  if (base === 0) return "Delivered";
-  if (base === 1) return "Shipped";
+  const value = String(order.status || "").trim();
+  if (value === "Delivered") return "Received";
+  if (["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received", "Cancelled"].includes(value)) {
+    return value;
+  }
   return "Pending";
 }
 
@@ -19,6 +21,7 @@ function row(order) {
       <td>#${order.id}</td>
       <td>${order.order_date ?? "-"}</td>
       <td>${order.product ?? "-"}</td>
+      <td>${order.provider_name ?? "-"}</td>
       <td>${order.quantity ?? 0}</td>
       <td>${formatMoney(order.total)}</td>
       <td><span class="badge">${status}</span></td>
@@ -43,8 +46,11 @@ async function loadDashboard() {
   const data = await apiFetch("/orders/");
   const orders = Array.isArray(data) ? data : [];
 
-  const pending = orders.filter((o) => statusFromOrder(o) === "Pending").length;
-  const delivered = orders.filter((o) => statusFromOrder(o) === "Delivered").length;
+  const pending = orders.filter((o) => {
+    const status = statusFromOrder(o);
+    return status !== "Received" && status !== "Cancelled";
+  }).length;
+  const delivered = orders.filter((o) => statusFromOrder(o) === "Received").length;
   const totalSpent = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
 
   document.getElementById("cdOrdersCount").textContent = String(orders.length);
@@ -53,7 +59,7 @@ async function loadDashboard() {
   document.getElementById("cdTotalSpent").textContent = formatMoney(totalSpent);
 
   if (!orders.length) {
-    ordersTable.innerHTML = '<tr><td class="empty" colspan="6">No orders yet</td></tr>';
+    ordersTable.innerHTML = '<tr><td class="empty" colspan="7">No orders yet</td></tr>';
   } else {
     ordersTable.innerHTML = orders.slice(0, 6).map(row).join("");
   }
@@ -72,6 +78,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await loadDashboard();
   } catch (err) {
-    ordersTable.innerHTML = `<tr><td class="empty" colspan="6">${err.message}</td></tr>`;
+    ordersTable.innerHTML = `<tr><td class="empty" colspan="7">${err.message}</td></tr>`;
   }
 });

@@ -6,19 +6,37 @@ from sqlalchemy.orm import Session
 
 from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
-from backend.models import Product, Sale, User
+from backend.models import Product, Provider, Sale, User
 
 router = APIRouter(tags=["Sales", "Orders"])
 
-ORDER_STATUSES = {"Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"}
+ORDER_STATUSES = {
+    "Pending",
+    "Confirmed",
+    "Packed",
+    "Ready For Shipping",
+    "Shipped",
+    "Received",
+    "Cancelled",
+}
 ADMIN_TRANSITIONS = {
     "Pending": {"Confirmed", "Cancelled"},
-    "Confirmed": {"Shipped", "Cancelled"},
-    "Shipped": {"Delivered"},
-    "Delivered": set(),
+    "Confirmed": {"Packed", "Cancelled"},
+    "Packed": {"Ready For Shipping", "Cancelled"},
+    "Ready For Shipping": {"Shipped", "Cancelled"},
+    "Shipped": set(),
+    "Received": set(),
     "Cancelled": set(),
 }
 CANCELLABLE_BY_CUSTOMER = {"Pending", "Confirmed"}
+DELIVERY_METHODS = {"Standard", "Express", "Pickup"}
+
+
+def _normalized_delivery_method(value: str | None) -> str:
+    method = (value or "").strip().title()
+    if method in DELIVERY_METHODS:
+        return method
+    return "Standard"
 
 
 def _sales_query_for_current_user(db: Session, current: User):
@@ -31,13 +49,18 @@ def _sales_query_for_current_user(db: Session, current: User):
 
 def _normalized_status(raw_status: str | None) -> str:
     status = (raw_status or "").strip().title()
+    if status == "Delivered":
+        # Keep compatibility with old records.
+        return "Received"
     if status in ORDER_STATUSES:
         return status
-    return "Delivered"
+    return "Received"
 
 
 def _requested_status(raw_status: str | None) -> str | None:
     status = (raw_status or "").strip().title()
+    if status == "Delivered":
+        return "Received"
     if status in ORDER_STATUSES:
         return status
     return None
@@ -50,6 +73,8 @@ def _serialize_order(s: Sale) -> dict:
         "order_date": s.date.isoformat() if s.date else None,
         "product": s.product,
         "category": s.category,
+        "provider_id": s.provider_id,
+        "provider_name": s.provider_name,
         "quantity": s.quantity,
         "unit_price": s.unit_price,
         "total": (s.quantity or 0) * (s.unit_price or 0),
@@ -57,6 +82,10 @@ def _serialize_order(s: Sale) -> dict:
         "rating": s.rating,
         "created_by": s.created_by,
         "product_id": s.product_id,
+        "delivery_address": s.delivery_address,
+        "delivery_phone": s.delivery_phone,
+        "delivery_notes": s.delivery_notes,
+        "delivery_method": _normalized_delivery_method(s.delivery_method),
     }
 
 
@@ -71,7 +100,7 @@ def _apply_product_rating_stats(db: Session, product_id: int | None) -> None:
         db.query(func.avg(Sale.rating), func.count(Sale.id))
         .filter(
             Sale.product_id == product_id,
-            Sale.status == "Delivered",
+            Sale.status.in_(["Received", "Delivered"]),
             Sale.rating.isnot(None),
         )
         .first()
@@ -89,7 +118,7 @@ def _ensure_owner_or_admin(order: Sale, current: User) -> None:
 @router.get("/sales/")
 def get_sales(
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("super_admin")),
+    current: User = Depends(require_roles("super_admin", "owner")),
 ):
     query = _sales_query_for_current_user(db, current)
     sales = query.order_by(Sale.date.desc(), Sale.id.desc()).all()
@@ -113,7 +142,7 @@ def get_sales(
 def create_sale(
     payload: dict,
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("super_admin")),
+    current: User = Depends(require_roles("super_admin", "owner")),
 ):
     sale_date = payload.get("date")
     model = Sale(
@@ -122,7 +151,7 @@ def create_sale(
         category=payload.get("category"),
         quantity=int(payload.get("quantity", 0)),
         unit_price=float(payload.get("unit_price", 0)),
-        status="Delivered",
+        status="Received",
         created_by=current.id,
     )
     db.add(model)
@@ -180,15 +209,31 @@ def create_order(
     if (product.stock or 0) < quantity:
         raise HTTPException(status_code=400, detail="Insufficient stock for this product")
 
+    delivery_address = (payload.get("delivery_address") or current.address or "").strip() or None
+    delivery_phone = (payload.get("delivery_phone") or current.phone or "").strip() or None
+    delivery_notes = (payload.get("delivery_notes") or "").strip() or None
+    delivery_method = _normalized_delivery_method(payload.get("delivery_method"))
+    provider_name = None
+    if getattr(product, "provider_id", None):
+        provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
+        if provider:
+            provider_name = provider.name
+
     model = Sale(
         date=date.fromisoformat(sale_date) if sale_date else date.today(),
         product=product.name,
         category=product.category,
         product_id=product.id,
+        provider_id=getattr(product, "provider_id", None),
+        provider_name=provider_name,
         quantity=quantity,
         unit_price=float(product.price or 0),
         status="Pending",
         created_by=current.id,
+        delivery_address=delivery_address,
+        delivery_phone=delivery_phone,
+        delivery_notes=delivery_notes,
+        delivery_method=delivery_method,
     )
 
     product.stock = int(product.stock or 0) - quantity
@@ -203,7 +248,7 @@ def update_order_status(
     order_id: int,
     payload: dict,
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("admin", "super_admin")),
+    current: User = Depends(require_roles("admin", "super_admin", "owner")),
 ):
     target_status = _requested_status(payload.get("status"))
     if not target_status:
@@ -230,6 +275,28 @@ def update_order_status(
             product.stock = int(product.stock or 0) + int(order.quantity or 0)
             db.add(product)
 
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    return _serialize_order(order)
+
+
+@router.post("/orders/{order_id}/receive")
+def confirm_received(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(require_roles("user")),
+):
+    order = db.query(Sale).filter(Sale.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    _ensure_owner_or_admin(order, current)
+    current_status = _normalized_status(order.status)
+    if current_status != "Shipped":
+        raise HTTPException(status_code=400, detail="Only shipped orders can be marked received")
+
+    order.status = "Received"
     db.add(order)
     db.commit()
     db.refresh(order)
@@ -284,8 +351,8 @@ def rate_order(
         raise HTTPException(status_code=404, detail="Order not found")
 
     _ensure_owner_or_admin(order, current)
-    if _normalized_status(order.status) != "Delivered":
-        raise HTTPException(status_code=400, detail="Only delivered orders can be rated")
+    if _normalized_status(order.status) != "Received":
+        raise HTTPException(status_code=400, detail="Only received orders can be rated")
     if order.rating is not None:
         raise HTTPException(status_code=400, detail="Order already rated")
 

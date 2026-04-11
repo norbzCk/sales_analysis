@@ -6,14 +6,17 @@ const productView = document.getElementById("productViewContent");
 const searchInput = document.getElementById("productSearch");
 const sortSelect = document.getElementById("productSort");
 const categorySelect = document.getElementById("productCategoryFilter");
+const providerFilter = document.getElementById("productProviderFilter");
 const refreshBtn = document.getElementById("refreshProducts");
 const cartCountBadge = document.getElementById("cartCountBadge");
+const providerSelect = document.getElementById("provider_id");
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80";
 
 let currentUser = null;
 let allProducts = [];
 let selectedProductId = null;
+let providers = [];
 
 function formatMoney(value) {
   return `TZS ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -62,7 +65,7 @@ function updateCartBadge() {
 }
 
 function canManage() {
-  return currentUser && (currentUser.role === "admin" || currentUser.role === "super_admin");
+  return currentUser && ["admin", "super_admin", "owner", "seller"].includes(currentUser.role);
 }
 
 function canOrder() {
@@ -101,6 +104,12 @@ function ratingLabel(product) {
   return `${productRating(product).toFixed(1)} (${count})`;
 }
 
+function providerSummary(product) {
+  const provider = product.provider;
+  if (!provider || !provider.name) return "Independent seller";
+  return provider.verified ? `${provider.name} · Verified` : provider.name;
+}
+
 function card(product) {
   const stock = Number(product.stock || 0);
   const outOfStock = stock <= 0;
@@ -115,6 +124,7 @@ function card(product) {
       </div>
       <div class="product-body">
         <h3 class="product-name">${escapeHtml(product.name || "Unnamed product")}</h3>
+        <p class="muted provider-line">${escapeHtml(providerSummary(product))}</p>
         <p class="product-desc">${escapeHtml(product.description || "No description available")}</p>
 
         <div class="product-meta">
@@ -150,14 +160,47 @@ function populateCategoryFilter(products) {
   categorySelect.value = categories.includes(current) ? current : "all";
 }
 
+function populateProviderFilter(list) {
+  if (!providerFilter) return;
+  const current = providerFilter.value || "all";
+  const options = [
+    '<option value="all">Provider: All</option>',
+    ...list.map((provider) => `<option value="${provider.id}">${escapeHtml(provider.name)}</option>`),
+  ];
+  providerFilter.innerHTML = options.join("");
+  const exists = list.some((provider) => String(provider.id) === String(current));
+  providerFilter.value = exists ? current : "all";
+}
+
+async function loadProviders() {
+  if (!providerSelect) return;
+  try {
+    const data = await apiFetch("/providers/");
+    providers = Array.isArray(data) ? data : [];
+    const options = ['<option value=\"\">Select provider</option>'];
+    providers.forEach((provider) => {
+      const label = provider.verified ? `${provider.name} (Verified)` : provider.name;
+      options.push(`<option value=\"${provider.id}\">${escapeHtml(label)}</option>`);
+    });
+    providerSelect.innerHTML = options.join(\"\");
+    populateProviderFilter(providers);
+  } catch (_err) {
+    providerSelect.innerHTML = '<option value=\"\">Select provider</option>';
+    populateProviderFilter([]);
+  }
+}
+
 function applyFilters(products) {
   const text = (searchInput?.value || "").trim().toLowerCase();
   const sort = sortSelect?.value || "featured";
   const activeCategory = categorySelect?.value || "all";
+  const activeProvider = providerFilter?.value || "all";
 
   let filtered = products.filter((p) => {
     const inCategory = activeCategory === "all" || String(p.category || "").trim() === activeCategory;
     if (!inCategory) return false;
+    const inProvider = activeProvider === "all" || String(p.provider_id || "") === String(activeProvider);
+    if (!inProvider) return false;
     if (!text) return true;
     const hay = `${p.name || ""} ${p.category || ""}`.toLowerCase();
     return hay.includes(text);
@@ -220,6 +263,7 @@ function findProduct(productId) {
 function renderProductView(product) {
   const rating = productRating(product);
   const imageUrl = resolveImageUrl(product.image_url);
+  const provider = product.provider;
 
   productView.innerHTML = `
     <div class="product-view-panel">
@@ -232,6 +276,10 @@ function renderProductView(product) {
           <span class="muted">${ratingLabel(product)}</span>
         </div>
         <p class="product-view-line"><strong>Category:</strong> ${escapeHtml(product.category || "-")}</p>
+        <p class="product-view-line"><strong>Provider:</strong> ${escapeHtml(providerSummary(product))}</p>
+        ${provider?.location ? `<p class="product-view-line"><strong>Location:</strong> ${escapeHtml(provider.location)}</p>` : ""}
+        ${provider?.email ? `<p class="product-view-line"><strong>Email:</strong> ${escapeHtml(provider.email)}</p>` : ""}
+        ${provider?.phone ? `<p class="product-view-line"><strong>Phone:</strong> ${escapeHtml(provider.phone)}</p>` : ""}
         <p class="product-view-line"><strong>Availability:</strong> ${stockLabel(product.stock)}</p>
         <p class="product-view-description">${escapeHtml(product.description || "No description available for this item.")}</p>
       </div>
@@ -358,6 +406,7 @@ form?.addEventListener("submit", async (e) => {
       stock: parseInt(document.getElementById("stock").value, 10),
       description: document.getElementById("description").value.trim(),
       image_url: imageUrl,
+      provider_id: providerSelect?.value ? parseInt(providerSelect.value, 10) : null,
     };
 
     if (!payload.name || !payload.category || Number.isNaN(payload.price) || Number.isNaN(payload.stock)) {
@@ -401,11 +450,13 @@ async function deleteProduct(id) {
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
   updateCartBadge();
+  await loadProviders();
   fetchProducts();
 
   searchInput?.addEventListener("input", renderProducts);
   sortSelect?.addEventListener("change", renderProducts);
   categorySelect?.addEventListener("change", renderProducts);
+  providerFilter?.addEventListener("change", renderProducts);
   refreshBtn?.addEventListener("click", fetchProducts);
 });
 

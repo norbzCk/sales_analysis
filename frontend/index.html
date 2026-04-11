@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard | SalesSys</title>
+  <title>Dashboard | Kariakoo Sales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -12,18 +12,19 @@
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">SalesSys</div>
+      <div class="brand">Kariakoo Sales</div>
       <ul class="nav-links">
-        <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
-        <li><a class="active" data-role-min="admin" href="index.html">Dashboard</a></li>
-        <li><a href="products.html">Products</a></li>
-        <li><a href="orders.html">My Orders</a></li>
-        <li><a data-role-only="user" href="payments.html">Payments</a></li>
-        <li><a data-role-only="user" href="profile.html">Profile</a></li>
-        <li><a data-role-only="super_admin" href="customers.html">Customers</a></li>
-        <li><a data-role-only="super_admin" href="sales.html">Sales</a></li>
-        <li><a data-role-min="admin" href="users.html">Users</a></li>
-      </ul>
+  <li><a data-role-only="user" href="customer-dashboard.html">Dashboard</a></li>
+  <li><a class="active" data-role-min="admin" href="index.html">Business Dashboard</a></li>
+  <li><a href="products.html">Products</a></li>
+  <li><a data-role-min="admin" href="providers.html">Providers</a></li>
+  <li><a href="orders.html">Orders</a></li>
+  <li><a data-role-only="user" href="payments.html">Payments</a></li>
+  <li><a data-role-only="user" href="profile.html">Profile</a></li>
+  <li><a data-role-min="super_admin" href="customers.html">Customers</a></li>
+  <li><a data-role-min="super_admin" href="sales.html">Sales</a></li>
+  <li><a data-role-min="admin" href="users.html">Users</a></li>
+</ul>
     </aside>
 
     <main class="main">
@@ -95,6 +96,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/session.js"></script>
   <script src="js/app.js"></script>
 </body>
