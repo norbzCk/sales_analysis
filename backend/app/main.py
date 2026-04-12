@@ -71,6 +71,22 @@ def ensure_schema_columns():
         conn.execute(
             text(
                 """
+                ALTER TABLE IF EXISTS products
+                ADD COLUMN IF NOT EXISTS seller_id INTEGER
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS products
+                ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
                 ALTER TABLE IF EXISTS users
                 ADD COLUMN IF NOT EXISTS phone VARCHAR
                 """
@@ -136,6 +152,22 @@ def ensure_schema_columns():
             text(
                 """
                 ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS seller_id INTEGER
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS status_reason VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
                 ADD COLUMN IF NOT EXISTS delivery_address VARCHAR
                 """
             )
@@ -182,12 +214,40 @@ def ensure_schema_columns():
                     area VARCHAR,
                     street VARCHAR,
                     shop_number VARCHAR,
+                    operating_hours VARCHAR,
+                    shop_logo_url VARCHAR,
+                    shop_images VARCHAR,
                     profile_photo VARCHAR,
                     verification_status VARCHAR DEFAULT 'unverified',
                     is_active BOOLEAN DEFAULT TRUE,
                     role VARCHAR DEFAULT 'seller',
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
+                """
+            )
+        )
+        
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS operating_hours VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS shop_logo_url VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS shop_images VARCHAR
                 """
             )
         )
@@ -263,11 +323,20 @@ def ensure_schema_columns():
                     delivery_phone VARCHAR,
                     status VARCHAR DEFAULT 'pending',
                     price DOUBLE PRECISION,
+                    special_instructions VARCHAR,
                     verification_code VARCHAR,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     picked_at TIMESTAMPTZ,
                     delivered_at TIMESTAMPTZ
                 )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS special_instructions VARCHAR
                 """
             )
         )

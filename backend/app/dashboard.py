@@ -6,6 +6,12 @@ def _sales_query_for_user(db, user):
     if user.role == "user":
         # Keep compatibility with legacy databases where created_by is varchar.
         query = query.filter(cast(Sale.created_by, String) == str(user.id))
+    elif user.role == "seller":
+        business_name = getattr(user, "business_name", None)
+        query = query.filter(
+            (Sale.seller_id == user.id) |
+            ((Sale.seller_id.is_(None)) & (Sale.provider_name == business_name))
+        )
     return query
 
 

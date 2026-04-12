@@ -14,9 +14,11 @@ class Sale(Base):
     product_id = Column(Integer, nullable=True)
     provider_id = Column(Integer, nullable=True)
     provider_name = Column(String, nullable=True)
+    seller_id = Column(Integer, nullable=True)
     quantity = Column(Integer)
     unit_price = Column(Float)
     status = Column(String, nullable=False, default="Pending")
+    status_reason = Column(String, nullable=True)
     rating = Column(Integer, nullable=True)
     rated_at = Column(DateTime(timezone=True), nullable=True)
     created_by = Column(Integer, nullable=True)
@@ -50,6 +52,8 @@ class Product(Base):
     stock = Column(Integer , nullable=False)
     description = Column(String)
     image_url = Column(String, nullable=True)
+    seller_id = Column(Integer, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
     provider_id = Column(Integer, nullable=True)
     rating_avg = Column(Float, nullable=False, default=0.0)
     rating_count = Column(Integer, nullable=False, default=0)
@@ -110,7 +114,15 @@ class BusinessUser(Base):
     area = Column(String, nullable=True)  # Kariakoo, Ilala, Kinondoni
     street = Column(String, nullable=True)
     shop_number = Column(String, nullable=True)
+    operating_hours = Column(String, nullable=True)
+    shop_logo_url = Column(String, nullable=True)
+    shop_images = Column(String, nullable=True)  # comma-separated image URLs
     profile_photo = Column(String, nullable=True)
+    website_url = Column(String, nullable=True)
+    social_facebook = Column(String, nullable=True)
+    social_instagram = Column(String, nullable=True)
+    social_whatsapp = Column(String, nullable=True)
+    social_x = Column(String, nullable=True)
     verification_status = Column(String, nullable=False, default="unverified")  # unverified, pending, verified
     is_active = Column(Boolean, nullable=False, default=True)
     role = Column(String, nullable=False, default="seller")  # seller, buyer
@@ -187,6 +199,7 @@ class DeliveryOrder(Base):
     delivery_phone = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")  # pending, assigned, picked_up, in_transit, delivered, cancelled
     price = Column(Float, nullable=True)
+    special_instructions = Column(String, nullable=True)
     verification_code = Column(String, nullable=True)  # OTP for delivery confirmation
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     picked_at = Column(DateTime(timezone=True), nullable=True)

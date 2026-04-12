@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
-from backend.models import Product, Provider, User
+from backend.models import BusinessUser, Product, Provider, User
 from backend.app.schemas import ProductCreate, ProductSearchQuery
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -37,6 +37,8 @@ def _serialize_product(product: Product, provider: Provider | None) -> dict:
         "stock": product.stock,
         "description": product.description,
         "image_url": product.image_url,
+        "seller_id": product.seller_id,
+        "is_active": bool(product.is_active) if product.is_active is not None else True,
         "provider_id": product.provider_id,
         "provider": _serialize_provider(provider),
         "rating_avg": product.rating_avg or 0,
@@ -48,6 +50,17 @@ def _serialize_public_product(product: Product, provider: Provider | None) -> di
     data = _serialize_product(product, provider)
     data["in_stock"] = bool((product.stock or 0) > 0)
     return data
+
+
+def _is_seller(current: User | BusinessUser) -> bool:
+    return str(getattr(current, "role", "")).strip().lower() == "seller"
+
+
+def _ensure_product_owner(product: Product, current: User | BusinessUser):
+    if not _is_seller(current):
+        return
+    if int(product.seller_id or 0) != int(getattr(current, "id", 0)):
+        raise HTTPException(status_code=403, detail="Product does not belong to this seller")
 
 
 @router.post("/upload-image")
@@ -78,9 +91,12 @@ async def upload_product_image(
 @router.get("/")
 def get_products(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
 ):
-    products = db.query(Product).order_by(Product.id.desc()).all()
+    query = db.query(Product).filter(Product.is_active.isnot(False))
+    if _is_seller(current):
+        query = query.filter(Product.seller_id == current.id)
+    products = query.order_by(Product.id.desc()).all()
     providers = {p.id: p for p in db.query(Provider).all()}
     return [_serialize_product(p, providers.get(p.provider_id)) for p in products]
 
@@ -89,7 +105,13 @@ def get_products(
 def get_public_products(
     db: Session = Depends(get_db),
 ):
-    items = db.query(Product).order_by(Product.id.desc()).limit(12).all()
+    items = (
+        db.query(Product)
+        .filter(Product.is_active.isnot(False))
+        .order_by(Product.id.desc())
+        .limit(12)
+        .all()
+    )
     providers = {p.id: p for p in db.query(Provider).all()}
     return [
         _serialize_public_product(p, providers.get(p.provider_id))
@@ -115,15 +137,12 @@ def get_public_categories(
 @router.get("/categories")
 def get_product_categories(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
 ):
-    rows = (
-        db.query(func.trim(Product.category))
-        .filter(Product.category.isnot(None))
-        .distinct()
-        .order_by(func.trim(Product.category).asc())
-        .all()
-    )
+    query = db.query(func.trim(Product.category)).filter(Product.category.isnot(None), Product.is_active.isnot(False))
+    if _is_seller(current):
+        query = query.filter(Product.seller_id == current.id)
+    rows = query.distinct().order_by(func.trim(Product.category).asc()).all()
     categories = [row[0] for row in rows if (row[0] or "").strip()]
     return {"categories": categories}
 
@@ -140,7 +159,7 @@ def search_products(
     offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Product)
+    query = db.query(Product).filter(Product.is_active.isnot(False))
     
     if q:
         search_term = f"%{q}%"
@@ -217,11 +236,12 @@ def get_marketplace_products(
 def get_product(
     product_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    _ensure_product_owner(product, current)
     provider = None
     if product.provider_id:
         provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
@@ -233,7 +253,7 @@ def get_product(
 def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "super_admin", "owner")),
+    current: User = Depends(require_roles("seller", "admin", "super_admin", "owner")),
 ):
     provider = None
     if product.provider_id:
@@ -247,6 +267,8 @@ def create_product(
         stock=product.stock,
         description=product.description,
         image_url=product.image_url,
+        seller_id=current.id if _is_seller(current) else None,
+        is_active=True,
         provider_id=provider.id if provider else None,
 )
     db.add(new_product)
@@ -262,25 +284,28 @@ def create_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "super_admin", "owner")),
+    current: User = Depends(require_roles("seller", "admin", "super_admin", "owner")),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    db.delete(product)
+    _ensure_product_owner(product, current)
+    product.is_active = False
+    db.add(product)
     db.commit()
-    return {"message": "Product deleted", "product_id": product_id}
+    return {"message": "Product deactivated", "product_id": product_id}
 
 @router.put("/{product_id}")
 def update_product(
     product_id: int,
     product_data: ProductCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("admin", "super_admin", "owner")),
+    current: User = Depends(require_roles("seller", "admin", "super_admin", "owner")),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    _ensure_product_owner(product, current)
     
     product.name = product_data.name
     product.category = product_data.category
@@ -293,6 +318,9 @@ def update_product(
         provider = db.query(Provider).filter(Provider.id == product_data.provider_id).first()
         if provider:
             product.provider_id = provider.id
+    elif _is_seller(current):
+        # Sellers may remove provider association from their own items.
+        product.provider_id = None
 
     db.commit()
     db.refresh(product)
@@ -310,9 +338,12 @@ def update_product(
 @router.get("/inventory/stats")
 def get_inventory_stats(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
 ):
-    products = db.query(Product).all()
+    query = db.query(Product).filter(Product.is_active.isnot(False))
+    if _is_seller(current):
+        query = query.filter(Product.seller_id == current.id)
+    products = query.all()
     providers = {p.id: p for p in db.query(Provider).all()}
     
     total_products = len(products)

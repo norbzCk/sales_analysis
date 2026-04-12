@@ -143,6 +143,15 @@ class BusinessRegister(BaseModel):
     area: str | None = None
     street: str | None = None
     shop_number: str | None = None
+    operating_hours: str | None = None
+    shop_logo_url: str | None = None
+    shop_images: str | None = None
+    profile_photo: str | None = None
+    website_url: str | None = None
+    social_facebook: str | None = None
+    social_instagram: str | None = None
+    social_whatsapp: str | None = None
+    social_x: str | None = None
     role: str = "seller"
 
 
@@ -165,7 +174,15 @@ class BusinessProfile(BaseModel):
     area: str | None = None
     street: str | None = None
     shop_number: str | None = None
+    operating_hours: str | None = None
+    shop_logo_url: str | None = None
+    shop_images: str | None = None
     profile_photo: str | None = None
+    website_url: str | None = None
+    social_facebook: str | None = None
+    social_instagram: str | None = None
+    social_whatsapp: str | None = None
+    social_x: str | None = None
     verification_status: str
     role: str
     created_at: str | None = None
@@ -174,13 +191,24 @@ class BusinessProfile(BaseModel):
 class BusinessUpdate(BaseModel):
     business_name: str | None = None
     owner_name: str | None = None
+    business_type: str | None = None
     email: str | None = None
+    phone: str | None = None
     category: str | None = None
     description: str | None = None
+    region: str | None = None
     area: str | None = None
     street: str | None = None
     shop_number: str | None = None
+    operating_hours: str | None = None
+    shop_logo_url: str | None = None
+    shop_images: str | None = None
     profile_photo: str | None = None
+    website_url: str | None = None
+    social_facebook: str | None = None
+    social_instagram: str | None = None
+    social_whatsapp: str | None = None
+    social_x: str | None = None
 
 
 class BusinessVerificationSubmit(BaseModel):

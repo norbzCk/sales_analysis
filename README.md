@@ -1,6 +1,6 @@
 # Sales Dashboard Web Application
 
-A full-stack sales analytics dashboard that visualizes revenue, orders, units sold, and product performance using a FastAPI backend and a lightweight HTML/CSS/JavaScript frontend.
+A full-stack sales analytics dashboard that visualizes revenue, orders, units sold, and product performance using a FastAPI backend. The repository now contains both the original lightweight HTML/CSS/JavaScript frontend and a new React + TypeScript frontend architecture for incremental migration.
 
 ## Features
 
@@ -49,6 +49,12 @@ Vanilla JavaScript
 
 Chart.js
 
+React
+
+TypeScript
+
+Vite
+
 
 ## Setup & Installation
 1: Clone the repository
@@ -89,7 +95,11 @@ Backend/API:
 - `http://127.0.0.1:8000`
 - Swagger docs: `http://127.0.0.1:8000/docs`
 
-### 6. Configure frontend API URL
+### 6. Choose frontend architecture
+
+Legacy frontend:
+
+### 6a. Configure legacy frontend API URL
 Edit `frontend/js/config.js`:
 
 ```js
@@ -98,7 +108,7 @@ window.__APP_CONFIG__ = {
 };
 ```
 
-### 7. Run frontend
+### 7a. Run legacy frontend
 ```bash
 cd frontend
 python -m http.server 5500
@@ -107,5 +117,31 @@ python -m http.server 5500
 Then open:
 
 http://127.0.0.1:5500/index.html
+
+React + TypeScript frontend:
+
+### 6b. Run the new frontend
+
+```bash
+cd frontend-react
+npm install
+npm run dev
+```
+
+Optional API override:
+
+```bash
+VITE_API_BASE=http://127.0.0.1:8000 npm run dev
+```
+
+Then open:
+
+`http://127.0.0.1:5173`
+
+The React app is an architecture-first migration:
+
+- It preserves the same product aim and backend API
+- It centralizes routes, auth state, and HTTP access
+- It creates dedicated feature boundaries for the remaining page migrations
 
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
-from backend.models import Product, Provider, Sale, User
+from backend.models import BusinessUser, Product, Provider, Sale, User
 
 router = APIRouter(tags=["Sales", "Orders"])
 
@@ -44,6 +44,12 @@ def _sales_query_for_current_user(db: Session, current: User):
     if current.role == "user":
         # Keep compatibility with legacy databases where created_by is varchar.
         query = query.filter(cast(Sale.created_by, String) == str(current.id))
+    elif current.role == "seller":
+        business_name = getattr(current, "business_name", None)
+        query = query.filter(
+            (Sale.seller_id == current.id) |
+            ((Sale.seller_id.is_(None)) & (Sale.provider_name == business_name))
+        )
     return query
 
 
@@ -75,10 +81,12 @@ def _serialize_order(s: Sale) -> dict:
         "category": s.category,
         "provider_id": s.provider_id,
         "provider_name": s.provider_name,
+        "seller_id": s.seller_id,
         "quantity": s.quantity,
         "unit_price": s.unit_price,
         "total": (s.quantity or 0) * (s.unit_price or 0),
         "status": status,
+        "status_reason": s.status_reason,
         "rating": s.rating,
         "created_by": s.created_by,
         "product_id": s.product_id,
@@ -111,8 +119,16 @@ def _apply_product_rating_stats(db: Session, product_id: int | None) -> None:
 
 
 def _ensure_owner_or_admin(order: Sale, current: User) -> None:
-    if current.role == "user" and str(order.created_by) != str(current.id):
-        raise HTTPException(status_code=403, detail="You can only access your own orders")
+    if current.role == "user":
+        if str(order.created_by) != str(current.id):
+            raise HTTPException(status_code=403, detail="You can only access your own orders")
+    elif current.role == "seller":
+        business_name = getattr(current, "business_name", None)
+        owns = str(order.seller_id or "") == str(current.id) or (
+            order.seller_id is None and business_name and (order.provider_name or "") == business_name
+        )
+        if not owns:
+            raise HTTPException(status_code=403, detail="You can only access your own sales orders")
 
 
 @router.get("/sales/")
@@ -218,12 +234,17 @@ def create_order(
         provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
         if provider:
             provider_name = provider.name
+    if not provider_name and getattr(product, "seller_id", None):
+        seller = db.query(BusinessUser).filter(BusinessUser.id == product.seller_id).first()
+        if seller:
+            provider_name = seller.business_name
 
     model = Sale(
         date=date.fromisoformat(sale_date) if sale_date else date.today(),
         product=product.name,
         category=product.category,
         product_id=product.id,
+        seller_id=getattr(product, "seller_id", None),
         provider_id=getattr(product, "provider_id", None),
         provider_name=provider_name,
         quantity=quantity,
@@ -248,7 +269,7 @@ def update_order_status(
     order_id: int,
     payload: dict,
     db: Session = Depends(get_db),
-    current: User = Depends(require_roles("admin", "super_admin", "owner")),
+    current: User = Depends(require_roles("seller", "admin", "super_admin", "owner")),
 ):
     target_status = _requested_status(payload.get("status"))
     if not target_status:
@@ -257,6 +278,8 @@ def update_order_status(
     order = db.query(Sale).filter(Sale.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if current.role == "seller":
+        _ensure_owner_or_admin(order, current)
 
     current_status = _normalized_status(order.status)
     if target_status == current_status:
@@ -269,6 +292,7 @@ def update_order_status(
         )
 
     order.status = target_status
+    order.status_reason = (payload.get("reason") or "").strip() or None
     if target_status == "Cancelled" and order.product_id:
         product = db.query(Product).filter(Product.id == order.product_id).first()
         if product:
