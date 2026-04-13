@@ -1,6 +1,6 @@
 export type UserRole = "user" | "seller" | "admin" | "super_admin" | "owner" | "logistics" | "";
 
-export type UserType = "user" | "business" | "logistics" | "";
+export type UserType = "user" | "business" | "logistics" | "superadmin" | "";
 
 export interface SessionUser {
   id?: number;
@@ -8,6 +8,7 @@ export interface SessionUser {
   email?: string;
   phone?: string;
   address?: string;
+  profile_photo?: string;
   role?: UserRole | string;
   business_name?: string;
   owner_name?: string;

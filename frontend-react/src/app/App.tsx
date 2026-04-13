@@ -7,12 +7,14 @@ import { BusinessRegisterPage } from "../pages/BusinessRegisterPage";
 import { CustomersPage } from "../pages/CustomersPage";
 import { CustomerDashboardPage } from "../pages/CustomerDashboardPage";
 import { CustomerRegisterPage } from "../pages/CustomerRegisterPage";
+import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { HomePage } from "../pages/HomePage";
 import { LogisticsDashboardPage } from "../pages/LogisticsDashboardPage";
 import { LogisticsRegisterPage } from "../pages/LogisticsRegisterPage";
 import { LoginPage } from "../pages/LoginPage";
 import { OrdersPage } from "../pages/OrdersPage";
 import { PaymentsPage } from "../pages/PaymentsPage";
+import { NotificationsPage } from "../pages/NotificationsPage";
 import { ProductsPage } from "../pages/ProductsPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ProvidersPage } from "../pages/ProvidersPage";
@@ -20,11 +22,14 @@ import { SalesPage } from "../pages/SalesPage";
 import { SellerDashboardPage } from "../pages/SellerDashboardPage";
 import { SellerDeliveriesPage } from "../pages/SellerDeliveriesPage";
 import { SellerProfilePage } from "../pages/SellerProfilePage";
+import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
+import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
 
 function AppLanding() {
   const { user } = useAuth();
   const role = String(user?.role || "");
+  if (role === "super_admin") return <Navigate to="/app/superadmin" replace />;
   if (role === "user") return <Navigate to="/app/customer" replace />;
   if (role === "logistics") return <Navigate to="/app/logistics" replace />;
   if (role === "seller") return <Navigate to="/app/seller" replace />;
@@ -36,6 +41,8 @@ export function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/superadmin" element={<SuperadminLoginPage />} />
       <Route path="/register/business" element={<BusinessRegisterPage />} />
       <Route path="/register/customer" element={<CustomerRegisterPage />} />
       <Route path="/register/logistics" element={<LogisticsRegisterPage />} />
@@ -50,6 +57,7 @@ export function App() {
       >
         <Route index element={<AppLanding />} />
         <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="superadmin" element={<SuperadminDashboardPage />} />
         <Route path="seller" element={<SellerDashboardPage />} />
         <Route path="seller/profile" element={<SellerProfilePage />} />
         <Route path="seller/deliveries" element={<SellerDeliveriesPage />} />
@@ -57,6 +65,7 @@ export function App() {
         <Route path="logistics" element={<LogisticsDashboardPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="payments" element={<PaymentsPage />} />

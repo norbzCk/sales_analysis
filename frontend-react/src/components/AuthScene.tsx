@@ -21,7 +21,7 @@ export function AuthScene({
     <div className="auth-page auth-page-branded">
       <section className="auth-shell auth-shell-branded">
         <aside className="auth-story">
-          <BrandMark subtitle="Dar es Salaam Marketplace" />
+          <BrandMark subtitle="Connected buyers, sellers, riders, and admins" />
           <div className="auth-story-copy">
             <p className="eyebrow">{eyebrow}</p>
             <h1>{title}</h1>
@@ -29,7 +29,7 @@ export function AuthScene({
           </div>
 
           <div className="auth-story-panel">
-            <h2>Why teams use Kariakoo</h2>
+            <h2>Why teams use SokoLnk</h2>
             <ul className="auth-story-list">
               {bullets.map((item) => (
                 <li key={item}>{item}</li>

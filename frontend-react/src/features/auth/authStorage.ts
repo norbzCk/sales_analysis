@@ -65,9 +65,14 @@ export function hasAdminAccess(role?: string) {
   return ["admin", "super_admin", "owner"].includes(normalizeRole(role));
 }
 
+export function hasSuperadminAccess(role?: string) {
+  return normalizeRole(role) === "super_admin";
+}
+
 export function getPostLoginPath(user?: SessionUser | null) {
   const userType = getStoredUserType().toLowerCase();
   const role = normalizeRole(String(user?.role || ""));
+  if (userType === "superadmin" || role === "super_admin") return "/app/superadmin";
   if (userType === "logistics" || role === "logistics") return "/app/logistics";
   if (userType === "business" || role === "seller") return "/app/seller";
   if (hasAdminAccess(role)) return "/app/dashboard";

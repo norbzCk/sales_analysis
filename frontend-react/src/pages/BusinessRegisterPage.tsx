@@ -58,8 +58,8 @@ export function BusinessRegisterPage() {
   return (
     <AuthScene
       eyebrow="Business onboarding"
-      title="Open your business storefront on Kariakoo."
-      description="Set up your seller profile, organize your product category, and move straight into the business dashboard after registration."
+      title="Open your business storefront on SokoLnk."
+      description="Set up your seller profile, organize your product catalog, and move straight into the business dashboard after registration."
       bullets={[
         "Create a seller-ready account in one step",
         "Show suppliers and buyers who runs the business",

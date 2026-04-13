@@ -49,7 +49,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const userType = getStoredUserType();
-      const endpoint = userType === "business" ? "/business/me" : userType === "logistics" ? "/logistics/me" : "/auth/me";
+      const endpoint =
+        userType === "business"
+          ? "/business/me"
+          : userType === "logistics"
+            ? "/logistics/me"
+            : "/auth/me";
       const fallbackType = userType || "user";
       const fetched = await apiRequest<SessionUser>(endpoint);
       const next = normalizeUser(fetched, fallbackType);
@@ -72,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(identifier: string, password: string) {
     const trimmed = identifier.trim();
     const isEmail = trimmed.includes("@");
+
     const attempts = [
       { url: "/business/login", userType: "business" as UserType, role: "seller" },
       { url: "/logistics/login", userType: "logistics" as UserType, role: "logistics" },
@@ -103,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           continue;
         }
 
-        persistSession(token, merged, attempt.userType);
+        const sessionType = merged.role === "super_admin" ? "superadmin" : attempt.userType;
+        persistSession(token, merged, sessionType);
         setToken(token);
         setUser(merged);
         return merged;

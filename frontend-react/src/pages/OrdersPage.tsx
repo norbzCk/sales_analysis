@@ -12,6 +12,28 @@ interface LogisticsOption {
   name: string;
   vehicle_type?: string | null;
   base_area?: string | null;
+  status?: string | null;
+  availability?: string | null;
+  verification_status?: string | null;
+}
+
+interface BusinessmanOption {
+  id: number;
+  business_name: string;
+}
+
+interface DraftOrderItem {
+  id: string;
+  product_id: number;
+  product_name: string;
+  seller_name: string;
+  quantity: number;
+  unit_price: number;
+  order_date: string;
+  delivery_address: string;
+  delivery_phone: string;
+  delivery_method: string;
+  delivery_notes: string;
 }
 
 function formatMoney(value?: number) {
@@ -47,6 +69,7 @@ export function OrdersPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [deliveries, setDeliveries] = useState<LogisticsDelivery[]>([]);
   const [logistics, setLogistics] = useState<LogisticsOption[]>([]);
+  const [businessmen, setBusinessmen] = useState<BusinessmanOption[]>([]);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [loading, setLoading] = useState(true);
@@ -60,12 +83,35 @@ export function OrdersPage() {
   const [assignDestinationByOrder, setAssignDestinationByOrder] = useState<Record<number, string>>({});
   const [assignPriceByOrder, setAssignPriceByOrder] = useState<Record<number, string>>({});
   const [assignInstructionsByOrder, setAssignInstructionsByOrder] = useState<Record<number, string>>({});
+  const [assignBusinessByOrder, setAssignBusinessByOrder] = useState<Record<number, string>>({});
+  const [draftOrders, setDraftOrders] = useState<DraftOrderItem[]>([]);
 
   const sellerMode = canSellerManage(user?.role);
+  const draftStorageKey = `orders_draft_${user?.id || "guest"}`;
 
   useEffect(() => {
     void load();
   }, [sellerMode]);
+
+  useEffect(() => {
+    if (user?.role !== "user") return;
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) {
+        setDraftOrders([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as DraftOrderItem[];
+      setDraftOrders(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setDraftOrders([]);
+    }
+  }, [draftStorageKey, user?.role]);
+
+  useEffect(() => {
+    if (user?.role !== "user") return;
+    localStorage.setItem(draftStorageKey, JSON.stringify(draftOrders));
+  }, [draftOrders, draftStorageKey, user?.role]);
 
   async function load() {
     setLoading(true);
@@ -101,10 +147,15 @@ export function OrdersPage() {
 
     if (sellerMode) {
       try {
-        const logisticsData = await apiRequest<{ items: LogisticsOption[] }>("/logistics/available", { auth: false });
+        const [logisticsData, businessData] = await Promise.all([
+          apiRequest<{ items: LogisticsOption[] }>("/business/logistics-options"),
+          apiRequest<{ items: BusinessmanOption[] }>("/business/", { auth: false }),
+        ]);
         setLogistics(logisticsData.items || []);
+        setBusinessmen(businessData.items || []);
       } catch {
         setLogistics([]);
+        setBusinessmen([]);
       }
     }
   }
@@ -140,23 +191,77 @@ export function OrdersPage() {
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const product_id = Number(form.get("product_id"));
+    const quantity = Number(form.get("quantity") || 0);
+    const product = products.find((item) => item.id === product_id);
+    if (!product || quantity <= 0) {
+      setError("Select a product and quantity greater than zero.");
+      return;
+    }
+
     const payload = {
-      product_id: Number(form.get("product_id")),
-      quantity: Number(form.get("quantity") || 0),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      product_id,
+      product_name: product.name || `Product #${product_id}`,
+      seller_name: product.seller_name || product.seller?.business_name || product.provider?.name || "Marketplace seller",
+      quantity,
+      unit_price: Number(product.price || 0),
       order_date: String(form.get("order_date") || ""),
       delivery_address: String(form.get("delivery_address") || "").trim(),
       delivery_phone: String(form.get("delivery_phone") || "").trim(),
       delivery_method: String(form.get("delivery_method") || "Standard"),
       delivery_notes: String(form.get("delivery_notes") || "").trim(),
     };
-    try {
-      await apiRequest("/orders/", { method: "POST", body: payload });
-      event.currentTarget.reset();
-      setFlash("Order created.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create order");
+
+    setDraftOrders((prev) => [...prev, payload]);
+    setFlash("Order added to temporary list. Confirm when ready.");
+    event.currentTarget.reset();
+  }
+
+  function removeDraftItem(id: string) {
+    setDraftOrders((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  async function confirmDraftOrders() {
+    if (!draftOrders.length) {
+      setError("Add at least one order before confirming.");
+      return;
     }
+    setError("");
+    setFlash("");
+
+    let created = 0;
+    const failures: string[] = [];
+
+    for (const item of draftOrders) {
+      try {
+        await apiRequest("/orders/", {
+          method: "POST",
+          body: {
+            product_id: item.product_id,
+            quantity: item.quantity,
+            order_date: item.order_date,
+            delivery_address: item.delivery_address,
+            delivery_phone: item.delivery_phone,
+            delivery_method: item.delivery_method,
+            delivery_notes: item.delivery_notes,
+          },
+        });
+        created += 1;
+      } catch (err) {
+        failures.push(`${item.product_name}: ${err instanceof Error ? err.message : "failed"}`);
+      }
+    }
+
+    if (created) {
+      setDraftOrders([]);
+      localStorage.removeItem(draftStorageKey);
+      await load();
+    }
+    if (failures.length) {
+      setError(`Some orders failed: ${failures.join(" | ")}`);
+    }
+    setFlash(created ? `${created} order(s) confirmed successfully.` : "No orders were confirmed.");
   }
 
   async function updateStatus(orderId: number, status: string) {
@@ -251,10 +356,12 @@ export function OrdersPage() {
   async function assignDelivery(order: Order) {
     if (!order.id) return;
     const logisticsId = Number(assignLogisticsByOrder[order.id] || 0) || null;
+    const businessmanId = Number(assignBusinessByOrder[order.id] || 0) || null;
     try {
       await apiRequest(`/business/orders/${order.id}/assign-delivery`, {
         method: "POST",
         body: {
+          seller_id: businessmanId,
           logistics_id: logisticsId,
           pickup_location: assignPickupByOrder[order.id] || null,
           delivery_location: assignDestinationByOrder[order.id] || order.delivery_address || null,
@@ -319,6 +426,22 @@ export function OrdersPage() {
           </div>
           <div className="form-grid auth-form-two-col">
             <label>
+              Businessman
+              <select
+                value={assignBusinessByOrder[order.id] || ""}
+                onChange={(event) =>
+                  setAssignBusinessByOrder((prev) => ({ ...prev, [order.id]: event.target.value }))
+                }
+              >
+                <option value="">Current seller ({order.provider_name || "Business"})</option>
+                {businessmen.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.business_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               Logistics partner
               <select
                 value={assignLogisticsByOrder[order.id] || ""}
@@ -326,10 +449,13 @@ export function OrdersPage() {
                   setAssignLogisticsByOrder((prev) => ({ ...prev, [order.id]: event.target.value }))
                 }
               >
-                <option value="">Auto assign</option>
+                <option value="">Auto assign (Recommended)</option>
                 {logistics.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} {item.vehicle_type ? `(${item.vehicle_type})` : ""}
+                    {item.name}
+                    {item.vehicle_type ? ` (${item.vehicle_type})` : ""}
+                    {item.status ? ` · ${item.status}` : ""}
+                    {item.availability ? ` / ${item.availability}` : ""}
                   </option>
                 ))}
               </select>
@@ -389,6 +515,12 @@ export function OrdersPage() {
     );
   }
 
+  const draftSummary = useMemo(() => {
+    const total = draftOrders.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+    const units = draftOrders.reduce((sum, item) => sum + item.quantity, 0);
+    return { total, units };
+  }, [draftOrders]);
+
   return (
     <section className="panel-stack">
       <div className="panel">
@@ -405,34 +537,66 @@ export function OrdersPage() {
       {flash ? <p className="alert success">{flash}</p> : null}
 
       {user?.role === "user" ? (
-        <form className="panel form-grid" onSubmit={handleCreate}>
-          <h2>Create order</h2>
-          <label>
-            Product
-            <select name="product_id" defaultValue={params.get("product") || ""} required>
-              <option value="">Select product</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name} - {formatMoney(product.price)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>Quantity<input name="quantity" type="number" min="1" required /></label>
-          <label>Order date<input name="order_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-          <label>Delivery address<input name="delivery_address" defaultValue={user?.address || ""} /></label>
-          <label>Delivery phone<input name="delivery_phone" defaultValue={user?.phone || ""} /></label>
-          <label>
-            Delivery method
-            <select name="delivery_method" defaultValue="Standard">
-              <option value="Standard">Standard</option>
-              <option value="Express">Express</option>
-              <option value="Pickup">Pickup</option>
-            </select>
-          </label>
-          <label>Notes<input name="delivery_notes" /></label>
-          <button className="primary-button" type="submit">Place order</button>
-        </form>
+        <div className="two-column-grid">
+          <form className="panel form-grid" onSubmit={handleCreate}>
+            <h2>Add order to temporary list</h2>
+            <label>
+              Product
+              <select name="product_id" defaultValue={params.get("product") || ""} required>
+                <option value="">Select product</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} - {formatMoney(product.price)} ({product.seller_name || product.seller?.business_name || "seller"})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>Quantity<input name="quantity" type="number" min="1" required /></label>
+            <label>Order date<input name="order_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+            <label>Delivery address<input name="delivery_address" defaultValue={user?.address || ""} /></label>
+            <label>Delivery phone<input name="delivery_phone" defaultValue={user?.phone || ""} /></label>
+            <label>
+              Delivery method
+              <select name="delivery_method" defaultValue="Standard">
+                <option value="Standard">Standard</option>
+                <option value="Express">Express</option>
+                <option value="Pickup">Pickup</option>
+              </select>
+            </label>
+            <label>Notes<input name="delivery_notes" /></label>
+            <button className="primary-button" type="submit">Save temporarily</button>
+          </form>
+
+          <article className="panel stack-list">
+            <div className="panel-header">
+              <h2>Temporary order list</h2>
+              <span>{draftOrders.length} item(s)</span>
+            </div>
+            {!draftOrders.length ? <p className="muted">No temporary orders yet.</p> : null}
+            {draftOrders.map((item) => (
+              <div key={item.id} className="list-card">
+                <div>
+                  <strong>{item.product_name}</strong>
+                  <p className="muted">{item.seller_name}</p>
+                  <p className="muted">Qty {item.quantity} · {item.delivery_method}</p>
+                </div>
+                <div className="stack-list">
+                  <strong>{formatMoney(item.unit_price * item.quantity)}</strong>
+                  <button className="secondary-button" type="button" onClick={() => removeDraftItem(item.id)}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="buyer-kpi">
+              <span className="muted">Units: {draftSummary.units}</span>
+              <strong>Total: {formatMoney(draftSummary.total)}</strong>
+            </div>
+            <button className="primary-button" type="button" onClick={() => void confirmDraftOrders()} disabled={!draftOrders.length}>
+              Confirm order(s)
+            </button>
+          </article>
+        </div>
       ) : null}
 
       <div className="panel filter-grid">

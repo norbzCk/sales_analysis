@@ -76,6 +76,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    profile_photo = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="user")
     is_active = Column(Boolean, nullable=False, default=True)
@@ -204,3 +205,44 @@ class DeliveryOrder(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     picked_at = Column(DateTime(timezone=True), nullable=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recipient_type = Column(String, nullable=False, index=True)
+    recipient_id = Column(Integer, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    notification_type = Column(String, nullable=False, default="system")
+    severity = Column(String, nullable=False, default="info")
+    action_href = Column(String, nullable=True)
+    metadata_json = Column(String, nullable=True)
+    is_read = Column(Boolean, nullable=False, default=False)
+    email = Column(String, nullable=True)
+    email_subject = Column(String, nullable=True)
+    email_status = Column(String, nullable=False, default="not_requested")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(String, nullable=False, unique=True, index=True)
+    order_id = Column(Integer, nullable=False, index=True)
+    payer_type = Column(String, nullable=False, index=True)
+    payer_id = Column(Integer, nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    payment_method = Column(String, nullable=False)
+    provider = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending", index=True)
+    message = Column(String, nullable=True)
+    instructions = Column(String, nullable=True)
+    metadata_json = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)

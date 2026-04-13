@@ -119,14 +119,15 @@ export function PaymentsPage() {
       <div className="panel table-scroll">
         <h2>Payment history</h2>
         <table className="data-table">
-          <thead><tr><th>Transaction</th><th>Order</th><th>Product</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <thead><tr><th>Transaction</th><th>Order</th><th>Product</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
           <tbody>
-            {!history.length ? <tr><td colSpan={6}>No payment history yet.</td></tr> : null}
+            {!history.length ? <tr><td colSpan={7}>No payment history yet.</td></tr> : null}
             {history.map((item) => (
               <tr key={item.transaction_id}>
                 <td>{item.transaction_id}</td>
                 <td>#{item.order_id}</td>
                 <td>{item.product || "-"}</td>
+                <td>{item.payment_method || "-"}</td>
                 <td>{formatMoney(item.amount)}</td>
                 <td>{item.status}</td>
                 <td>{item.date || "-"}</td>

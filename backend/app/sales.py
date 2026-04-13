@@ -1,10 +1,11 @@
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
 from backend.app.auth import get_current_user, require_roles
+from backend.app.notification_service import create_notification, resolve_subject
 from backend.database import get_db
 from backend.models import BusinessUser, Product, Provider, Sale, User
 
@@ -131,6 +132,76 @@ def _ensure_owner_or_admin(order: Sale, current: User) -> None:
             raise HTTPException(status_code=403, detail="You can only access your own sales orders")
 
 
+def _find_buyer_and_seller(db: Session, order: Sale) -> tuple[User | None, BusinessUser | None]:
+    buyer = None
+    seller = None
+
+    if order.created_by is not None:
+        try:
+            buyer = db.query(User).filter(User.id == int(order.created_by)).first()
+        except (TypeError, ValueError):
+            buyer = None
+
+    if order.seller_id is not None:
+        seller = db.query(BusinessUser).filter(BusinessUser.id == order.seller_id).first()
+    elif order.provider_name:
+        seller = db.query(BusinessUser).filter(BusinessUser.business_name == order.provider_name).first()
+
+    return buyer, seller
+
+
+def _notify_order_event(
+    db: Session,
+    background_tasks: BackgroundTasks,
+    order: Sale,
+    *,
+    buyer_title: str,
+    buyer_message: str,
+    seller_title: str | None = None,
+    seller_message: str | None = None,
+    notification_type: str = "order",
+    severity: str = "info",
+) -> None:
+    buyer, seller = _find_buyer_and_seller(db, order)
+    if buyer:
+        buyer_type, buyer_id, buyer_email, buyer_name = resolve_subject(buyer)
+        create_notification(
+            db,
+            recipient_type=buyer_type,
+            recipient_id=buyer_id,
+            recipient_email=buyer_email,
+            title=buyer_title,
+            message=buyer_message,
+            notification_type=notification_type,
+            severity=severity,
+            action_href="/app/orders",
+            metadata={"order_id": order.id},
+            background_tasks=background_tasks,
+            send_email=bool(buyer_email),
+            email_subject=buyer_title,
+            email_body=f"Hello {buyer_name},\n\n{buyer_message}\n\nSokoLnk Orders",
+        )
+
+    if seller:
+        seller_type, seller_id, seller_email, seller_name = resolve_subject(seller)
+        create_notification(
+            db,
+            recipient_type=seller_type,
+            recipient_id=seller_id,
+            recipient_email=seller_email,
+            title=seller_title or buyer_title,
+            message=seller_message or buyer_message,
+            notification_type=notification_type,
+            severity=severity,
+            action_href="/app/orders",
+            metadata={"order_id": order.id},
+            background_tasks=background_tasks,
+            send_email=bool(seller_email),
+            email_subject=seller_title or buyer_title,
+            email_body=f"Hello {seller_name},\n\n{seller_message or buyer_message}\n\nSokoLnk Orders",
+        )
+
+
 @router.get("/sales/")
 def get_sales(
     db: Session = Depends(get_db),
@@ -199,6 +270,7 @@ def get_orders(
 @router.post("/orders/", status_code=201)
 def create_order(
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("user")),
 ):
@@ -259,6 +331,16 @@ def create_order(
 
     product.stock = int(product.stock or 0) - quantity
     db.add(model)
+    _notify_order_event(
+        db,
+        background_tasks,
+        model,
+        buyer_title=f"Order #{model.id} created successfully",
+        buyer_message=f"Your order for {model.product} has been placed and is awaiting seller confirmation.",
+        seller_title=f"New order #{model.id} requires attention",
+        seller_message=f"You received a new order for {model.product} x{model.quantity}.",
+        severity="info",
+    )
     db.commit()
     db.refresh(model)
     return _serialize_order(model)
@@ -268,6 +350,7 @@ def create_order(
 def update_order_status(
     order_id: int,
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("seller", "admin", "super_admin", "owner")),
 ):
@@ -300,6 +383,16 @@ def update_order_status(
             db.add(product)
 
     db.add(order)
+    _notify_order_event(
+        db,
+        background_tasks,
+        order,
+        buyer_title=f"Order #{order.id} moved to {target_status}",
+        buyer_message=f"Your order for {order.product} is now {target_status}.",
+        seller_title=f"Order #{order.id} updated",
+        seller_message=f"Order #{order.id} is now {target_status}.",
+        severity="warning" if target_status == "Cancelled" else "info",
+    )
     db.commit()
     db.refresh(order)
     return _serialize_order(order)
@@ -308,6 +401,7 @@ def update_order_status(
 @router.post("/orders/{order_id}/receive")
 def confirm_received(
     order_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("user")),
 ):
@@ -322,6 +416,16 @@ def confirm_received(
 
     order.status = "Received"
     db.add(order)
+    _notify_order_event(
+        db,
+        background_tasks,
+        order,
+        buyer_title=f"Order #{order.id} marked as received",
+        buyer_message=f"You confirmed receipt of {order.product}.",
+        seller_title=f"Order #{order.id} received by customer",
+        seller_message=f"The customer confirmed receipt of {order.product}.",
+        severity="success",
+    )
     db.commit()
     db.refresh(order)
     return _serialize_order(order)
@@ -330,6 +434,7 @@ def confirm_received(
 @router.post("/orders/{order_id}/cancel")
 def cancel_order(
     order_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("user")),
 ):
@@ -350,6 +455,16 @@ def cancel_order(
             db.add(product)
 
     db.add(order)
+    _notify_order_event(
+        db,
+        background_tasks,
+        order,
+        buyer_title=f"Order #{order.id} cancelled",
+        buyer_message=f"Your order for {order.product} has been cancelled.",
+        seller_title=f"Order #{order.id} cancelled by customer",
+        seller_message=f"The customer cancelled the order for {order.product}.",
+        severity="warning",
+    )
     db.commit()
     db.refresh(order)
     return _serialize_order(order)
@@ -359,6 +474,7 @@ def cancel_order(
 def rate_order(
     order_id: int,
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("user")),
 ):
@@ -385,6 +501,17 @@ def rate_order(
     db.add(order)
 
     _apply_product_rating_stats(db, order.product_id)
+    _notify_order_event(
+        db,
+        background_tasks,
+        order,
+        buyer_title=f"Rating saved for order #{order.id}",
+        buyer_message=f"Thanks for rating {order.product} {rating}/5.",
+        seller_title=f"New rating for order #{order.id}",
+        seller_message=f"Your order for {order.product} received a rating of {rating}/5.",
+        notification_type="rating",
+        severity="success",
+    )
 
     db.commit()
     db.refresh(order)

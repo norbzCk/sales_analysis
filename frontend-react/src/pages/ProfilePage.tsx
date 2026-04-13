@@ -1,10 +1,31 @@
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
+import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
+
+interface ProfileState {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  profile_photo: string;
+}
+
+function resolveImageUrl(url?: string | null) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/")) return `${env.apiBase}${raw}`;
+  return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
+}
 
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
-  const [profile, setProfile] = useState({ name: "", email: "", phone: "", address: "" });
+  const [profile, setProfile] = useState<ProfileState>({ name: "", email: "", phone: "", address: "", profile_photo: "" });
+  const [passwordDraft, setPasswordDraft] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [editing, setEditing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
 
@@ -14,18 +35,43 @@ export function ProfilePage() {
       email: user?.email || "",
       phone: user?.phone || "",
       address: user?.address || "",
+      profile_photo: user?.profile_photo || "",
     });
   }, [user]);
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    setFlash("");
     try {
-      const updated = await apiRequest<{ name: string; email: string; phone?: string; address?: string }>("/auth/me", {
+      const wantsPasswordChange =
+        Boolean(passwordDraft.current_password) ||
+        Boolean(passwordDraft.new_password) ||
+        Boolean(passwordDraft.confirm_password);
+      if (wantsPasswordChange) {
+        if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
+          setError("Fill all password fields to change password.");
+          return;
+        }
+        if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+          setError("New passwords do not match.");
+          return;
+        }
+      }
+
+      const updated = await apiRequest<{
+        name: string;
+        email: string;
+        phone?: string;
+        address?: string;
+        profile_photo?: string;
+      }>("/auth/me", {
         method: "PUT",
         body: {
           name: profile.name,
           phone: profile.phone,
           address: profile.address,
+          profile_photo: profile.profile_photo || null,
         },
       });
       setProfile({
@@ -33,33 +79,49 @@ export function ProfilePage() {
         email: updated.email || "",
         phone: updated.phone || "",
         address: updated.address || "",
+        profile_photo: updated.profile_photo || "",
       });
       await refreshUser();
-      setFlash("Profile updated.");
+      if (wantsPasswordChange) {
+        setPasswordUpdating(true);
+        await apiRequest("/auth/change-password", {
+          method: "POST",
+          body: {
+            current_password: passwordDraft.current_password,
+            new_password: passwordDraft.new_password,
+          },
+        });
+      }
+      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+      setEditing(false);
+      setFlash(wantsPasswordChange ? "Profile and password updated." : "Profile updated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setPasswordUpdating(false);
     }
   }
 
-  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const current_password = String(form.get("current_password") || "");
-    const new_password = String(form.get("new_password") || "");
-    const confirm_password = String(form.get("confirm_password") || "");
-    if (new_password !== confirm_password) {
-      setError("New passwords do not match.");
-      return;
-    }
+  async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setFlash("");
+    setUploadingPhoto(true);
     try {
-      await apiRequest("/auth/change-password", {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await apiRequest<{ image_url: string }>("/auth/upload-profile-photo", {
         method: "POST",
-        body: { current_password, new_password },
+        body: form,
       });
-      event.currentTarget.reset();
-      setFlash("Password changed.");
+      setProfile((state) => ({ ...state, profile_photo: response.image_url }));
+      setFlash("Profile photo uploaded. Save profile to apply.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to change password");
+      setError(err instanceof Error ? err.message : "Failed to upload profile photo");
+    } finally {
+      setUploadingPhoto(false);
+      event.target.value = "";
     }
   }
 
@@ -69,23 +131,113 @@ export function ProfilePage() {
 
   return (
     <section className="panel-stack">
-      <div className="panel"><p className="eyebrow">Profile</p><h1>Your account</h1></div>
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Profile</p>
+            <h1>Your account information</h1>
+          </div>
+          {!editing ? (
+            <button className="secondary-button" type="button" onClick={() => setEditing(true)}>
+              Edit profile
+            </button>
+          ) : null}
+        </div>
+      </div>
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
-      <form className="panel form-grid" onSubmit={handleProfileSubmit}>
-        <label>Name<input value={profile.name} onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))} required /></label>
-        <label>Email<input value={profile.email} readOnly /></label>
-        <label>Phone<input value={profile.phone} onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))} /></label>
-        <label>Address<input value={profile.address} onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))} /></label>
-        <button className="primary-button" type="submit">Update profile</button>
-      </form>
-      <form className="panel form-grid" onSubmit={handlePasswordSubmit}>
-        <h2>Change password</h2>
-        <label>Current password<input name="current_password" type="password" required /></label>
-        <label>New password<input name="new_password" type="password" minLength={8} required /></label>
-        <label>Confirm new password<input name="confirm_password" type="password" minLength={8} required /></label>
-        <button className="primary-button" type="submit">Change password</button>
-      </form>
+
+      {!editing ? (
+        <article className="panel stack-list">
+          <div className="panel-header">
+            <h2>Profile details</h2>
+          </div>
+          {profile.profile_photo ? (
+            <img
+              src={resolveImageUrl(profile.profile_photo)}
+              alt={profile.name || "Profile"}
+              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <div className="muted">No profile photo</div>
+          )}
+          <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
+          <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
+          <div className="list-card"><strong>Phone</strong><span>{profile.phone || "-"}</span></div>
+          <div className="list-card"><strong>Address</strong><span>{profile.address || "-"}</span></div>
+        </article>
+      ) : (
+        <form className="panel form-grid" onSubmit={handleProfileSubmit}>
+          <h2>Edit profile</h2>
+          <label>Name<input value={profile.name} onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))} required /></label>
+          <label>Email<input value={profile.email} readOnly /></label>
+          <label>Phone<input value={profile.phone} onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))} /></label>
+          <label>Address<input value={profile.address} onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))} /></label>
+          <label>
+            Upload profile photo (optional)
+            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+          </label>
+          <label>
+            Profile photo URL (optional)
+            <input
+              value={profile.profile_photo}
+              onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
+              placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
+            />
+          </label>
+          {profile.profile_photo ? (
+            <img
+              src={resolveImageUrl(profile.profile_photo)}
+              alt={profile.name || "Profile preview"}
+              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : null}
+          <div className="full-width">
+            <p className="eyebrow">Security (optional)</p>
+          </div>
+          <label>
+            Current password
+            <input
+              type="password"
+              value={passwordDraft.current_password}
+              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+            />
+          </label>
+          <label>
+            New password
+            <input
+              type="password"
+              minLength={8}
+              value={passwordDraft.new_password}
+              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+            />
+          </label>
+          <label>
+            Confirm new password
+            <input
+              type="password"
+              minLength={8}
+              value={passwordDraft.confirm_password}
+              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+            />
+          </label>
+          <div className="hero-actions">
+            <button className="primary-button" type="submit">
+              {uploadingPhoto || passwordUpdating ? "Saving..." : "Save profile"}
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </section>
   );
 }

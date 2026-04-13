@@ -1,10 +1,11 @@
 from pathlib import Path
 import os
 
-from fastapi import FastAPI, Depends
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from backend.app.auth import require_roles, router as auth_router
+from backend.app.auth import hash_password, require_roles, router as auth_router
+from backend.app.notification_service import create_notification, resolve_subject
 from backend.database import engine, get_db
 from backend.app.products import router as products_router
 from backend.app.customers import router as customers_router
@@ -14,7 +15,8 @@ from backend.app.providers import router as providers_router
 from backend.app.payments import router as payments_router
 from backend.app.business import router as business_router
 from backend.app.logistics import router as logistics_router
-from backend.models import Base, User
+from backend.app.notifications import router as notifications_router
+from backend.models import Base, User, BusinessMetrics, BusinessUser, LogisticsMetrics, LogisticsUser, Product, Provider
 from fastapi.staticfiles import StaticFiles
 
 
@@ -97,6 +99,14 @@ def ensure_schema_columns():
                 """
                 ALTER TABLE IF EXISTS users
                 ADD COLUMN IF NOT EXISTS address VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS users
+                ADD COLUMN IF NOT EXISTS profile_photo VARCHAR
                 """
             )
         )
@@ -218,6 +228,11 @@ def ensure_schema_columns():
                     shop_logo_url VARCHAR,
                     shop_images VARCHAR,
                     profile_photo VARCHAR,
+                    website_url VARCHAR,
+                    social_facebook VARCHAR,
+                    social_instagram VARCHAR,
+                    social_whatsapp VARCHAR,
+                    social_x VARCHAR,
                     verification_status VARCHAR DEFAULT 'unverified',
                     is_active BOOLEAN DEFAULT TRUE,
                     role VARCHAR DEFAULT 'seller',
@@ -248,6 +263,46 @@ def ensure_schema_columns():
                 """
                 ALTER TABLE IF EXISTS business_users
                 ADD COLUMN IF NOT EXISTS shop_images VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS website_url VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS social_facebook VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS social_instagram VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS social_whatsapp VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS social_x VARCHAR
                 """
             )
         )
@@ -340,6 +395,168 @@ def ensure_schema_columns():
                 """
             )
         )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id SERIAL PRIMARY KEY,
+                    recipient_type VARCHAR NOT NULL,
+                    recipient_id INTEGER NOT NULL,
+                    title VARCHAR NOT NULL,
+                    message VARCHAR NOT NULL,
+                    notification_type VARCHAR DEFAULT 'system',
+                    severity VARCHAR DEFAULT 'info',
+                    action_href VARCHAR,
+                    metadata_json VARCHAR,
+                    is_read BOOLEAN DEFAULT FALSE,
+                    email VARCHAR,
+                    email_subject VARCHAR,
+                    email_status VARCHAR DEFAULT 'not_requested',
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    read_at TIMESTAMPTZ
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS payment_transactions (
+                    id SERIAL PRIMARY KEY,
+                    transaction_id VARCHAR UNIQUE NOT NULL,
+                    order_id INTEGER NOT NULL,
+                    payer_type VARCHAR NOT NULL,
+                    payer_id INTEGER NOT NULL,
+                    amount DOUBLE PRECISION NOT NULL,
+                    payment_method VARCHAR NOT NULL,
+                    provider VARCHAR,
+                    phone_number VARCHAR,
+                    status VARCHAR DEFAULT 'pending',
+                    message VARCHAR,
+                    instructions VARCHAR,
+                    metadata_json VARCHAR,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
+                    confirmed_at TIMESTAMPTZ
+                )
+                """
+            )
+        )
+
+    with Session(engine) as db:
+        seed_marketplace_demo_data(db)
+
+
+def seed_marketplace_demo_data(db: Session) -> None:
+    if db.query(Product).filter(Product.is_active.isnot(False)).count() > 0:
+        return
+
+    demo_sellers = [
+        {
+            "business_name": "Kariakoo Fresh Hub",
+            "owner_name": "Amina Salim",
+            "phone": "+255700100001",
+            "email": "seller1@sokolink.local",
+            "region": "Dar es Salaam",
+            "area": "Kariakoo",
+            "street": "Msimbazi Street",
+            "category": "Fresh Produce",
+        },
+        {
+            "business_name": "Coastal Home Supplies",
+            "owner_name": "Juma Mushi",
+            "phone": "+255700100002",
+            "email": "seller2@sokolink.local",
+            "region": "Dar es Salaam",
+            "area": "Ilala",
+            "street": "Uhuru Street",
+            "category": "Household",
+        },
+    ]
+    sellers: list[BusinessUser] = []
+    for entry in demo_sellers:
+        existing = db.query(BusinessUser).filter(BusinessUser.phone == entry["phone"]).first()
+        if existing:
+            sellers.append(existing)
+            continue
+        model = BusinessUser(
+            business_name=entry["business_name"],
+            owner_name=entry["owner_name"],
+            phone=entry["phone"],
+            email=entry["email"],
+            password_hash=hash_password("demo12345"),
+            business_type="individual",
+            category=entry["category"],
+            region=entry["region"],
+            area=entry["area"],
+            street=entry["street"],
+            role="seller",
+            is_active=True,
+            verification_status="verified",
+        )
+        db.add(model)
+        db.flush()
+        db.add(BusinessMetrics(business_id=model.id))
+        sellers.append(model)
+
+    provider = db.query(Provider).filter(Provider.name == "SokoLnk Demo Supplier").first()
+    if not provider:
+        provider = Provider(
+            name="SokoLnk Demo Supplier",
+            location="Dar es Salaam",
+            email="supplier@sokolink.local",
+            phone="+255700100010",
+            verified=True,
+            response_time="< 3 hrs",
+            min_order_qty="20 units",
+        )
+        db.add(provider)
+        db.flush()
+
+    demo_products = [
+        {
+            "name": "Premium Rice 25kg",
+            "category": "Groceries",
+            "price": 69000,
+            "stock": 44,
+            "description": "Long grain rice sourced for retail and wholesale orders.",
+            "seller_idx": 0,
+        },
+        {
+            "name": "Sunflower Cooking Oil 5L",
+            "category": "Groceries",
+            "price": 26500,
+            "stock": 62,
+            "description": "Refined cooking oil for households and restaurants.",
+            "seller_idx": 1,
+        },
+        {
+            "name": "Laundry Soap Bar Pack",
+            "category": "Household",
+            "price": 12000,
+            "stock": 90,
+            "description": "Durable multipurpose soap bars in bulk-friendly packs.",
+            "seller_idx": 1,
+        },
+    ]
+    for entry in demo_products:
+        if db.query(Product).filter(Product.name == entry["name"]).first():
+            continue
+        seller = sellers[entry["seller_idx"]] if sellers else None
+        db.add(
+            Product(
+                name=entry["name"],
+                category=entry["category"],
+                price=entry["price"],
+                stock=entry["stock"],
+                description=entry["description"],
+                seller_id=seller.id if seller else None,
+                provider_id=provider.id if provider else None,
+                is_active=True,
+            )
+        )
+
+    db.commit()
 
 uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
 uploads_dir.mkdir(parents=True, exist_ok=True)
@@ -364,7 +581,347 @@ app.include_router(providers_router)
 app.include_router(payments_router)
 app.include_router(business_router)
 app.include_router(logistics_router)
+app.include_router(notifications_router)
 app.include_router(auth_router)
+
+
+@app.get("/superadmin/stats")
+def superadmin_stats(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    return {
+        "total_businessmen": db.query(BusinessUser).count(),
+        "total_customers": db.query(User).filter(User.role == "user").count(),
+        "total_logistics": db.query(LogisticsUser).count(),
+    }
+
+
+@app.get("/superadmin/businessmen")
+def superadmin_businessmen(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    items = db.query(BusinessUser).order_by(BusinessUser.created_at.desc(), BusinessUser.id.desc()).all()
+    return [
+        {
+            "id": item.id,
+            "business_name": item.business_name,
+            "owner_name": item.owner_name,
+            "email": item.email,
+            "phone": item.phone,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        }
+        for item in items
+    ]
+
+
+@app.post("/superadmin/businessmen", status_code=201)
+def create_superadmin_businessman(
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    business_name = (payload.get("business_name") or "").strip()
+    owner_name = (payload.get("owner_name") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    email = (payload.get("email") or "").strip().lower() or None
+    password = payload.get("password") or ""
+
+    if len(business_name) < 2 or len(owner_name) < 2:
+        raise HTTPException(status_code=400, detail="Business name and owner name are required")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number is required")
+    if email and "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    existing_phone = db.query(BusinessUser).filter(BusinessUser.phone == phone).first()
+    if existing_phone:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+    if email:
+        existing_email = db.query(BusinessUser).filter(text("lower(email) = :email")).params(email=email).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    model = BusinessUser(
+        business_name=business_name,
+        owner_name=owner_name,
+        phone=phone,
+        email=email,
+        password_hash=hash_password(password),
+        business_type=(payload.get("business_type") or "individual").strip() or "individual",
+        category=(payload.get("category") or "").strip() or None,
+        description=(payload.get("description") or "").strip() or None,
+        region=(payload.get("region") or "Dar es Salaam").strip() or "Dar es Salaam",
+        area=(payload.get("area") or "").strip() or None,
+        street=(payload.get("street") or "").strip() or None,
+        shop_number=(payload.get("shop_number") or "").strip() or None,
+        operating_hours=(payload.get("operating_hours") or "").strip() or None,
+        shop_logo_url=(payload.get("shop_logo_url") or "").strip() or None,
+        shop_images=(payload.get("shop_images") or "").strip() or None,
+        profile_photo=(payload.get("profile_photo") or "").strip() or None,
+        website_url=(payload.get("website_url") or "").strip() or None,
+        social_facebook=(payload.get("social_facebook") or "").strip() or None,
+        social_instagram=(payload.get("social_instagram") or "").strip() or None,
+        social_whatsapp=(payload.get("social_whatsapp") or "").strip() or None,
+        social_x=(payload.get("social_x") or "").strip() or None,
+        role="seller",
+        is_active=True,
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+
+    db.add(BusinessMetrics(business_id=model.id))
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(model)
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="A business account was created for you",
+        message="Your SokoLnk seller account has been created by an administrator. You can now sign in and manage your storefront.",
+        notification_type="system",
+        severity="success",
+        action_href="/login",
+        send_email=bool(recipient_email),
+        email_subject="Your SokoLnk seller account is ready",
+        email_body=f"Hello {recipient_name},\n\nAn administrator created your seller account. You can sign in and start using SokoLnk.\n\nSokoLnk Team",
+        background_tasks=background_tasks,
+    )
+    db.commit()
+
+    return {
+        "id": model.id,
+        "business_name": model.business_name,
+        "owner_name": model.owner_name,
+        "email": model.email,
+        "phone": model.phone,
+        "created_at": model.created_at.isoformat() if model.created_at else None,
+    }
+
+
+@app.get("/superadmin/customers")
+def superadmin_customers(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    items = (
+        db.query(User)
+        .filter(User.role == "user")
+        .order_by(User.created_at.desc(), User.id.desc())
+        .all()
+    )
+    return [
+        {
+            "id": item.id,
+            "name": item.name,
+            "email": item.email,
+            "phone": item.phone,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        }
+        for item in items
+    ]
+
+
+@app.post("/superadmin/customers", status_code=201)
+def create_superadmin_customer(
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    name = (payload.get("name") or "").strip()
+    email = (payload.get("email") or "").strip().lower()
+    phone = (payload.get("phone") or "").strip() or None
+    password = payload.get("password") or ""
+
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Name is required")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    model = User(
+        name=name,
+        email=email,
+        phone=phone,
+        password_hash=hash_password(password),
+        role="user",
+        is_active=True,
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(model)
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="A customer account was created for you",
+        message="Your SokoLnk buyer account has been created by an administrator.",
+        notification_type="system",
+        severity="success",
+        action_href="/login",
+        send_email=bool(recipient_email),
+        email_subject="Your SokoLnk buyer account is ready",
+        email_body=f"Hello {recipient_name},\n\nAn administrator created your buyer account.\n\nSokoLnk Team",
+        background_tasks=background_tasks,
+    )
+    db.commit()
+
+    return {
+        "id": model.id,
+        "name": model.name,
+        "email": model.email,
+        "phone": model.phone,
+        "created_at": model.created_at.isoformat() if model.created_at else None,
+    }
+
+
+@app.get("/superadmin/logistics")
+def superadmin_logistics(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    items = db.query(LogisticsUser).order_by(LogisticsUser.created_at.desc(), LogisticsUser.id.desc()).all()
+    return [
+        {
+            "id": item.id,
+            "name": item.name,
+            "email": item.email,
+            "phone": item.phone,
+            "account_type": item.account_type,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        }
+        for item in items
+    ]
+
+
+@app.post("/superadmin/logistics", status_code=201)
+def create_superadmin_logistics(
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    name = (payload.get("name") or "").strip()
+    email = (payload.get("email") or "").strip().lower() or None
+    phone = (payload.get("phone") or "").strip()
+    password = payload.get("password") or ""
+
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Name is required")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number is required")
+    if email and "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    existing_phone = db.query(LogisticsUser).filter(LogisticsUser.phone == phone).first()
+    if existing_phone:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+    if email:
+        existing_email = db.query(LogisticsUser).filter(text("lower(email) = :email")).params(email=email).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    model = LogisticsUser(
+        name=name,
+        phone=phone,
+        email=email,
+        password_hash=hash_password(password),
+        account_type=(payload.get("account_type") or "individual").strip() or "individual",
+        vehicle_type=(payload.get("vehicle_type") or "").strip() or None,
+        plate_number=(payload.get("plate_number") or "").strip() or None,
+        license_number=(payload.get("license_number") or "").strip() or None,
+        base_area=(payload.get("base_area") or "").strip() or None,
+        coverage_areas=(payload.get("coverage_areas") or "").strip() or None,
+        is_active=True,
+    )
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+
+    db.add(LogisticsMetrics(logistics_id=model.id))
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(model)
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="A logistics account was created for you",
+        message="Your SokoLnk delivery account has been created by an administrator.",
+        notification_type="system",
+        severity="success",
+        action_href="/login",
+        send_email=bool(recipient_email),
+        email_subject="Your SokoLnk delivery account is ready",
+        email_body=f"Hello {recipient_name},\n\nAn administrator created your delivery account.\n\nSokoLnk Team",
+        background_tasks=background_tasks,
+    )
+    db.commit()
+
+    return {
+        "id": model.id,
+        "name": model.name,
+        "email": model.email,
+        "phone": model.phone,
+        "account_type": model.account_type,
+        "created_at": model.created_at.isoformat() if model.created_at else None,
+    }
+
+
+@app.delete("/superadmin/businessmen/{business_id}")
+def delete_superadmin_businessman(
+    business_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    item = db.query(BusinessUser).filter(BusinessUser.id == business_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Business account not found")
+    db.delete(item)
+    db.commit()
+    return {"message": "Business account deleted"}
+
+
+@app.delete("/superadmin/customers/{customer_id}")
+def delete_superadmin_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    item = db.query(User).filter(User.id == customer_id, User.role == "user").first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Customer account not found")
+    db.delete(item)
+    db.commit()
+    return {"message": "Customer account deleted"}
+
+
+@app.delete("/superadmin/logistics/{logistics_id}")
+def delete_superadmin_logistics(
+    logistics_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    item = db.query(LogisticsUser).filter(LogisticsUser.id == logistics_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Logistics account not found")
+    db.delete(item)
+    db.commit()
+    return {"message": "Logistics account deleted"}
 
 
 

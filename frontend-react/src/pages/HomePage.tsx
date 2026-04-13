@@ -1,7 +1,8 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import logoUrl from "../assets/salesLOGO.png";
+import logoUrl from "../assets/sokolink-logo.png";
 import { useAuth } from "../features/auth/AuthContext";
+import { env } from "../config/env";
 import { getPostLoginPath } from "../features/auth/authStorage";
 import { apiRequest } from "../lib/http";
 import type { Product, Provider } from "../types/domain";
@@ -17,8 +18,8 @@ function resolveImageUrl(url?: string | null) {
   const raw = String(url || "").trim();
   if (!raw) return FALLBACK_IMAGE;
   if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("/")) return `http://127.0.0.1:8000${raw}`;
-  return `http://127.0.0.1:8000/${raw.replace(/^\/+/, "")}`;
+  if (raw.startsWith("/")) return `${env.apiBase}${raw}`;
+  return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
 }
 
 function productRating(product: Product) {
@@ -111,7 +112,7 @@ export function HomePage() {
       id: index + 1,
       name: `${category} Co.`,
       location: locations[index % locations.length],
-      email: `${category.toLowerCase().replace(/\s+/g, "-")}@kariakoo.local`,
+      email: `${category.toLowerCase().replace(/\s+/g, "-")}@sokolnk.local`,
       verified: index % 2 === 0,
       response_time: index % 2 === 0 ? "< 6 hrs" : "< 12 hrs",
       min_order_qty: index % 2 === 0 ? "200 pcs" : "100 pcs",
@@ -161,15 +162,15 @@ export function HomePage() {
         <div className="alibaba-topbar">
           <a href="#marketplace">Home</a>
           <a href="#support">Help Center</a>
-          <a href="#rfq">Sell on Kariakoo</a>
+          <a href="#rfq">Sell on SokoLnk</a>
           <a href="#suppliers">Deliver to Dar es Salaam</a>
         </div>
         <div className="alibaba-mainbar">
           <a href="#marketplace" className="alibaba-logo">
             <div className="alibaba-logo-icon">
-              <img src={logoUrl} alt="Kariakoo Sales" />
+              <img src={logoUrl} alt="SokoLnk" />
             </div>
-            <div className="alibaba-logo-text"><span>Kariakoo</span></div>
+            <div className="alibaba-logo-text"><span>SokoLnk</span></div>
           </a>
           <div className="alibaba-search-bar">
             <input
@@ -206,7 +207,7 @@ export function HomePage() {
               <button className="hero-tab" type="button">Worldwide</button>
             </div>
 
-            <h1 className="market-title">A unified digital marketplace for Kariakoo traders, customers, and delivery partners.</h1>
+            <h1 className="market-title">A unified digital marketplace for buyers, sellers, delivery agents, and admins.</h1>
             <p className="market-subtitle">Sellers list live products with stock, prices, and store locations. Buyers compare vendors, place orders online, and receive goods safely through coordinated delivery and order tracking.</p>
 
             <div className="hero-search">
@@ -396,6 +397,7 @@ export function HomePage() {
                   <div>
                     <h3>{item.name || "Product"}</h3>
                     <p className="muted">{item.category || "General"}</p>
+                    <p className="muted">{item.seller_name || item.seller?.business_name || "Independent seller"}</p>
                     <div className="public-meta">
                       <span className="rating-stars">{renderStars(rating)}</span>
                       <span className="muted">{count ? `${rating.toFixed(1)} (${count})` : "No ratings yet"}</span>
@@ -420,8 +422,8 @@ export function HomePage() {
               <article key={provider.id} className="supplier-card">
                 <div className="supplier-head">
                   <div>
-                    <h3>{provider.name || "Kariakoo Supplier"}</h3>
-                    <p className="muted">{provider.location || "Kariakoo, TZ"}</p>
+                    <h3>{provider.name || "SokoLnk Supplier"}</h3>
+                    <p className="muted">{provider.location || "Dar es Salaam, TZ"}</p>
                   </div>
                   <span className={`pill ${provider.verified ? "verified" : ""}`}>{provider.verified ? "Verified" : "Factory"}</span>
                 </div>
@@ -468,7 +470,7 @@ export function HomePage() {
             <p><strong>Working Hours:</strong> Mon - Sat, 08:00 - 18:00</p>
           </div>
           <p className="muted" style={{ marginTop: "16px" }}>
-            Kariakoo Sales helps sellers publish inventory, lets customers order from different vendors, and supports delivery coordination so goods arrive safely and on time.
+            SokoLnk helps sellers publish inventory, lets customers order from different vendors, and supports delivery coordination so goods arrive safely and on time.
           </p>
         </section>
       </main>
@@ -484,6 +486,14 @@ export function HomePage() {
                   <h3>{selectedProduct.name || "Product"}</h3>
                   <p className="muted">{selectedProduct.category || "General"}</p>
                   <p className="public-price">{formatMoney(selectedProduct.price)}</p>
+                  <p className="muted">{selectedProduct.description || "No description provided yet."}</p>
+                  <p className="muted">Stock: {Number(selectedProduct.stock || 0)} available</p>
+                  <p className="muted">
+                    Businessman: {selectedProduct.seller_name || selectedProduct.seller?.business_name || "Independent seller"}
+                  </p>
+                  <p className="muted">
+                    Location: {[selectedProduct.seller?.area, selectedProduct.seller?.region].filter(Boolean).join(", ") || "Not specified"}
+                  </p>
                   <p className="muted">{selectedProduct.in_stock ? "Available now" : "Currently out of stock"}</p>
                 </div>
               </div>

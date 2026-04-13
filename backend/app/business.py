@@ -1,7 +1,9 @@
 import secrets
+import uuid
 from datetime import datetime, timedelta, date
+from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Header, Request, UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from backend.database import get_db
@@ -13,14 +15,17 @@ from backend.models import (
     Sale,
     DeliveryOrder,
     LogisticsUser,
+    User,
 )
 from backend.app.schemas import (
     BusinessRegister, BusinessLogin, BusinessProfile, 
     BusinessUpdate, BusinessVerificationSubmit
 )
 from backend.app.auth import hash_password, verify_password, create_token, decode_token
+from backend.app.notification_service import build_login_email, create_notification, list_notifications_for_subject, resolve_subject, serialize_notification
 
 router = APIRouter(prefix="/business", tags=["Business"])
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
 def _serialize_business(user: BusinessUser, include_email: bool = True) -> dict:
@@ -47,16 +52,27 @@ def _serialize_business(user: BusinessUser, include_email: bool = True) -> dict:
     }
 
 
+def _validate_new_password(current_password: str, new_password: str, password_hash: str):
+    if not verify_password(current_password, password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+
 def _get_business_user(db: Session, phone: str = None, email: str = None):
     if phone:
         return db.query(BusinessUser).filter(BusinessUser.phone == phone).first()
     if email:
-        return db.query(BusinessUser).filter(BusinessUser.email == email.lower()).first()
+        return db.query(BusinessUser).filter(func.lower(BusinessUser.email) == email.lower()).first()
     return None
 
 
 @router.post("/register")
-def register_business(payload: BusinessRegister, db: Session = Depends(get_db)):
+def register_business(
+    payload: BusinessRegister,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     existing = _get_business_user(db, payload.phone)
     if existing:
         raise HTTPException(status_code=400, detail="Phone number already registered")
@@ -67,7 +83,7 @@ def register_business(payload: BusinessRegister, db: Session = Depends(get_db)):
         business_name=payload.business_name.strip(),
         owner_name=payload.owner_name.strip(),
         phone=payload.phone.strip(),
-        email=(payload.email or "").strip() or None,
+        email=(payload.email or "").strip().lower() or None,
         password_hash=pw_hash,
         business_type=payload.business_type,
         category=payload.category,
@@ -88,6 +104,23 @@ def register_business(payload: BusinessRegister, db: Session = Depends(get_db)):
     metrics = BusinessMetrics(business_id=user.id)
     db.add(metrics)
     db.commit()
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(user)
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="Welcome to SokoLnk seller tools",
+        message="Your business account is ready. Add products, track orders, and manage deliveries from your dashboard.",
+        notification_type="system",
+        severity="success",
+        action_href="/app/seller",
+        send_email=bool(recipient_email),
+        email_subject="Welcome to SokoLnk seller tools",
+        email_body=f"Hello {recipient_name},\n\nYour business account has been created successfully.\n\nSokoLnk Team",
+        background_tasks=background_tasks,
+    )
+    db.commit()
     
     token = create_token({
         "sub": user.id,
@@ -105,7 +138,12 @@ def register_business(payload: BusinessRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login_business(payload: BusinessLogin, db: Session = Depends(get_db)):
+def login_business(
+    payload: BusinessLogin,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     phone = (payload.phone or "").strip() or None
     email = (payload.email or "").strip().lower() or None
     
@@ -121,6 +159,30 @@ def login_business(payload: BusinessLogin, db: Session = Depends(get_db)):
     
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
+
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(user)
+    subject, body = build_login_email(
+        recipient_name,
+        "seller",
+        request.client.host if request.client else None,
+        request.headers.get("user-agent"),
+    )
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="Seller login detected",
+        message="A login was recorded on your business account.",
+        notification_type="security",
+        severity="info",
+        action_href="/app/seller",
+        send_email=bool(recipient_email),
+        email_subject=subject,
+        email_body=body,
+        background_tasks=background_tasks,
+    )
+    db.commit()
     
     token = create_token({
         "sub": user.id,
@@ -175,6 +237,34 @@ def get_my_profile(
     return _serialize_business(user)
 
 
+@router.post("/upload-profile-photo")
+async def upload_business_profile_photo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    user = get_current_business_user(db, auth)
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_IMAGE_EXT:
+        raise HTTPException(status_code=400, detail="Unsupported image format")
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"business-{user.id}-{uuid.uuid4().hex}{suffix}"
+    destination = uploads_dir / filename
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
+
+    destination.write_bytes(content)
+    return {"image_url": f"/uploads/{filename}"}
+
+
 @router.put("/me")
 def update_my_profile(
     payload: BusinessUpdate,
@@ -190,7 +280,7 @@ def update_my_profile(
     if payload.business_type:
         user.business_type = payload.business_type.strip()
     if payload.email is not None:
-        user.email = payload.email.strip() if payload.email else None
+        user.email = payload.email.strip().lower() if payload.email else None
     if payload.phone is not None:
         next_phone = payload.phone.strip() if payload.phone else None
         if next_phone and next_phone != user.phone:
@@ -227,6 +317,42 @@ def update_my_profile(
         "message": "Profile updated",
         "user": _serialize_business(user)
     }
+
+
+@router.post("/change-password")
+def change_business_password(
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization")
+):
+    user = get_current_business_user(db, auth)
+    current_password = payload.get("current_password") or ""
+    new_password = payload.get("new_password") or ""
+
+    _validate_new_password(current_password, new_password, user.password_hash)
+
+    user.password_hash = hash_password(new_password)
+    db.add(user)
+    recipient_type, recipient_id, recipient_email, recipient_name = resolve_subject(user)
+    create_notification(
+        db,
+        recipient_type=recipient_type,
+        recipient_id=recipient_id,
+        recipient_email=recipient_email,
+        title="Business password changed",
+        message="Your seller account password was changed successfully.",
+        notification_type="security",
+        severity="success",
+        action_href="/app/seller/profile",
+        send_email=bool(recipient_email),
+        email_subject="SokoLnk seller password changed",
+        email_body=f"Hello {recipient_name},\n\nYour seller password was changed successfully.\n\nSokoLnk Security",
+        background_tasks=background_tasks,
+    )
+    db.commit()
+
+    return {"message": "Password updated"}
 
 
 @router.post("/verify")
@@ -285,7 +411,10 @@ def _serialize_seller_order(order: Sale) -> dict:
         "total": float((order.quantity or 0) * (order.unit_price or 0)),
         "status": order.status or "Pending",
         "status_reason": order.status_reason,
+        "provider_name": order.provider_name,
+        "seller_id": order.seller_id,
         "customer_id": order.created_by,
+        "created_by": order.created_by,
         "delivery_address": order.delivery_address,
         "delivery_phone": order.delivery_phone,
         "delivery_notes": order.delivery_notes,
@@ -300,6 +429,68 @@ def _ensure_order_owner(order: Sale, user: BusinessUser):
     if (order.provider_name or "").strip().lower() == (user.business_name or "").strip().lower():
         return
     raise HTTPException(status_code=403, detail="Order does not belong to this business account")
+
+
+def _find_order_buyer(db: Session, order: Sale) -> User | None:
+    try:
+        buyer_id = int(order.created_by) if order.created_by is not None else None
+    except (TypeError, ValueError):
+        buyer_id = None
+    if not buyer_id:
+        return None
+    return db.query(User).filter(User.id == buyer_id).first()
+
+
+def _notify_order_participants(
+    db: Session,
+    background_tasks: BackgroundTasks,
+    *,
+    order: Sale,
+    seller: BusinessUser,
+    buyer_title: str,
+    buyer_message: str,
+    seller_title: str,
+    seller_message: str,
+    notification_type: str = "order",
+    severity: str = "info",
+) -> None:
+    buyer = _find_order_buyer(db, order)
+    if buyer:
+        buyer_type, buyer_id, buyer_email, buyer_name = resolve_subject(buyer)
+        create_notification(
+            db,
+            recipient_type=buyer_type,
+            recipient_id=buyer_id,
+            recipient_email=buyer_email,
+            title=buyer_title,
+            message=buyer_message,
+            notification_type=notification_type,
+            severity=severity,
+            action_href="/app/orders",
+            metadata={"order_id": order.id},
+            send_email=bool(buyer_email),
+            email_subject=buyer_title,
+            email_body=f"Hello {buyer_name},\n\n{buyer_message}\n\nSokoLnk Orders",
+            background_tasks=background_tasks,
+        )
+
+    seller_type, seller_id, seller_email, seller_name = resolve_subject(seller)
+    create_notification(
+        db,
+        recipient_type=seller_type,
+        recipient_id=seller_id,
+        recipient_email=seller_email,
+        title=seller_title,
+        message=seller_message,
+        notification_type=notification_type,
+        severity=severity,
+        action_href="/app/orders",
+        metadata={"order_id": order.id},
+        send_email=bool(seller_email),
+        email_subject=seller_title,
+        email_body=f"Hello {seller_name},\n\n{seller_message}\n\nSokoLnk Orders",
+        background_tasks=background_tasks,
+    )
 
 
 def _inventory_overview(db: Session, user: BusinessUser) -> dict:
@@ -468,10 +659,40 @@ def get_business_orders(
     return {"items": [_serialize_seller_order(order) for order in orders]}
 
 
+@router.get("/logistics-options")
+def get_business_logistics_options(
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    # Ensure only authenticated business users can access assignment options.
+    _ = get_current_business_user(db, auth)
+    rows = (
+        db.query(LogisticsUser)
+        .filter(LogisticsUser.is_active == True)
+        .order_by(LogisticsUser.name.asc(), LogisticsUser.id.asc())
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "vehicle_type": item.vehicle_type,
+                "base_area": item.base_area,
+                "status": item.status,
+                "availability": item.availability,
+                "verification_status": item.verification_status,
+            }
+            for item in rows
+        ]
+    }
+
+
 @router.patch("/orders/{order_id}/decision")
 def business_order_decision(
     order_id: int,
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     auth: Optional[str] = Header(None, alias="Authorization"),
 ):
@@ -499,6 +720,25 @@ def business_order_decision(
                 db.add(product)
 
     db.add(order)
+    _notify_order_participants(
+        db,
+        background_tasks,
+        order=order,
+        seller=user,
+        buyer_title=f"Order #{order.id} {order.status}",
+        buyer_message=(
+            f"Your order for {order.product} was confirmed by {user.business_name}."
+            if decision == "accept"
+            else f"Your order for {order.product} was cancelled by {user.business_name}."
+        ),
+        seller_title=f"Order #{order.id} decision saved",
+        seller_message=(
+            f"You confirmed order #{order.id} for {order.product}."
+            if decision == "accept"
+            else f"You rejected order #{order.id} for {order.product}."
+        ),
+        severity="warning" if decision == "reject" else "success",
+    )
     db.commit()
     db.refresh(order)
     return {"message": "Order decision recorded", "order": _serialize_seller_order(order)}
@@ -508,6 +748,7 @@ def business_order_decision(
 def business_update_order_status(
     order_id: int,
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     auth: Optional[str] = Header(None, alias="Authorization"),
 ):
@@ -540,6 +781,17 @@ def business_update_order_status(
             product.stock = int(product.stock or 0) + int(order.quantity or 0)
             db.add(product)
     db.add(order)
+    _notify_order_participants(
+        db,
+        background_tasks,
+        order=order,
+        seller=user,
+        buyer_title=f"Order #{order.id} moved to {target}",
+        buyer_message=f"Your order for {order.product} is now {target}.",
+        seller_title=f"Order #{order.id} status updated",
+        seller_message=f"You moved order #{order.id} to {target}.",
+        severity="warning" if target == "Cancelled" else "info",
+    )
     db.commit()
     db.refresh(order)
     return {"message": "Order status updated", "order": _serialize_seller_order(order)}
@@ -549,6 +801,7 @@ def business_update_order_status(
 def business_assign_delivery(
     order_id: int,
     payload: dict,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     auth: Optional[str] = Header(None, alias="Authorization"),
 ):
@@ -575,16 +828,31 @@ def business_assign_delivery(
     if not logistics:
         raise HTTPException(status_code=404, detail="No logistics partner available")
 
+    selected_seller = user
+    selected_seller_id = payload.get("seller_id")
+    if selected_seller_id:
+        try:
+            parsed_seller_id = int(selected_seller_id)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid seller_id")
+        candidate = (
+            db.query(BusinessUser)
+            .filter(BusinessUser.id == parsed_seller_id, BusinessUser.is_active == True)
+            .first()
+        )
+        if candidate:
+            selected_seller = candidate
+
     delivery = db.query(DeliveryOrder).filter(DeliveryOrder.order_id == order.id).first()
     if not delivery:
         delivery = DeliveryOrder(
             order_id=order.id,
-            seller_id=user.id,
+            seller_id=selected_seller.id,
             buyer_id=order.created_by,
             logistics_id=logistics.id,
-            pickup_location=payload.get("pickup_location") or f"{user.area or ''} {user.street or ''}".strip() or "Seller location",
+            pickup_location=payload.get("pickup_location") or f"{selected_seller.area or ''} {selected_seller.street or ''}".strip() or "Seller location",
             delivery_location=payload.get("delivery_location") or order.delivery_address,
-            pickup_phone=payload.get("pickup_phone") or user.phone,
+            pickup_phone=payload.get("pickup_phone") or selected_seller.phone,
             delivery_phone=payload.get("delivery_phone") or order.delivery_phone,
             status="assigned",
             price=float(payload.get("price") or 0) or None,
@@ -593,9 +861,18 @@ def business_assign_delivery(
         )
         db.add(delivery)
     else:
+        delivery.seller_id = selected_seller.id
         delivery.logistics_id = logistics.id
         delivery.status = "assigned"
         delivery.special_instructions = (payload.get("special_instructions") or delivery.special_instructions or "").strip() or None
+        if payload.get("pickup_location"):
+            delivery.pickup_location = payload.get("pickup_location")
+        elif not delivery.pickup_location:
+            delivery.pickup_location = f"{selected_seller.area or ''} {selected_seller.street or ''}".strip() or "Seller location"
+        if payload.get("pickup_phone"):
+            delivery.pickup_phone = payload.get("pickup_phone")
+        elif not delivery.pickup_phone:
+            delivery.pickup_phone = selected_seller.phone
         if payload.get("delivery_location"):
             delivery.delivery_location = payload.get("delivery_location")
         if payload.get("price") is not None:
@@ -606,6 +883,35 @@ def business_assign_delivery(
 
     db.add(order)
     db.add(logistics)
+    _notify_order_participants(
+        db,
+        background_tasks,
+        order=order,
+        seller=selected_seller,
+        buyer_title=f"Delivery assigned for order #{order.id}",
+        buyer_message=f"Your order for {order.product} now has a delivery partner assigned.",
+        seller_title=f"Delivery assigned for order #{order.id}",
+        seller_message=f"Delivery has been assigned to {logistics.name} for order #{order.id}.",
+        notification_type="delivery",
+        severity="info",
+    )
+    logistics_type, logistics_recipient_id, logistics_email, logistics_name = resolve_subject(logistics)
+    create_notification(
+        db,
+        recipient_type=logistics_type,
+        recipient_id=logistics_recipient_id,
+        recipient_email=logistics_email,
+        title=f"New delivery assignment: order #{order.id}",
+        message=f"Pickup {order.product} from {selected_seller.business_name} and deliver to {order.delivery_address or 'customer address'}.",
+        notification_type="delivery",
+        severity="info",
+        action_href="/app/logistics",
+        metadata={"order_id": order.id},
+        send_email=bool(logistics_email),
+        email_subject=f"New SokoLnk delivery assignment #{order.id}",
+        email_body=f"Hello {logistics_name},\n\nA new delivery has been assigned to you for order #{order.id}.\n\nSokoLnk Logistics",
+        background_tasks=background_tasks,
+    )
     db.commit()
     db.refresh(delivery)
     return {
@@ -679,6 +985,8 @@ def business_notifications(
     auth: Optional[str] = Header(None, alias="Authorization"),
 ):
     user = get_current_business_user(db, auth)
+    recipient_type, recipient_id, _, _ = resolve_subject(user)
+    stored_items = list_notifications_for_subject(db, recipient_type, recipient_id, limit=15)
     low_stock = _inventory_overview(db, user)["alerts"][:5]
     pending_orders = (
         _seller_sales_query(db, user)
@@ -695,10 +1003,11 @@ def business_notifications(
         .all()
     )
 
-    alerts = []
+    alerts = [serialize_notification(item) for item in stored_items]
     for item in pending_orders:
         alerts.append(
             {
+                "id": f"order-{item.id}",
                 "type": "order",
                 "title": f"Order #{item.id} needs attention",
                 "message": f"{item.product} x{item.quantity} is currently {item.status or 'Pending'}",
@@ -708,6 +1017,7 @@ def business_notifications(
     for item in in_transit:
         alerts.append(
             {
+                "id": f"delivery-{item.id}",
                 "type": "delivery",
                 "title": f"Delivery #{item.id} in progress",
                 "message": f"Status: {item.status}. Destination: {item.delivery_location or '-'}",
@@ -717,6 +1027,7 @@ def business_notifications(
     for item in low_stock:
         alerts.append(
             {
+                "id": f"inventory-{item['product_id']}",
                 "type": "inventory",
                 "title": f"Low stock: {item['product_name']}",
                 "message": f"Only {item['current_stock']} units left",

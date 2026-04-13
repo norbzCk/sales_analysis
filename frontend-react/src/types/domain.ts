@@ -11,6 +11,18 @@ export interface Product {
   is_active?: boolean;
   provider_id?: number | null;
   provider?: Provider | null;
+  seller_name?: string | null;
+  seller?: {
+    id?: number;
+    business_name?: string;
+    owner_name?: string;
+    phone?: string;
+    email?: string | null;
+    region?: string | null;
+    area?: string | null;
+    street?: string | null;
+    verification_status?: string | null;
+  } | null;
   rating_avg?: number;
   rating_count?: number;
 }
@@ -90,6 +102,7 @@ export interface PaymentHistoryItem {
   amount: number;
   status: string;
   date?: string | null;
+  payment_method?: string | null;
 }
 
 export interface PaymentResponse {
@@ -99,6 +112,23 @@ export interface PaymentResponse {
   message: string;
   timestamp?: string;
   instructions?: string | null;
+  order_id?: number;
+  payment_method?: string | null;
+  provider?: string | null;
+}
+
+export interface NotificationEntry {
+  id: number | string;
+  title: string;
+  message: string;
+  type?: string;
+  severity?: string;
+  action_href?: string | null;
+  is_read?: boolean;
+  email_status?: string;
+  created_at?: string | null;
+  read_at?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface Sale {
@@ -158,6 +188,7 @@ export interface BusinessProfile {
   operating_hours?: string | null;
   shop_logo_url?: string | null;
   shop_images?: string | null;
+  profile_photo?: string | null;
   verification_status?: string | null;
 }
 
@@ -194,4 +225,144 @@ export interface SellerDashboardOverview {
       low_stock_threshold: number;
     }>;
   };
+}
+
+export type BuyerOrderLifecycleStatus =
+  | "Pending"
+  | "Confirmed"
+  | "Processing"
+  | "Dispatched"
+  | "In Transit"
+  | "Delivered"
+  | "Cancelled";
+
+export interface BuyerAddress {
+  id: string;
+  label?: string;
+  recipientName?: string;
+  phone?: string;
+  line1: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  deliveryNotes?: string;
+  isDefault?: boolean;
+  type?: "Home" | "Office" | "Warehouse" | "Other";
+}
+
+export interface BuyerPreference {
+  id: string;
+  key: string;
+  label?: string;
+  value?: string | number | boolean | string[];
+  category?: string;
+  updatedAt?: string;
+}
+
+export interface BuyerSuggestion {
+  id: string;
+  title: string;
+  description?: string;
+  reason?: string;
+  category?: string;
+  keywords?: string[];
+  product?: Product;
+  provider?: Provider;
+  relevanceScore?: number;
+  priceHint?: number;
+  availabilityText?: string;
+}
+
+export interface BuyerNotification {
+  id: string;
+  title: string;
+  message: string;
+  type?: "order" | "delivery" | "promotion" | "system" | "chat";
+  createdAt?: string;
+  isRead?: boolean;
+  actionLabel?: string;
+  actionHref?: string;
+  orderId?: Order["id"];
+  severity?: "info" | "success" | "warning" | "error";
+}
+
+export interface BuyerChatMessage {
+  id: string;
+  senderId?: string;
+  senderName?: string;
+  senderRole?: "buyer" | "seller" | "agent" | "system";
+  message: string;
+  sentAt?: string;
+  isRead?: boolean;
+  orderId?: Order["id"];
+}
+
+export interface BuyerChatThread {
+  id: string;
+  title: string;
+  participantName?: string;
+  participantRole?: "seller" | "agent" | "system";
+  orderId?: Order["id"];
+  productId?: Product["id"];
+  lastMessageAt?: string;
+  unreadCount?: number;
+  messages?: BuyerChatMessage[];
+}
+
+export interface BuyerDeliveryEvent {
+  id: string;
+  status: BuyerOrderLifecycleStatus;
+  title?: string;
+  description?: string;
+  location?: string;
+  timestamp?: string;
+  isCompleted?: boolean;
+}
+
+export interface BuyerTrackedOrder {
+  id: string;
+  order?: Order;
+  orderNumber?: string;
+  status: BuyerOrderLifecycleStatus;
+  placedAt?: string;
+  estimatedDeliveryAt?: string;
+  deliveredAt?: string;
+  provider?: Provider;
+  address?: BuyerAddress;
+  items?: BuyerCartItem[];
+  events?: BuyerDeliveryEvent[];
+  progressPercent?: number;
+  trackingCode?: string;
+  supportThreadId?: BuyerChatThread["id"];
+}
+
+export interface BuyerCartItem {
+  id: string;
+  product?: Product;
+  provider?: Provider;
+  orderId?: Order["id"];
+  quantity: number;
+  unitPrice?: number;
+  subtotal?: number;
+  currency?: string;
+  note?: string;
+  availabilityStatus?: "in_stock" | "limited" | "preorder" | "out_of_stock";
+}
+
+export interface BuyerAccountSnapshot {
+  buyerId?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  loyaltyTier?: string;
+  addresses?: BuyerAddress[];
+  preferences?: BuyerPreference[];
+  suggestions?: BuyerSuggestion[];
+  notifications?: BuyerNotification[];
+  chatThreads?: BuyerChatThread[];
+  trackedOrders?: BuyerTrackedOrder[];
+  cartItems?: BuyerCartItem[];
+  recentOrders?: Order[];
 }

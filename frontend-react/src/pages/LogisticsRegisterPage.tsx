@@ -52,7 +52,7 @@ export function LogisticsRegisterPage() {
   return (
     <AuthScene
       eyebrow="Logistics onboarding"
-      title="Join the delivery network for Kariakoo orders."
+      title="Join the delivery network for SokoLnk orders."
       description="Register a rider or delivery company profile, manage availability, and move through delivery statuses from a dedicated dashboard."
       bullets={[
         "Go online and manage availability in real time",
