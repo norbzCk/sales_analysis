@@ -344,7 +344,7 @@ export function SellerDashboardPage() {
               </div>
             </article>
 
-            <article className="panel chart-panel">
+            <article className="panel chart-panel seller-demand-panel">
               <div className="panel-header">
                 <div>
                   <h2>Revenue by product</h2>
@@ -432,7 +432,7 @@ export function SellerDashboardPage() {
               </div>
             </article>
 
-            <article className="panel seller-list-panel">
+            <article className="panel seller-list-panel seller-recent-panel">
               <div className="panel-header">
                 <div>
                   <h2>Recent sales</h2>
@@ -457,7 +457,7 @@ export function SellerDashboardPage() {
               </div>
             </article>
 
-            <article className="panel seller-list-panel">
+            <article className="panel seller-list-panel seller-inventory-panel">
               <div className="panel-header">
                 <div>
                   <h2>Inventory alerts</h2>
@@ -479,7 +479,7 @@ export function SellerDashboardPage() {
               </div>
             </article>
 
-            <article className="panel seller-list-panel">
+            <article className="panel seller-list-panel seller-notification-panel">
               <div className="panel-header">
                 <div>
                   <h2>Notifications</h2>

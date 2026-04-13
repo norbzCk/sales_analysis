@@ -813,11 +813,135 @@ button {
     #ffffff;
 }
 
+.seller-hero__copy {
+  display: grid;
+  gap: 8px;
+}
+
+.seller-hero__copy h1,
+.seller-hero__copy p {
+  margin: 0;
+}
+
 .seller-hero select {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
   background: #fff;
+}
+
+.seller-metric-grid,
+.seller-analytics-grid,
+.seller-insight-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.seller-metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.seller-metric-card {
+  display: grid;
+  gap: 10px;
+  min-height: 182px;
+}
+
+.seller-metric-card strong {
+  margin-top: 0;
+}
+
+.seller-metric-card p {
+  margin: 0;
+}
+
+.seller-analytics-grid {
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+}
+
+.seller-panel-wide {
+  grid-row: span 2;
+}
+
+.seller-axis-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.seller-insight-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.seller-spotlight-card,
+.seller-list-panel {
+  min-height: 100%;
+}
+
+.seller-spotlight-card {
+  grid-column: span 4;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  background:
+    radial-gradient(circle at top right, rgba(255, 122, 0, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(15, 103, 181, 0.08), rgba(255, 255, 255, 0.98));
+}
+
+.seller-spotlight-card h2,
+.seller-spotlight-card p {
+  margin: 0;
+}
+
+.seller-spotlight-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.seller-mini-kpi {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 103, 181, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.seller-mini-kpi strong {
+  margin-top: 0;
+  font-size: 1.45rem;
+}
+
+.seller-demand-panel {
+  grid-column: span 4;
+}
+
+.seller-recent-panel {
+  grid-column: span 4;
+}
+
+.seller-inventory-panel,
+.seller-notification-panel {
+  grid-column: span 6;
+}
+
+.seller-recent-sale {
+  align-items: center;
+}
+
+.seller-recent-sale__meta {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.seller-bar-row {
+  grid-template-columns: minmax(110px, 1fr) 2.3fr auto;
 }
 
 .chart-panel {
@@ -1266,6 +1390,26 @@ button {
     display: grid;
   }
 
+  .seller-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-panel-wide {
+    grid-row: auto;
+  }
+
+  .seller-insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .seller-spotlight-card,
+  .seller-demand-panel,
+  .seller-recent-panel,
+  .seller-inventory-panel,
+  .seller-notification-panel {
+    grid-column: span 1;
+  }
+
   .order-mix-grid {
     grid-template-columns: 1fr;
   }
@@ -1280,6 +1424,15 @@ button {
 }
 
 @media (max-width: 640px) {
+  .seller-metric-grid,
+  .seller-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-spotlight-stats {
+    grid-template-columns: 1fr;
+  }
+
   .buyer-card {
     padding: 18px;
   }
