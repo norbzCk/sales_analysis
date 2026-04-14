@@ -74,6 +74,9 @@ export function LoginPage() {
       <p className="auth-helper-text">
         Forgot your password? <Link to="/forgot-password">Reset it here</Link>.
       </p>
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        <Link to="/" style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>← Back to Homepage</Link>
+      </div>
     </AuthScene>
   );
 }
