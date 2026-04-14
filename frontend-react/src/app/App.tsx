@@ -24,7 +24,7 @@ import { SellerProfilePage } from "../pages/SellerProfilePage";
 import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
 import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
-import { LogisticsProfilePage } from "../pages/LogisticsProfilePage";
+import { LogisticsProfilePage } from "../pages/LogisticsProfilePage.tsx"; // Fixed import with explicit extension
 import { SuperadminProfilePage } from "../pages/SuperadminProfilePage";
 
 import { ProductDetailPage } from "../pages/ProductDetailPage";
