@@ -66,6 +66,19 @@ export function PaymentsPage() {
     }
   }
 
+  async function handleClearHistory() {
+    if (!confirm("Are you sure you want to clear all payment history? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      await apiRequest("/payments/history", { method: "DELETE" });
+      setHistory([]);
+      setFlash("Payment history cleared.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to clear payment history");
+    }
+  }
+
   if (user?.role !== "user") {
     return <section className="panel"><h1>Payments</h1><p className="muted">Payments are only available in the customer flow.</p></section>;
   }
@@ -80,7 +93,7 @@ export function PaymentsPage() {
         <div className="panel stack-list">
           <h2>Payment methods</h2>
           {methods.map((method) => (
-            <div key={method.id} className="list-card">
+            <div key={method.id} className="list-item"> {/* Changed from list-card to list-item */}
               <div>
                 <strong>{method.name}</strong>
                 <p>{method.instructions || ""}</p>
@@ -124,7 +137,10 @@ export function PaymentsPage() {
       </div>
 
       <div className="panel table-scroll">
-        <h2>Payment history</h2>
+        <div className="panel-header"> {/* Added panel-header for consistency */}
+          <h2>Payment history</h2>
+          <button className="secondary-button" onClick={handleClearHistory}>Clear History</button>
+        </div>
         <table className="data-table">
           <thead><tr><th>Transaction</th><th>Order</th><th>Product</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
           <tbody>

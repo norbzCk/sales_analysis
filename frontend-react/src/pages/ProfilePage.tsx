@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
+import { Modal } from "../components/Modal"; // Assuming a Modal component exists
 
 interface ProfileState {
   name: string;
@@ -9,6 +10,12 @@ interface ProfileState {
   phone: string;
   address: string;
   profile_photo: string;
+}
+
+interface PasswordState {
+  current_password: "";
+  new_password: "";
+  confirm_password: "";
 }
 
 function resolveImageUrl(url?: string | null) {
@@ -32,12 +39,15 @@ function getInitials(name?: string) {
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileState>({ name: "", email: "", phone: "", address: "", profile_photo: "" });
-  const [passwordDraft, setPasswordDraft] = useState({ current_password: "", new_password: "", confirm_password: "" });
+  const [passwordDraft, setPasswordDraft] = useState<PasswordState>({ current_password: "", new_password: "", confirm_password: "" });
   const [editing, setEditing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [passwordUpdating, setPasswordUpdating] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+  const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
 
   useEffect(() => {
     setProfile({
@@ -54,12 +64,6 @@ export function ProfilePage() {
     setError("");
     setFlash("");
     try {
-      const wantsPasswordChange =
-        Boolean(passwordDraft.current_password) ||
-        Boolean(passwordDraft.new_password) ||
-        Boolean(passwordDraft.confirm_password);
-
-      // Allow saving profile without password change
       const updated = await apiRequest<{
         name: string;
         email: string;
@@ -84,31 +88,43 @@ export function ProfilePage() {
       });
       await refreshUser();
 
-      // Only handle password change if user actually wants to change it
-      if (wantsPasswordChange) {
-        if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
-          setError("Fill all password fields to change password.");
-          return;
-        }
-        if (passwordDraft.new_password !== passwordDraft.confirm_password) {
-          setError("New passwords do not match.");
-          return;
-        }
-        setPasswordUpdating(true);
-        await apiRequest("/auth/change-password", {
-          method: "POST",
-          body: {
-            current_password: passwordDraft.current_password,
-            new_password: passwordDraft.new_password,
-          },
-        });
-      }
-
-      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
       setEditing(false);
-      setFlash(wantsPasswordChange ? "Profile and password updated." : "Profile updated.");
+      setFlash("Profile updated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
+    }
+  }
+
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setFlash("");
+    setPasswordUpdating(true);
+
+    if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
+      setError("Fill all password fields to change password.");
+      setPasswordUpdating(false);
+      return;
+    }
+    if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+      setError("New passwords do not match.");
+      setPasswordUpdating(false);
+      return;
+    }
+
+    try {
+      await apiRequest("/auth/change-password", {
+        method: "POST",
+        body: {
+          current_password: passwordDraft.current_password,
+          new_password: passwordDraft.new_password,
+        },
+      });
+      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+      setShowPasswordModal(false);
+      setFlash("Password updated successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update password");
     } finally {
       setPasswordUpdating(false);
     }
@@ -129,6 +145,7 @@ export function ProfilePage() {
       });
       setProfile((state) => ({ ...state, profile_photo: response.image_url }));
       setFlash("Profile photo uploaded. Save profile to apply.");
+      setShowPhotoModal(false); // Close modal after upload
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload profile photo");
     } finally {
@@ -179,6 +196,14 @@ export function ProfilePage() {
                 <p className="muted">Account profile</p>
               </div>
             </div>
+            <div className="profile-actions">
+              <button className="secondary-button" type="button" onClick={() => setShowPhotoModal(true)}>
+                Change Photo
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setShowPasswordModal(true)}>
+                Change Password
+              </button>
+            </div>
           </div>
           <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
           <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
@@ -192,27 +217,9 @@ export function ProfilePage() {
           <label>Email<input value={profile.email} readOnly /></label>
           <label>Phone<input value={profile.phone} onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))} /></label>
           <label>Address<input value={profile.address} onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))} /></label>
-          <label>
-            Upload profile photo (optional)
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
-          </label>
-          <label>
-            Profile photo URL (optional)
-            <input
-              value={profile.profile_photo}
-              onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
-              placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
-            />
-          </label>
-          {profile.profile_photo ? (
-            <img
-              src={resolveImageUrl(profile.profile_photo)}
-              alt={profile.name || "Profile preview"}
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : null}
+          
           <div className="full-width">
-            <p className="eyebrow">Security (optional)</p>
+            <p className="eyebrow">Security</p>
           </div>
           <label>
             Current password
@@ -257,6 +264,97 @@ export function ProfilePage() {
           </div>
         </form>
       )}
+
+      {/* Change Photo Modal */}
+      <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo">
+        <form onSubmit={(e) => e.preventDefault()} className="form-grid">
+          <label>
+            Upload new photo
+            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+          </label>
+          <label>
+            Or enter photo URL
+            <input
+              value={profile.profile_photo}
+              onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
+              placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
+            />
+          </label>
+          {profile.profile_photo ? (
+            <img
+              src={resolveImageUrl(profile.profile_photo)}
+              alt="Profile preview"
+              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : null}
+          <div className="hero-actions">
+            <button className="primary-button" type="button" onClick={handleProfileSubmit} disabled={uploadingPhoto}>
+              {uploadingPhoto ? "Uploading..." : "Save Photo"}
+            </button>
+            <button className="secondary-button" type="button" onClick={() => setShowPhotoModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} title="Change Password">
+        <form onSubmit={handlePasswordSubmit} className="form-grid">
+          <label>
+            Current password
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.current ? "text" : "password"}
+                value={passwordDraft.current_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+                required
+              />
+              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, current: !prev.current}))}>
+                {showPassword.current ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+          </label>
+          <label>
+            New password
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.new ? "text" : "password"}
+                minLength={8}
+                value={passwordDraft.new_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+                required
+              />
+              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, new: !prev.new}))}>
+                {showPassword.new ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+          </label>
+          <label>
+            Confirm new password
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.confirm ? "text" : "password"}
+                minLength={8}
+                value={passwordDraft.confirm_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+                required
+              />
+              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, confirm: !prev.confirm}))}>
+                {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+          </label>
+          <div className="hero-actions">
+            <button className="primary-button" type="submit" disabled={passwordUpdating}>
+              {passwordUpdating ? "Updating..." : "Update Password"}
+            </button>
+            <button className="secondary-button" type="button" onClick={() => setShowPasswordModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
     </section>
   );
 }
