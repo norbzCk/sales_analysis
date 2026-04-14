@@ -62,6 +62,20 @@ function findNextSellerStatus(current: string) {
   return "";
 }
 
+function statusVariant(status?: string) {
+  const normalized = normalizedStatus(status);
+  if (["Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"].includes(normalized)) return "ok";
+  if (normalized === "Cancelled") return "danger";
+  return "warn";
+}
+
+function formatOrderDate(value?: string | null) {
+  if (!value) return "Unknown";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function OrdersPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();
@@ -187,6 +201,25 @@ export function OrdersPage() {
     }
     return map;
   }, [deliveries]);
+
+  const orderSummary = useMemo(() => {
+    const counts = orders.reduce((summary, order) => {
+      const status = normalizedStatus(order.status);
+      summary[status] = (summary[status] || 0) + 1;
+      return summary;
+    }, {} as Record<string, number>);
+
+    return {
+      total: orders.length,
+      pending: counts.Pending || 0,
+      confirmed: counts.Confirmed || 0,
+      packing: counts.Packed || 0,
+      shipping: counts["Ready For Shipping"] || 0,
+      shipped: counts.Shipped || 0,
+      received: counts.Received || 0,
+      cancelled: counts.Cancelled || 0,
+    };
+  }, [orders]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -419,7 +452,7 @@ export function OrdersPage() {
           </div>
         ) : null}
 
-        <div className="panel" style={{ padding: "16px" }}>
+        <div className="panel panel-compact">
           <div className="panel-header">
             <strong>Delivery assignment</strong>
             <span>{assignedDelivery ? `Delivery #${assignedDelivery.id} (${assignedDelivery.status})` : "Not assigned yet"}</span>
@@ -536,6 +569,13 @@ export function OrdersPage() {
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
 
+      <div className="stat-grid">
+        <article className="stat-card"><span className="stat-label">Total orders</span><strong>{orderSummary.total}</strong></article>
+        <article className="stat-card"><span className="stat-label">Pending</span><strong>{orderSummary.pending}</strong></article>
+        <article className="stat-card"><span className="stat-label">In progress</span><strong>{orderSummary.packing + orderSummary.shipping}</strong></article>
+        <article className="stat-card"><span className="stat-label">Delivered</span><strong>{orderSummary.received}</strong></article>
+      </div>
+
       {user?.role === "user" ? (
         <div className="two-column-grid">
           <form className="panel form-grid" onSubmit={handleCreate}>
@@ -613,20 +653,36 @@ export function OrdersPage() {
       </div>
 
       <div className="two-column-grid">
-        <div className="panel stack-list">
-          {loading ? <p>Loading orders...</p> : null}
-          {!loading && !visibleOrders.length ? <p>No orders found.</p> : null}
-          {visibleOrders.map((order) => (
-            <button
-              key={order.id}
-              className={`order-list-item${selectedOrder?.id === order.id ? " active" : ""}`}
-              onClick={() => setSelectedId(order.id)}
-              type="button"
-            >
-              <strong>#{order.id} {order.product || "-"}</strong>
-              <span>{normalizedStatus(order.status)} · {formatMoney(order.total || (Number(order.unit_price || 0) * Number(order.quantity || 0)))}</span>
-            </button>
-          ))}
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h2>Order list</h2>
+              <p className="muted">{visibleOrders.length} orders matching current filters.</p>
+            </div>
+            <span className="badge">{visibleOrders.length}</span>
+          </div>
+          <div className="stack-list">
+            {loading ? <p className="muted">Loading orders...</p> : null}
+            {!loading && !visibleOrders.length ? <p className="muted">No orders found.</p> : null}
+            {visibleOrders.map((order) => (
+              <button
+                key={order.id}
+                className={`order-list-item${selectedOrder?.id === order.id ? " active" : ""}`}
+                onClick={() => setSelectedId(order.id)}
+                type="button"
+              >
+                <div>
+                  <strong>#{order.id} {order.product || "Order"}</strong>
+                  <p className="muted">{order.provider_name || "Customer order"}</p>
+                  <p className="muted">{formatOrderDate(order.order_date || (order as any).created_at || null)}</p>
+                </div>
+                <div>
+                  <span className={`status-pill ${statusVariant(order.status || undefined)}`}>{normalizedStatus(order.status)}</span>
+                  <strong>{formatMoney(order.total || (Number(order.unit_price || 0) * Number(order.quantity || 0)))}</strong>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="panel">

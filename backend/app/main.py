@@ -20,7 +20,7 @@ from backend.models import Base, User, BusinessMetrics, BusinessUser, LogisticsM
 from fastapi.staticfiles import StaticFiles
 
 
-from backend.app.dashboard import dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
+from backend.app.dashboard import dashboard_analytics, dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -952,6 +952,13 @@ def recent_sales(
     current: User = Depends(require_roles("admin", "super_admin", "owner")),
 ):
     return get_recent_sales(db, current)
+
+@app.get("/dashboard/analytics")
+def get_dashboard_analytics(
+    db: Session = Depends(get_db),
+    current: User = Depends(require_roles("admin", "super_admin", "owner")),
+):
+    return dashboard_analytics(db, current)
 
 @app.get("/dashboard/market-insights")
 def get_market_insights(

@@ -82,8 +82,16 @@ export function AppShell() {
       }
     }
     void loadSummary();
+
+    // Listen for notifications being marked as read
+    function handleNotificationsRead() {
+      void loadSummary();
+    }
+    window.addEventListener('notifications-read', handleNotificationsRead);
+
     return () => {
       active = false;
+      window.removeEventListener('notifications-read', handleNotificationsRead);
     };
   }, [location.pathname, user]);
 

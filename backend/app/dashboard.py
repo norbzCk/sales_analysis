@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+
 from sqlalchemy import String, cast, func
 from backend.models import Sale
 
@@ -13,6 +19,295 @@ def _sales_query_for_user(db, user):
             ((Sale.seller_id.is_(None)) & (Sale.provider_name == business_name))
         )
     return query
+
+
+def _load_analysis_modules():
+    try:
+        import numpy as np  # type: ignore
+        import pandas as pd  # type: ignore
+        return pd, np
+    except Exception:
+        return None, None
+
+
+def _load_graph_modules():
+    try:
+        os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib import pyplot as plt  # type: ignore
+        return plt
+    except Exception:
+        return None
+
+
+def _graph_output_paths(user, suffix: str) -> tuple[Path, str]:
+    user_key = f"{getattr(user, 'role', 'admin')}-{getattr(user, 'id', '0')}"
+    directory = Path(__file__).resolve().parents[1] / "uploads" / "graphs"
+    directory.mkdir(parents=True, exist_ok=True)
+    filename = f"dashboard-{user_key}-{suffix}.svg"
+    return directory / filename, f"/uploads/graphs/{filename}"
+
+
+def _write_revenue_time_graph(points: list[dict[str, Any]], user) -> str | None:
+    plt = _load_graph_modules()
+    if plt is None:
+        return None
+
+    output_path, public_path = _graph_output_paths(user, "revenue-time")
+    labels = [str(point["label"]) for point in points] or ["No data"]
+    values = [float(point["value"]) for point in points] or [0.0]
+    x_positions = list(range(len(values)))
+
+    fig, ax = plt.subplots(figsize=(11, 4.2))
+    ax.plot(x_positions, values, color="#15803d", linewidth=3.2, marker="o", markersize=5.5)
+    ax.fill_between(x_positions, values, color="#22c55e", alpha=0.18)
+    ax.set_title("Revenue per time", fontsize=16, fontweight="bold", loc="left")
+    ax.set_ylabel("Revenue (TZS)")
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(labels)
+    ax.grid(axis="y", color="#d1fae5", linewidth=1)
+    ax.set_facecolor("#f7fff8")
+    fig.patch.set_facecolor("#ffffff")
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color("#86efac")
+    ax.spines["bottom"].set_color("#86efac")
+    ax.tick_params(axis="x", rotation=25, labelsize=9, colors="#166534")
+    ax.tick_params(axis="y", labelsize=9, colors="#166534")
+    fig.tight_layout()
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return public_path
+
+
+def _write_revenue_product_graph(points: list[dict[str, Any]], user) -> str | None:
+    plt = _load_graph_modules()
+    if plt is None:
+        return None
+
+    output_path, public_path = _graph_output_paths(user, "revenue-product")
+    labels = [str(point["label"]) for point in points] or ["No data"]
+    values = [float(point["value"]) for point in points] or [0.0]
+
+    fig, ax = plt.subplots(figsize=(9.2, 4.8))
+    bars = ax.barh(labels, values, color="#22c55e", edgecolor="#15803d", linewidth=1.1)
+    ax.set_title("Revenue per product", fontsize=16, fontweight="bold", loc="left")
+    ax.set_xlabel("Revenue (TZS)")
+    ax.grid(axis="x", color="#d1fae5", linewidth=1)
+    ax.set_facecolor("#f7fff8")
+    fig.patch.set_facecolor("#ffffff")
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color("#86efac")
+    ax.spines["bottom"].set_color("#86efac")
+    ax.tick_params(axis="x", labelsize=9, colors="#166534")
+    ax.tick_params(axis="y", labelsize=9, colors="#166534")
+    ax.bar_label(bars, labels=[f"TZS {value:,.0f}" for value in values], padding=6, fontsize=8, color="#166534")
+    fig.tight_layout()
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return public_path
+
+
+def _sales_records_for_user(db, user):
+    rows = _sales_query_for_user(db, user).with_entities(
+        Sale.id,
+        Sale.date,
+        Sale.product,
+        Sale.category,
+        Sale.quantity,
+        Sale.unit_price,
+    ).order_by(Sale.date.asc(), Sale.id.asc()).all()
+    return [
+        {
+            "id": int(row[0]),
+            "date": row[1].isoformat() if row[1] else None,
+            "product": row[2] or "Unspecified product",
+            "category": row[3] or "Uncategorized",
+            "quantity": int(row[4] or 0),
+            "unit_price": float(row[5] or 0),
+        }
+        for row in rows
+    ]
+
+
+def _empty_dashboard_analytics():
+    return {
+        "cards": [
+            {"id": "total_revenue", "label": "Total revenue", "display": "TZS 0", "value": 0, "kind": "money", "subtitle": "All recorded revenue"},
+            {"id": "total_orders", "label": "Total orders", "display": "0", "value": 0, "kind": "count", "subtitle": "Orders processed"},
+            {"id": "total_units", "label": "Units sold", "display": "0", "value": 0, "kind": "count", "subtitle": "Total pieces sold"},
+            {"id": "average_order_value", "label": "Average order value", "display": "TZS 0", "value": 0, "kind": "money", "subtitle": "Average basket size"},
+            {"id": "top_product", "label": "Top product", "display": "-", "value": 0, "kind": "text", "subtitle": "Highest revenue product"},
+            {"id": "top_product_units", "label": "Top product units", "display": "0", "value": 0, "kind": "count", "subtitle": "Units from best seller"},
+            {"id": "active_categories", "label": "Active categories", "display": "0", "value": 0, "kind": "count", "subtitle": "Categories with sales"},
+            {"id": "best_day_revenue", "label": "Best day revenue", "display": "TZS 0", "value": 0, "kind": "money", "subtitle": "Highest single-day revenue"},
+            {"id": "recent_revenue", "label": "Last 7 days revenue", "display": "TZS 0", "value": 0, "kind": "money", "subtitle": "Fresh sales momentum"},
+            {"id": "avg_units_per_order", "label": "Avg units per order", "display": "0", "value": 0, "kind": "count", "subtitle": "Typical units per sale"},
+        ],
+        "revenueByProduct": [],
+        "revenueOverTime": [],
+        "recentSales": [],
+        "graphs": {
+            "revenueByProduct": None,
+            "revenueOverTime": None,
+        },
+    }
+
+
+def dashboard_analytics(db, user) -> dict[str, Any]:
+    records = _sales_records_for_user(db, user)
+    if not records:
+        return _empty_dashboard_analytics()
+
+    pd, np = _load_analysis_modules()
+    if pd is not None and np is not None:
+        frame = pd.DataFrame.from_records(records)
+        frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+        frame["quantity"] = pd.to_numeric(frame["quantity"], errors="coerce").fillna(0)
+        frame["unit_price"] = pd.to_numeric(frame["unit_price"], errors="coerce").fillna(0.0)
+        frame["revenue"] = np.round(frame["quantity"] * frame["unit_price"], 2)
+        frame["category"] = frame["category"].fillna("Uncategorized")
+        frame["product"] = frame["product"].fillna("Unspecified product")
+
+        revenue_by_product = (
+            frame.groupby("product", dropna=False)["revenue"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(8)
+            .reset_index()
+        )
+        revenue_over_time = (
+            frame.dropna(subset=["date"])
+            .groupby(frame.dropna(subset=["date"])["date"].dt.strftime("%Y-%m-%d"))["revenue"]
+            .sum()
+            .sort_index()
+            .reset_index()
+        )
+        recent_sales_frame = (
+            frame.sort_values(["date", "id"], ascending=[False, False])
+            .head(6)
+            .copy()
+        )
+        top_product_row = (
+            frame.groupby("product", dropna=False)
+            .agg(revenue=("revenue", "sum"), units=("quantity", "sum"))
+            .sort_values(["revenue", "units"], ascending=False)
+            .reset_index()
+            .iloc[0]
+        )
+        daily_revenue = (
+            frame.dropna(subset=["date"])
+            .groupby(frame.dropna(subset=["date"])["date"].dt.strftime("%Y-%m-%d"))["revenue"]
+            .sum()
+            .sort_index()
+        )
+        recent_revenue = float(daily_revenue.tail(7).sum()) if len(daily_revenue) else 0.0
+        best_day_revenue = float(daily_revenue.max()) if len(daily_revenue) else 0.0
+        total_revenue = float(frame["revenue"].sum())
+        total_orders = int(len(frame))
+        total_units = int(frame["quantity"].sum())
+        average_order_value = float(total_revenue / total_orders) if total_orders else 0.0
+        avg_units_per_order = float(total_units / total_orders) if total_orders else 0.0
+        active_categories = int(frame["category"].nunique())
+
+        cards = [
+            {"id": "total_revenue", "label": "Total revenue", "display": f"TZS {total_revenue:,.0f}", "value": total_revenue, "kind": "money", "subtitle": "All recorded revenue"},
+            {"id": "total_orders", "label": "Total orders", "display": f"{total_orders:,}", "value": total_orders, "kind": "count", "subtitle": "Orders processed"},
+            {"id": "total_units", "label": "Units sold", "display": f"{total_units:,}", "value": total_units, "kind": "count", "subtitle": "Total pieces sold"},
+            {"id": "average_order_value", "label": "Average order value", "display": f"TZS {average_order_value:,.0f}", "value": average_order_value, "kind": "money", "subtitle": "Average basket size"},
+            {"id": "top_product", "label": "Top product", "display": str(top_product_row['product']), "value": float(top_product_row["revenue"]), "kind": "text", "subtitle": "Highest revenue product"},
+            {"id": "top_product_units", "label": "Top product units", "display": f"{int(top_product_row['units']):,}", "value": int(top_product_row["units"]), "kind": "count", "subtitle": "Units from best seller"},
+            {"id": "active_categories", "label": "Active categories", "display": f"{active_categories:,}", "value": active_categories, "kind": "count", "subtitle": "Categories with sales"},
+            {"id": "best_day_revenue", "label": "Best day revenue", "display": f"TZS {best_day_revenue:,.0f}", "value": best_day_revenue, "kind": "money", "subtitle": "Highest single-day revenue"},
+            {"id": "recent_revenue", "label": "Last 7 days revenue", "display": f"TZS {recent_revenue:,.0f}", "value": recent_revenue, "kind": "money", "subtitle": "Fresh sales momentum"},
+            {"id": "avg_units_per_order", "label": "Avg units per order", "display": f"{avg_units_per_order:,.1f}", "value": avg_units_per_order, "kind": "count", "subtitle": "Typical units per sale"},
+        ]
+
+        revenue_by_product_points = [
+            {"label": str(row["product"]), "value": float(row["revenue"])}
+            for _, row in revenue_by_product.iterrows()
+        ]
+        revenue_over_time_points = [
+            {"label": str(row["date"]), "value": float(row["revenue"])}
+            for _, row in revenue_over_time.iterrows()
+        ]
+        return {
+            "cards": cards,
+            "revenueByProduct": revenue_by_product_points,
+            "revenueOverTime": revenue_over_time_points,
+            "recentSales": [
+                {
+                    "id": int(row["id"]),
+                    "date": row["date"].date().isoformat() if getattr(row["date"], "date", None) else None,
+                    "product": str(row["product"]),
+                    "category": str(row["category"]),
+                    "quantity": int(row["quantity"]),
+                    "revenue": float(row["revenue"]),
+                }
+                for _, row in recent_sales_frame.iterrows()
+            ],
+            "graphs": {
+                "revenueByProduct": _write_revenue_product_graph(revenue_by_product_points, user),
+                "revenueOverTime": _write_revenue_time_graph(revenue_over_time_points, user),
+            },
+        }
+
+    rows = []
+    for record in records:
+        revenue = float(record["quantity"] * record["unit_price"])
+        rows.append({**record, "revenue": revenue})
+
+    by_product: dict[str, float] = {}
+    by_date: dict[str, float] = {}
+    by_product_units: dict[str, int] = {}
+    categories: set[str] = set()
+    for row in rows:
+        product = row["product"]
+        date = row["date"] or ""
+        categories.add(row["category"])
+        by_product[product] = by_product.get(product, 0.0) + row["revenue"]
+        by_product_units[product] = by_product_units.get(product, 0) + int(row["quantity"])
+        if date:
+            by_date[date] = by_date.get(date, 0.0) + row["revenue"]
+
+    revenue_by_product = sorted(by_product.items(), key=lambda item: item[1], reverse=True)[:8]
+    revenue_over_time = sorted(by_date.items(), key=lambda item: item[0])
+    recent_sales = sorted(rows, key=lambda row: (row["date"] or "", row["id"]), reverse=True)[:6]
+    top_product = revenue_by_product[0][0] if revenue_by_product else "-"
+    top_product_units = by_product_units.get(top_product, 0)
+    total_revenue = sum(row["revenue"] for row in rows)
+    total_orders = len(rows)
+    total_units = sum(int(row["quantity"]) for row in rows)
+    average_order_value = total_revenue / total_orders if total_orders else 0.0
+    avg_units_per_order = total_units / total_orders if total_orders else 0.0
+    best_day_revenue = max(by_date.values()) if by_date else 0.0
+    recent_revenue = sum(value for _, value in revenue_over_time[-7:])
+
+    revenue_by_product_points = [{"label": label, "value": value} for label, value in revenue_by_product]
+    revenue_over_time_points = [{"label": label, "value": value} for label, value in revenue_over_time]
+    return {
+        "cards": [
+            {"id": "total_revenue", "label": "Total revenue", "display": f"TZS {total_revenue:,.0f}", "value": total_revenue, "kind": "money", "subtitle": "All recorded revenue"},
+            {"id": "total_orders", "label": "Total orders", "display": f"{total_orders:,}", "value": total_orders, "kind": "count", "subtitle": "Orders processed"},
+            {"id": "total_units", "label": "Units sold", "display": f"{total_units:,}", "value": total_units, "kind": "count", "subtitle": "Total pieces sold"},
+            {"id": "average_order_value", "label": "Average order value", "display": f"TZS {average_order_value:,.0f}", "value": average_order_value, "kind": "money", "subtitle": "Average basket size"},
+            {"id": "top_product", "label": "Top product", "display": top_product, "value": by_product.get(top_product, 0.0), "kind": "text", "subtitle": "Highest revenue product"},
+            {"id": "top_product_units", "label": "Top product units", "display": f"{top_product_units:,}", "value": top_product_units, "kind": "count", "subtitle": "Units from best seller"},
+            {"id": "active_categories", "label": "Active categories", "display": f"{len(categories):,}", "value": len(categories), "kind": "count", "subtitle": "Categories with sales"},
+            {"id": "best_day_revenue", "label": "Best day revenue", "display": f"TZS {best_day_revenue:,.0f}", "value": best_day_revenue, "kind": "money", "subtitle": "Highest single-day revenue"},
+            {"id": "recent_revenue", "label": "Last 7 days revenue", "display": f"TZS {recent_revenue:,.0f}", "value": recent_revenue, "kind": "money", "subtitle": "Fresh sales momentum"},
+            {"id": "avg_units_per_order", "label": "Avg units per order", "display": f"{avg_units_per_order:,.1f}", "value": avg_units_per_order, "kind": "count", "subtitle": "Typical units per sale"},
+        ],
+        "revenueByProduct": revenue_by_product_points,
+        "revenueOverTime": revenue_over_time_points,
+        "recentSales": recent_sales,
+        "graphs": {
+            "revenueByProduct": _write_revenue_product_graph(revenue_by_product_points, user),
+            "revenueOverTime": _write_revenue_time_graph(revenue_over_time_points, user),
+        },
+    }
 
 
 def dashboard_stats(db, user):

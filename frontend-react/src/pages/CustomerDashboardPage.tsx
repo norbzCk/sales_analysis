@@ -783,10 +783,19 @@ export function CustomerDashboardPage() {
             <p className="muted">
               Track orders, compare sellers, manage delivery preferences, and discover better marketplace options from one place.
             </p>
-            <div className="buyer-pill-row">
-              <span className="buyer-pill">Active orders: {summary.activeOrders}</span>
-              <span className="buyer-pill">Unread updates: {summary.unreadNotifications}</span>
-              <span className="buyer-pill">Cart value: {formatMoney(summary.cartValue)}</span>
+            <div className="stat-grid hero-stats-grid">
+              <article className="stat-card hero-stat-card">
+                <span className="stat-label">Active Orders</span>
+                <strong>{summary.activeOrders}</strong>
+              </article>
+              <article className="stat-card hero-stat-card">
+                <span className="stat-label">Unread Updates</span>
+                <strong>{summary.unreadNotifications}</strong>
+              </article>
+              <article className="stat-card hero-stat-card">
+                <span className="stat-label">Cart Value</span>
+                <strong>{formatMoney(summary.cartValue)}</strong>
+              </article>
             </div>
           </div>
 
@@ -798,23 +807,23 @@ export function CustomerDashboardPage() {
               </div>
               <span className="buyer-pill">{getInitials(user?.name || snapshot.fullName)}</span>
             </div>
-            <div className="buyer-kpi-grid">
-              <div className="buyer-kpi">
-                <span className="muted">Orders</span>
+            <div className="stat-grid customer-stats-grid">
+              <article className="stat-card customer-stat-card">
+                <span className="stat-label">Total Orders</span>
                 <strong>{summary.totalOrders}</strong>
-              </div>
-              <div className="buyer-kpi">
-                <span className="muted">Delivered</span>
+              </article>
+              <article className="stat-card customer-stat-card">
+                <span className="stat-label">Delivered</span>
                 <strong>{summary.deliveredOrders}</strong>
-              </div>
-              <div className="buyer-kpi">
-                <span className="muted">Total spend</span>
+              </article>
+              <article className="stat-card customer-stat-card">
+                <span className="stat-label">Total Spend</span>
                 <strong>{formatMoney(summary.spend)}</strong>
-              </div>
-              <div className="buyer-kpi">
-                <span className="muted">Preferred window</span>
-                <strong>Evenings</strong>
-              </div>
+              </article>
+              <article className="stat-card customer-stat-card">
+                <span className="stat-label">Active Orders</span>
+                <strong>{summary.activeOrders}</strong>
+              </article>
             </div>
             <p className="muted">{user?.email || "customer@marketplace.local"}</p>
           </div>

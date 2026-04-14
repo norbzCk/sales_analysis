@@ -85,7 +85,7 @@ export function PaymentsPage() {
           ))}
         </div>
 
-        <form className="panel form-grid" onSubmit={handleSubmit}>
+        <form className="panel form-grid payment-form" onSubmit={handleSubmit}>
           <h2>Initiate payment</h2>
           <label>
             Order
@@ -105,9 +105,11 @@ export function PaymentsPage() {
             </select>
           </label>
           <label>Phone number<input name="phone_number" /></label>
-          <button className="primary-button" type="submit">Initiate payment</button>
+          <div className="payment-actions">
+            <button className="btn btn-primary payment-btn" type="submit">Pay Now</button>
+          </div>
           {result ? (
-            <div className="alert success">
+            <div className="payment-result success">
               <strong>{result.transaction_id}</strong>
               <p>{result.message}</p>
               <p>{formatMoney(result.amount)}</p>

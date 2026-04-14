@@ -50,6 +50,40 @@ export interface DashboardStats {
   top_product: string;
 }
 
+export interface DashboardMetricCard {
+  id: string;
+  label: string;
+  display: string;
+  value: number;
+  kind: "money" | "count" | "text";
+  subtitle?: string;
+}
+
+export interface DashboardChartPoint {
+  label: string;
+  value: number;
+}
+
+export interface DashboardRecentSale {
+  id?: number;
+  date?: string | null;
+  product?: string | null;
+  category?: string | null;
+  quantity?: number;
+  revenue?: number;
+}
+
+export interface DashboardAnalytics {
+  cards: DashboardMetricCard[];
+  revenueByProduct: DashboardChartPoint[];
+  revenueOverTime: DashboardChartPoint[];
+  recentSales: DashboardRecentSale[];
+  graphs?: {
+    revenueByProduct?: string;
+    revenueOverTime?: string;
+  };
+}
+
 export interface InventoryStats {
   total_products: number;
   low_stock_count: number;

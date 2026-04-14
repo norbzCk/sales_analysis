@@ -235,9 +235,13 @@ def stk_push_payment(
         metadata_json=json.dumps({"channel": "stk_push"}),
     )
     db.add(txn)
-    if (order.status or "").strip().title() == "Pending":
+    # Automatically progress order status after payment
+    current_status = (order.status or "").strip().title()
+    if current_status == "Pending":
         order.status = "Confirmed"
-        db.add(order)
+    elif current_status == "Confirmed":
+        order.status = "Packed"  # Auto-progress to packing after payment
+    db.add(order)
 
     _notify_payment_parties(
         db,
@@ -294,8 +298,13 @@ def confirm_transaction(
     db.add(txn)
 
     buyer = db.query(User).filter(User.id == int(order.created_by)).first() if order.created_by is not None else None
-    if status == "completed" and (order.status or "").strip().title() == "Pending":
-        order.status = "Confirmed"
+    if status == "completed":
+        # Automatically progress order status after payment
+        current_status = (order.status or "").strip().title()
+        if current_status == "Pending":
+            order.status = "Confirmed"
+        elif current_status == "Confirmed":
+            order.status = "Packed"  # Auto-progress to packing after payment
         db.add(order)
 
     if buyer:

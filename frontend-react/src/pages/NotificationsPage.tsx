@@ -45,8 +45,21 @@ export function NotificationsPage() {
     setError("");
     try {
       const data = await apiRequest<NotificationResponse>("/notifications");
-      setNotifications(data.items || []);
-      setUnreadCount(Number(data.unread_count || 0));
+      const items = data.items || [];
+      const unread = Number(data.unread_count || 0);
+      setNotifications(items.map((item) => ({ ...item, is_read: true })));
+      setUnreadCount(0);
+
+      if (unread > 0) {
+        try {
+          await apiRequest("/notifications/read-all", { method: "POST" });
+          // Refresh the global unread count
+          window.dispatchEvent(new CustomEvent('notifications-read'));
+        } catch {
+          setNotifications(items);
+          setUnreadCount(unread);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load notifications");
     } finally {

@@ -19,6 +19,16 @@ function resolveImageUrl(url?: string | null) {
   return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
 }
 
+function getInitials(name?: string) {
+  const text = String(name || "User").trim();
+  return text
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
+
 export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileState>({ name: "", email: "", phone: "", address: "", profile_photo: "" });
@@ -48,17 +58,8 @@ export function ProfilePage() {
         Boolean(passwordDraft.current_password) ||
         Boolean(passwordDraft.new_password) ||
         Boolean(passwordDraft.confirm_password);
-      if (wantsPasswordChange) {
-        if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
-          setError("Fill all password fields to change password.");
-          return;
-        }
-        if (passwordDraft.new_password !== passwordDraft.confirm_password) {
-          setError("New passwords do not match.");
-          return;
-        }
-      }
 
+      // Allow saving profile without password change
       const updated = await apiRequest<{
         name: string;
         email: string;
@@ -82,7 +83,17 @@ export function ProfilePage() {
         profile_photo: updated.profile_photo || "",
       });
       await refreshUser();
+
+      // Only handle password change if user actually wants to change it
       if (wantsPasswordChange) {
+        if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
+          setError("Fill all password fields to change password.");
+          return;
+        }
+        if (passwordDraft.new_password !== passwordDraft.confirm_password) {
+          setError("New passwords do not match.");
+          return;
+        }
         setPasswordUpdating(true);
         await apiRequest("/auth/change-password", {
           method: "POST",
@@ -92,6 +103,7 @@ export function ProfilePage() {
           },
         });
       }
+
       setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
       setEditing(false);
       setFlash(wantsPasswordChange ? "Profile and password updated." : "Profile updated.");
@@ -150,17 +162,24 @@ export function ProfilePage() {
       {!editing ? (
         <article className="panel stack-list">
           <div className="panel-header">
-            <h2>Profile details</h2>
+            <div className="profile-avatar-section">
+              {profile.profile_photo ? (
+                <img
+                  src={resolveImageUrl(profile.profile_photo)}
+                  alt={profile.name || "Profile"}
+                  className="profile-avatar"
+                />
+              ) : (
+                <div className="profile-avatar-placeholder">
+                  <span>{getInitials(profile.name || "User")}</span>
+                </div>
+              )}
+              <div>
+                <h2>{profile.name || "User"}</h2>
+                <p className="muted">Account profile</p>
+              </div>
+            </div>
           </div>
-          {profile.profile_photo ? (
-            <img
-              src={resolveImageUrl(profile.profile_photo)}
-              alt={profile.name || "Profile"}
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : (
-            <div className="muted">No profile photo</div>
-          )}
           <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
           <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
           <div className="list-card"><strong>Phone</strong><span>{profile.phone || "-"}</span></div>

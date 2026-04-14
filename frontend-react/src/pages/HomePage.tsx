@@ -43,6 +43,7 @@ export function HomePage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("featured");
+  const [heroTab, setHeroTab] = useState("AI Mode");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [rfqStatus, setRfqStatus] = useState("");
@@ -128,6 +129,30 @@ export function HomePage() {
     setImagePreviewUrl(URL.createObjectURL(file));
   }
 
+  function handleHeroTab(tab: string) {
+    setHeroTab(tab);
+    if (tab === "Products") {
+      setActiveCategory("all");
+      setSearch("");
+    } else if (tab === "Manufacturers") {
+      setSearch("manufacturer");
+      setActiveCategory("all");
+    } else if (tab === "Worldwide") {
+      setSearch("global");
+      setActiveCategory("all");
+    } else {
+      setSearch("");
+      setActiveCategory("all");
+    }
+  }
+
+  function handleSearchClick() {
+    if (search.trim()) {
+      setActiveCategory("all");
+    }
+    scrollToSection("#products");
+  }
+
   async function handleRfqSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setRfqStatus("Submitting your RFQ...");
@@ -179,7 +204,7 @@ export function HomePage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Search</button>
+            <button type="button" onClick={handleSearchClick}>Search</button>
           </div>
           <div className="alibaba-actions">
             <Link to="/login" className="nav-signin">Sign In</Link>
@@ -201,10 +226,18 @@ export function HomePage() {
         <section className="market-hero" id="marketplace">
           <div className="hero-main">
             <div className="hero-tabs" role="tablist" aria-label="Marketplace filters">
-              <button className="hero-tab active" type="button">AI Mode</button>
-              <button className="hero-tab" type="button">Products</button>
-              <button className="hero-tab" type="button">Manufacturers</button>
-              <button className="hero-tab" type="button">Worldwide</button>
+              {['AI Mode', 'Products', 'Manufacturers', 'Worldwide'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  tabIndex={heroTab === tab ? 0 : -1}
+                  className={`hero-tab${heroTab === tab ? " active" : ""}`}
+                  onClick={() => handleHeroTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
 
             <h1 className="market-title">A unified digital marketplace for buyers, sellers, delivery agents, and admins.</h1>
@@ -469,7 +502,7 @@ export function HomePage() {
             <p><strong>Address:</strong> Dar es Salaam, Tanzania</p>
             <p><strong>Working Hours:</strong> Mon - Sat, 08:00 - 18:00</p>
           </div>
-          <p className="muted" style={{ marginTop: "16px" }}>
+          <p className="muted contact-note">
             SokoLnk helps sellers publish inventory, lets customers order from different vendors, and supports delivery coordination so goods arrive safely and on time.
           </p>
         </section>

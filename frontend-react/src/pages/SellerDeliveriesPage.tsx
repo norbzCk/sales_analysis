@@ -29,6 +29,19 @@ function money(value?: number | null) {
   return `TZS ${Number(value || 0).toLocaleString()}`;
 }
 
+function deliveryStatusLabel(value?: string | null) {
+  if (!value) return "Pending";
+  return String(value).replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function deliveryStatusClass(status?: string | null) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "delivered") return "ok";
+  if (["assigned", "picked_up", "in_transit"].includes(normalized)) return "warn";
+  if (normalized === "cancelled") return "danger";
+  return "warn";
+}
+
 export function SellerDeliveriesPage() {
   const [deliveries, setDeliveries] = useState<LogisticsDelivery[]>([]);
   const [communication, setCommunication] = useState<CommunicationItem[]>([]);
@@ -175,80 +188,96 @@ export function SellerDeliveriesPage() {
         </label>
       </div>
 
-      <div className="panel table-scroll">
-        <div className="panel-header">
-          <h2>Delivery board</h2>
-          <span>{loading ? "Loading..." : `${visibleDeliveries.length} deliveries`}</span>
-        </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Status</th>
-              <th>Pickup</th>
-              <th>Destination</th>
-              <th>Price</th>
-              <th>Instructions</th>
-              <th>Reassign</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? <tr><td colSpan={7}>Loading deliveries...</td></tr> : null}
-            {!loading && !visibleDeliveries.length ? <tr><td colSpan={7}>No deliveries found.</td></tr> : null}
-            {visibleDeliveries.map((delivery) => (
-              <tr key={delivery.id}>
-                <td>#{delivery.order_id || "-"}</td>
-                <td>{delivery.status || "-"}</td>
-                <td>{delivery.pickup_location || "-"}</td>
-                <td>
-                  <input
-                    value={destinations[delivery.id] || ""}
-                    onChange={(event) =>
-                      setDestinations((prev) => ({ ...prev, [delivery.id]: event.target.value }))
-                    }
-                    placeholder="Delivery destination"
-                  />
-                </td>
-                <td>{money(delivery.price)}</td>
-                <td>
-                  <textarea
-                    value={instructions[delivery.id] || ""}
-                    onChange={(event) =>
-                      setInstructions((prev) => ({ ...prev, [delivery.id]: event.target.value }))
-                    }
-                    placeholder="Special handling notes"
-                    rows={2}
-                  />
-                  <div className="cell-actions">
-                    <button className="secondary-button" type="button" onClick={() => saveInstructions(delivery.id)}>
-                      Save
-                    </button>
-                  </div>
-                </td>
-                <td>
-                  <select
-                    value={selectedLogistics[delivery.id] || ""}
-                    onChange={(event) =>
-                      setSelectedLogistics((prev) => ({ ...prev, [delivery.id]: event.target.value }))
-                    }
-                  >
-                    <option value="">Choose logistics</option>
-                    {logistics.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name} {agent.vehicle_type ? `(${agent.vehicle_type})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="cell-actions">
-                    <button className="secondary-button" type="button" onClick={() => reassignDelivery(delivery)}>
-                      Reassign
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="delivery-card-grid">
+        {loading ? (
+          <article className="panel">
+            <p className="muted">Loading deliveries...</p>
+          </article>
+        ) : null}
+        {!loading && !visibleDeliveries.length ? (
+          <article className="panel">
+            <p className="muted">No deliveries found.</p>
+          </article>
+        ) : null}
+        {visibleDeliveries.map((delivery) => (
+          <article key={delivery.id} className="delivery-card panel">
+            <div className="delivery-card-header">
+              <div>
+                <strong>Order #{delivery.order_id || "-"}</strong>
+                <p className="muted">{delivery.delivery_address || delivery.pickup_location || "Delivery route"}</p>
+              </div>
+              <span className={`status-pill ${deliveryStatusClass(delivery.status)}`}>
+                {deliveryStatusLabel(delivery.status)}
+              </span>
+            </div>
+
+            <div className="delivery-card-row">
+              <div>
+                <p className="muted">Pickup</p>
+                <strong>{delivery.pickup_location || "Not specified"}</strong>
+              </div>
+              <div>
+                <p className="muted">Destination</p>
+                <strong>{destinations[delivery.id] || delivery.delivery_location || "Not specified"}</strong>
+              </div>
+              <div>
+                <p className="muted">Price</p>
+                <strong>{money(delivery.price)}</strong>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <label>
+                Logistics partner
+                <select
+                  value={selectedLogistics[delivery.id] || ""}
+                  onChange={(event) =>
+                    setSelectedLogistics((prev) => ({ ...prev, [delivery.id]: event.target.value }))
+                  }
+                >
+                  <option value="">Choose logistics</option>
+                  {logistics.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} {agent.vehicle_type ? `(${agent.vehicle_type})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Delivery destination
+                <input
+                  value={destinations[delivery.id] || ""}
+                  onChange={(event) =>
+                    setDestinations((prev) => ({ ...prev, [delivery.id]: event.target.value }))
+                  }
+                  placeholder="Delivery destination"
+                />
+              </label>
+
+              <label className="full-width">
+                Special instructions
+                <textarea
+                  rows={3}
+                  value={instructions[delivery.id] || ""}
+                  onChange={(event) =>
+                    setInstructions((prev) => ({ ...prev, [delivery.id]: event.target.value }))
+                  }
+                  placeholder="Special handling notes"
+                />
+              </label>
+            </div>
+
+            <div className="delivery-card-actions">
+              <button className="secondary-button" type="button" onClick={() => saveInstructions(delivery.id)}>
+                Save updates
+              </button>
+              <button className="secondary-button" type="button" onClick={() => reassignDelivery(delivery)}>
+                Reassign delivery
+              </button>
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="two-column-grid">

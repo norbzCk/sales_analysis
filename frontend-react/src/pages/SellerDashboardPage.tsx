@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
 import type { Order, SellerDashboardOverview } from "../types/domain";
 
@@ -17,6 +18,22 @@ interface DemandRow {
 interface RevenueRow {
   date: string;
   revenue: number;
+}
+
+interface ProductRevenueRow {
+  product: string;
+  revenue: number;
+}
+
+interface SellerAnalyticsResponse {
+  range_days: number;
+  revenue_timeline: RevenueRow[];
+  revenue_by_product: ProductRevenueRow[];
+  demand_by_category: DemandRow[];
+  graphs?: {
+    revenueOverTime?: string;
+    revenueByProduct?: string;
+  };
 }
 
 type MetricVariant = "money" | "count";
@@ -53,6 +70,13 @@ function formatDateTime(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
+}
+
+function resolveGraphUrl(path?: string | null) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("/")) return `${env.apiBase}${path}`;
+  return `${env.apiBase}/${path.replace(/^\/+/, "")}`;
 }
 
 function orderStatusLabel(status?: string | null) {
@@ -150,12 +174,14 @@ export function SellerDashboardPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [demand, setDemand] = useState<DemandRow[]>([]);
   const [revenueTimeline, setRevenueTimeline] = useState<RevenueRow[]>([]);
+  const [revenueByProduct, setRevenueByProduct] = useState<ProductRevenueRow[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [rangeDays, setRangeDays] = useState(30);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [graphUrls, setGraphUrls] = useState<{ revenueOverTime?: string; revenueByProduct?: string }>({});
 
   useEffect(() => {
     void load(true);
@@ -170,7 +196,7 @@ export function SellerDashboardPage() {
       const [overviewData, notificationsData, analyticsData, orderData] = await Promise.all([
         apiRequest<SellerDashboardOverview>("/business/dashboard/overview"),
         apiRequest<{ items: NotificationItem[] }>("/business/notifications"),
-        apiRequest<{ demand_by_category: DemandRow[]; revenue_timeline: RevenueRow[] }>(`/business/analytics?range_days=${rangeDays}`),
+        apiRequest<SellerAnalyticsResponse>(`/business/analytics?range_days=${rangeDays}`),
         apiRequest<{ items: Order[] }>("/business/orders"),
       ]);
 
@@ -178,6 +204,11 @@ export function SellerDashboardPage() {
       setNotifications(notificationsData.items || []);
       setDemand(analyticsData.demand_by_category || []);
       setRevenueTimeline(analyticsData.revenue_timeline || []);
+      setRevenueByProduct(analyticsData.revenue_by_product || []);
+      setGraphUrls({
+        revenueOverTime: resolveGraphUrl(analyticsData.graphs?.revenueOverTime),
+        revenueByProduct: resolveGraphUrl(analyticsData.graphs?.revenueByProduct),
+      });
       setRecentOrders((orderData.items || []).slice(0, 8));
       setRefreshTick((value) => value + 1);
     } catch (err) {
@@ -193,14 +224,14 @@ export function SellerDashboardPage() {
     [revenueTimeline],
   );
 
-  const productRevenue = useMemo(() => {
-    const rows = overview?.top_products.slice(0, 6) || [];
+  const productRevenueBars = useMemo(() => {
+    const rows = revenueByProduct.slice(0, 6) || [];
     const maxRevenue = Math.max(...rows.map((entry) => Number(entry.revenue || 0)), 1);
     return rows.map((entry) => ({
       ...entry,
       ratio: Math.max(8, Math.round((Number(entry.revenue || 0) / maxRevenue) * 100)),
     }));
-  }, [overview]);
+  }, [revenueByProduct]);
 
   const demandChart = useMemo(() => {
     const maxUnits = Math.max(...demand.map((entry) => Number(entry.units || 0)), 1);
@@ -241,6 +272,22 @@ export function SellerDashboardPage() {
     return recentOrders.slice(0, 5);
   }, [recentOrders]);
 
+  const classicMetricCards = useMemo(() => {
+    if (!overview) return [];
+    return [
+      { id: "rev-today", label: "Revenue today", value: Number(overview.summary.revenue_today || 0), variant: "money" as const, note: "Today" },
+      { id: "rev-week", label: "Revenue week", value: Number(overview.summary.revenue_week || 0), variant: "money" as const, note: "7 day pace" },
+      { id: "rev-month", label: "Revenue month", value: Number(overview.summary.revenue_month || 0), variant: "money" as const, note: "Month to date" },
+      { id: "rev-total", label: "Total revenue", value: Number(overview.summary.revenue_total || 0), variant: "money" as const, note: "All time" },
+      { id: "orders-total", label: "Orders total", value: Number(overview.summary.orders_total || 0), variant: "count" as const, note: "Recorded orders" },
+      { id: "orders-pending", label: "Pending orders", value: Number(overview.summary.orders_pending || 0), variant: "count" as const, note: "Need action" },
+      { id: "orders-complete", label: "Completed orders", value: Number(overview.summary.orders_completed || 0), variant: "count" as const, note: "Delivered successfully" },
+      { id: "deliveries-live", label: "Ongoing deliveries", value: Number(overview.summary.ongoing_deliveries || 0), variant: "count" as const, note: "In progress" },
+      { id: "avg-order", label: "Avg order value", value: averageOrderValue, variant: "money" as const, note: "Per order" },
+      { id: "stock-alerts", label: "Low stock alerts", value: Number(overview.summary.inventory_low_stock || 0), variant: "count" as const, note: "Inventory watch" },
+    ];
+  }, [averageOrderValue, overview]);
+
   return (
     <section className="panel-stack seller-dashboard">
       <div className="panel seller-hero soft-lift" key={`hero-${refreshTick}`}>
@@ -266,249 +313,281 @@ export function SellerDashboardPage() {
 
       {overview ? (
         <>
-          <div className="seller-metric-grid dashboard-soft" key={`stats-${refreshTick}`}>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Revenue today</span>
-              <AnimatedMetricValue value={Number(overview.summary.revenue_today || 0)} variant="money" />
-              <p className="muted">Cash captured so far today.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Revenue month</span>
-              <AnimatedMetricValue value={Number(overview.summary.revenue_month || 0)} variant="money" />
-              <p className="muted">Current month performance.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Total revenue</span>
-              <AnimatedMetricValue value={Number(overview.summary.revenue_total || 0)} variant="money" />
-              <p className="muted">Lifetime recorded business sales.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Orders total</span>
-              <AnimatedMetricValue value={Number(overview.summary.orders_total || 0)} variant="count" />
-              <p className="muted">All tracked order activity.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Avg order value</span>
-              <AnimatedMetricValue value={averageOrderValue} variant="money" />
-              <p className="muted">Average basket size across orders.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Completion rate</span>
-              <AnimatedMetricValue value={completionRate} variant="count" />
-              <p className="muted">Percent of orders completed successfully.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Ongoing deliveries</span>
-              <AnimatedMetricValue value={Number(overview.summary.ongoing_deliveries || 0)} variant="count" />
-              <p className="muted">Orders still in fulfillment.</p>
-            </article>
-            <article className="stat-card metric-premium seller-metric-card">
-              <span className="stat-label">Inventory health</span>
-              <AnimatedMetricValue value={inventoryCoverage} variant="count" />
-              <p className="muted">Products currently outside low-stock risk.</p>
-            </article>
+          {/* Key Metrics Section */}
+          <div className="seller-metrics-section dashboard-soft" key={`metrics-${refreshTick}`}>
+            <div className="section-header">
+              <h2>Key Performance Metrics</h2>
+              <p className="muted">Your business performance at a glance</p>
+            </div>
+            <div className="seller-classic-stats-grid">
+              {classicMetricCards.slice(0, 5).map((card) => (
+                <article key={card.id} className="stat-card seller-classic-stat-card">
+                  <span className="stat-label">{card.label}</span>
+                  <AnimatedMetricValue value={card.value} variant={card.variant} />
+                  <p className="muted">{card.note}</p>
+                </article>
+              ))}
+            </div>
+            <div className="seller-classic-stats-grid seller-secondary-metrics">
+              {classicMetricCards.slice(5).map((card) => (
+                <article key={card.id} className="stat-card seller-classic-stat-card seller-secondary-card">
+                  <span className="stat-label">{card.label}</span>
+                  <AnimatedMetricValue value={card.value} variant={card.variant} />
+                  <p className="muted">{card.note}</p>
+                </article>
+              ))}
+            </div>
           </div>
 
-          <div className="seller-analytics-grid dashboard-soft" key={`analytics-${refreshTick}`}>
-            <article className="panel chart-panel seller-panel-wide">
-              <div className="panel-header">
-                <div>
-                  <h2>Revenue over time</h2>
-                  <p className="muted">
-                    {lineChart.points.length ? `Range: ${compactMoney(lineChart.min)} to ${compactMoney(lineChart.max)}` : "No revenue trend yet"}
-                  </p>
-                </div>
-                <span>{rangeDays} days</span>
-              </div>
-              <div className="line-chart-shell">
-                <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="Revenue line chart">
-                  <defs>
-                    <linearGradient id="revenueAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#ff7a00" stopOpacity="0.42" />
-                      <stop offset="100%" stopColor="#ff7a00" stopOpacity="0.04" />
-                    </linearGradient>
-                  </defs>
-                  <line x1={CHART_PADDING} y1={CHART_PADDING} x2={CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.16)" />
-                  <line x1={CHART_PADDING} y1={CHART_HEIGHT - CHART_PADDING} x2={CHART_WIDTH - CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.16)" />
-                  {lineChart.areaPath ? <path d={lineChart.areaPath} fill="url(#revenueAreaGradient)" /> : null}
-                  {lineChart.linePath ? <path d={lineChart.linePath} fill="none" stroke="#0f67b5" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" /> : null}
-                  {lineChart.points.map((point, index) => (
-                    <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r={4.5} fill="#0f67b5" />
-                  ))}
-                </svg>
-              </div>
-              <div className="seller-axis-row">
-                {(revenueTimeline.length ? revenueTimeline : [{ date: "", revenue: 0 }]).slice(0, 6).map((entry, index) => (
-                  <span key={`${entry.date}-${index}`}>{formatAxisDate(entry.date)}</span>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel chart-panel seller-demand-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Revenue by product</h2>
-                  <p className="muted">Which items are contributing the most cash.</p>
-                </div>
-                <span>{productRevenue.length}</span>
-              </div>
-              <div className="bar-chart-grid">
-                {!productRevenue.length ? <p className="muted">No product revenue data yet.</p> : null}
-                {productRevenue.map((entry) => (
-                  <div key={entry.product} className="bar-row seller-bar-row">
-                    <span>{entry.product}</span>
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ width: `${entry.ratio}%` }} />
-                    </div>
-                    <strong>{compactMoney(entry.revenue)}</strong>
+          {/* Analytics Charts Section */}
+          <div className="seller-analytics-section dashboard-soft" key={`analytics-${refreshTick}`}>
+            <div className="section-header">
+              <h2>Analytics & Insights</h2>
+              <p className="muted">Visual breakdown of your sales performance</p>
+            </div>
+            <div className="seller-analytics-grid">
+              <article className="panel chart-panel seller-panel-wide seller-revenue-chart">
+                <div className="panel-header">
+                  <div>
+                    <h3>Revenue Trends</h3>
+                    <p className="muted">
+                      {lineChart.points.length ? `Revenue progression over time` : "No revenue trend yet"}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel chart-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Order status mix</h2>
-                  <p className="muted">Keep an eye on flow and fulfillment balance.</p>
+                  <div className="chart-meta">
+                    <span className="range-badge">{rangeDays} days</span>
+                    {lineChart.points.length > 0 && (
+                      <div className="trend-indicators">
+                        <span className="trend-label">Range:</span>
+                        <span className="trend-value">{compactMoney(lineChart.min)} - {compactMoney(lineChart.max)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <span>{overview.summary.orders_total}</span>
-              </div>
-              <div className="order-mix-grid">
-                <div className="order-donut" style={{ background: orderMix?.conic || "conic-gradient(#d1d5db 0deg 360deg)" }} />
+                <div className="chart-container">
+                  {graphUrls.revenueOverTime ? (
+                    <div className="seller-graph-shell">
+                      <img src={graphUrls.revenueOverTime} alt="Revenue over time graph" />
+                    </div>
+                  ) : (
+                    <div className="line-chart-shell">
+                      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="Revenue line chart">
+                        <defs>
+                          <linearGradient id="revenueAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#16a34a" stopOpacity="0.42" />
+                            <stop offset="100%" stopColor="#16a34a" stopOpacity="0.04" />
+                          </linearGradient>
+                        </defs>
+                        <line x1={CHART_PADDING} y1={CHART_PADDING} x2={CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.16)" />
+                        <line x1={CHART_PADDING} y1={CHART_HEIGHT - CHART_PADDING} x2={CHART_WIDTH - CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.16)" />
+                        {lineChart.areaPath ? <path d={lineChart.areaPath} fill="url(#revenueAreaGradient)" /> : null}
+                        {lineChart.linePath ? <path d={lineChart.linePath} fill="none" stroke="#15803d" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" /> : null}
+                        {lineChart.points.map((point, index) => (
+                          <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r={4.5} fill="#166534" />
+                        ))}
+                      </svg>
+                    </div>
+                  )}
+                  <div className="seller-axis-row">
+                    {(revenueTimeline.length ? revenueTimeline : [{ date: "", revenue: 0 }]).slice(0, 6).map((entry, index) => (
+                      <span key={`${entry.date}-${index}`}>{formatAxisDate(entry.date)}</span>
+                    ))}
+                  </div>
+                </div>
+              </article>
+
+              <article className="panel chart-panel seller-product-chart">
+                <div className="panel-header">
+                  <div>
+                    <h3>Top Products by Revenue</h3>
+                    <p className="muted">Your best performing products</p>
+                  </div>
+                  <span className="product-count">{revenueByProduct.length} products</span>
+                </div>
+                <div className="chart-container">
+                  {graphUrls.revenueByProduct ? (
+                    <div className="seller-graph-shell">
+                      <img src={graphUrls.revenueByProduct} alt="Revenue by product graph" />
+                    </div>
+                  ) : (
+                    <div className="bar-chart-grid">
+                      {!productRevenueBars.length ? <p className="muted">No product revenue data yet.</p> : null}
+                      {productRevenueBars.map((entry) => (
+                        <div key={entry.product} className="bar-row seller-bar-row">
+                          <span className="product-name">{entry.product}</span>
+                          <div className="bar-track">
+                            <div className="bar-fill" style={{ width: `${entry.ratio}%` }} />
+                          </div>
+                          <strong className="revenue-amount">{compactMoney(entry.revenue)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <article className="panel chart-panel seller-order-status-chart">
+                <div className="panel-header">
+                  <div>
+                    <h3>Order Status Distribution</h3>
+                    <p className="muted">Current order fulfillment status</p>
+                  </div>
+                  <span className="order-count">{overview.summary.orders_total} total</span>
+                </div>
+                <div className="chart-container">
+                  <div className="order-mix-grid">
+                    <div className="order-donut" style={{ background: orderMix?.conic || "conic-gradient(#d1d5db 0deg 360deg)" }} />
+                    <div className="stack-list">
+                      {orderMix?.segments.map((segment) => (
+                        <div key={segment.label} className="list-card compact-card">
+                          <div className="legend-chip" style={{ background: segment.color }} />
+                          <div className="status-info">
+                            <strong>{segment.label}</strong>
+                            <span className="status-count">{segment.value} orders</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          {/* Insights & Details Section */}
+          <div className="seller-insights-section dashboard-soft" key={`insights-${refreshTick}`}>
+            <div className="section-header">
+              <h2>Business Insights</h2>
+              <p className="muted">Detailed analysis and operational insights</p>
+            </div>
+            <div className="seller-insight-grid">
+              <article className="panel seller-spotlight-card">
+                <p className="eyebrow">Top Performer</p>
+                <h3>{highlightedProduct?.product || "No product data yet"}</h3>
+                <p className="muted">
+                  {highlightedProduct
+                    ? "Your strongest seller based on total units moved."
+                    : "Start recording sales to surface your top-moving item."}
+                </p>
+                <div className="seller-spotlight-stats">
+                  <div className="seller-mini-kpi">
+                    <span className="muted">Units sold</span>
+                    <AnimatedMetricValue value={Number(highlightedProduct?.units || 0)} variant="count" />
+                  </div>
+                  <div className="seller-mini-kpi">
+                    <span className="muted">Revenue</span>
+                    <AnimatedMetricValue value={Number(highlightedProduct?.revenue || 0)} variant="money" />
+                  </div>
+                </div>
+                <div className="seller-inline-note">
+                  <span className="buyer-badge">{completionRate}% completion rate</span>
+                  <span className="buyer-badge buyer-badge--good">{inventoryCoverage}% stock health</span>
+                </div>
+              </article>
+
+              <article className="panel chart-panel seller-demand-panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Demand by Category</h3>
+                    <p className="muted">Product category performance</p>
+                  </div>
+                  <span className="category-count">{demand.length} categories</span>
+                </div>
+                <div className="chart-container">
+                  <div className="bar-chart-grid">
+                    {!demandChart.length ? <p className="muted">No category demand data yet.</p> : null}
+                    {demandChart.map((entry) => (
+                      <div key={entry.category} className="bar-row seller-bar-row">
+                        <span className="category-name">{entry.category}</span>
+                        <div className="bar-track">
+                          <div className="bar-fill" style={{ width: `${entry.ratio}%` }} />
+                        </div>
+                        <strong className="units-count">{entry.units} units</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </article>
+
+              <article className="panel seller-list-panel seller-recent-panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Recent Sales</h3>
+                    <p className="muted">Latest revenue activity</p>
+                  </div>
+                  <span className="sales-count">{recentSales.length} recent</span>
+                </div>
                 <div className="stack-list">
-                  {orderMix?.segments.map((segment) => (
-                    <div key={segment.label} className="list-card compact-card">
-                      <div className="legend-chip" style={{ background: segment.color }} />
-                      <strong>{segment.label}</strong>
-                      <span>{segment.value}</span>
+                  {!recentSales.length ? <p className="muted">No recent sales yet.</p> : null}
+                  {recentSales.map((order) => (
+                    <div key={order.id} className="list-card seller-recent-sale">
+                      <div className="sale-details">
+                        <strong className="product-title">{order.product || "Untitled product"}</strong>
+                        <p className="muted sale-meta">{formatAxisDate(order.order_date)} · {order.category || "General"}</p>
+                      </div>
+                      <div className="seller-recent-sale__meta">
+                        <span className="quantity-badge">Qty {order.quantity || 0}</span>
+                        <strong className="sale-amount">{money(order.total || Number(order.quantity || 0) * Number(order.unit_price || 0))}</strong>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </article>
+              </article>
+
+              <article className="panel seller-list-panel seller-inventory-panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Inventory Alerts</h3>
+                    <p className="muted">Products needing attention</p>
+                  </div>
+                  <span className="alert-count">{overview.inventory.alerts.length} alerts</span>
+                </div>
+                <div className="stack-list">
+                  {!overview.inventory.alerts.length ? <p className="muted">Inventory is healthy.</p> : null}
+                  {overview.inventory.alerts.map((item) => (
+                    <div key={item.product_id} className="list-card inventory-alert">
+                      <div className="alert-details">
+                        <strong className="product-name">{item.product_name}</strong>
+                        <p className="muted alert-threshold">Threshold: {item.low_stock_threshold} units</p>
+                      </div>
+                      <span className="current-stock">{item.current_stock} left</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel seller-list-panel seller-notification-panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Notifications</h3>
+                    <p className="muted">Operational alerts and updates</p>
+                  </div>
+                  <span className="notification-count">{notifications.length} notifications</span>
+                </div>
+                <div className="stack-list">
+                  {!notifications.length ? <p className="muted">No notifications yet.</p> : null}
+                  {notifications.map((item, index) => (
+                    <div key={`${item.type}-${index}`} className="list-card notification-item">
+                      <div className="notification-content">
+                        <strong className="notification-title">{item.title}</strong>
+                        <p className="muted notification-message">{item.message}</p>
+                      </div>
+                      <span className="notification-type">{item.type}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
           </div>
 
-          <div className="seller-insight-grid dashboard-soft" key={`insights-${refreshTick}`}>
-            <article className="panel seller-spotlight-card">
-              <p className="eyebrow">Most sold product</p>
-              <h2>{highlightedProduct?.product || "No product data yet"}</h2>
-              <p className="muted">
-                {highlightedProduct
-                  ? "Your strongest seller based on total units moved."
-                  : "Start recording sales to surface your top-moving item."}
-              </p>
-              <div className="seller-spotlight-stats">
-                <div className="seller-mini-kpi">
-                  <span className="muted">Units sold</span>
-                  <AnimatedMetricValue value={Number(highlightedProduct?.units || 0)} variant="count" />
-                </div>
-                <div className="seller-mini-kpi">
-                  <span className="muted">Revenue</span>
-                  <AnimatedMetricValue value={Number(highlightedProduct?.revenue || 0)} variant="money" />
-                </div>
-              </div>
-            </article>
-
-            <article className="panel chart-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Demand by category</h2>
-                  <p className="muted">See which product groups are moving fastest.</p>
-                </div>
-                <span>{demand.length}</span>
-              </div>
-              <div className="bar-chart-grid">
-                {!demandChart.length ? <p className="muted">No category demand data yet.</p> : null}
-                {demandChart.map((entry) => (
-                  <div key={entry.category} className="bar-row seller-bar-row">
-                    <span>{entry.category}</span>
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ width: `${entry.ratio}%` }} />
-                    </div>
-                    <strong>{entry.units}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel seller-list-panel seller-recent-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Recent sales</h2>
-                  <p className="muted">Latest revenue activity from recorded orders.</p>
-                </div>
-                <span>{recentSales.length}</span>
-              </div>
-              <div className="stack-list">
-                {!recentSales.length ? <p className="muted">No recent sales yet.</p> : null}
-                {recentSales.map((order) => (
-                  <div key={order.id} className="list-card seller-recent-sale">
-                    <div>
-                      <strong>{order.product || "Untitled product"}</strong>
-                      <p className="muted">{formatAxisDate(order.order_date)} · {order.category || "General"}</p>
-                    </div>
-                    <div className="seller-recent-sale__meta">
-                      <span>Qty {order.quantity || 0}</span>
-                      <strong>{money(order.total || Number(order.quantity || 0) * Number(order.unit_price || 0))}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel seller-list-panel seller-inventory-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Inventory alerts</h2>
-                  <p className="muted">Products that need attention before stockouts hit.</p>
-                </div>
-                <span>{overview.inventory.alerts.length}</span>
-              </div>
-              <div className="stack-list">
-                {!overview.inventory.alerts.length ? <p className="muted">Inventory is healthy.</p> : null}
-                {overview.inventory.alerts.map((item) => (
-                  <div key={item.product_id} className="list-card">
-                    <div>
-                      <strong>{item.product_name}</strong>
-                      <p className="muted">Threshold: {item.low_stock_threshold}</p>
-                    </div>
-                    <span>{item.current_stock} left</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="panel seller-list-panel seller-notification-panel">
-              <div className="panel-header">
-                <div>
-                  <h2>Notifications</h2>
-                  <p className="muted">Latest operational alerts from your business workspace.</p>
-                </div>
-                <span>{notifications.length}</span>
-              </div>
-              <div className="stack-list">
-                {!notifications.length ? <p className="muted">No notifications yet.</p> : null}
-                {notifications.map((item, index) => (
-                  <div key={`${item.type}-${index}`} className="list-card">
-                    <div>
-                      <strong>{item.title}</strong>
-                      <p className="muted">{item.message}</p>
-                    </div>
-                    <span>{item.type}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-
+          {/* Sales Activity Table */}
           <div className="panel table-scroll dashboard-soft" key={`table-${refreshTick}`}>
             <div className="panel-header">
               <div>
-                <h2>Sales activity ledger</h2>
-                <p className="muted">Recent order performance with revenue and status.</p>
+                <h2>Sales Activity Ledger</h2>
+                <p className="muted">Complete transaction history and order details</p>
               </div>
-              <span>{recentOrders.length} rows</span>
+              <span className="record-count">{recentOrders.length} records</span>
             </div>
             <table className="data-table">
               <thead>

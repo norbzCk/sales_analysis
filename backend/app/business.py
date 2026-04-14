@@ -1,6 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timedelta, date
+import os
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Header, Request, UploadFile
@@ -26,6 +27,94 @@ from backend.app.notification_service import build_login_email, create_notificat
 
 router = APIRouter(prefix="/business", tags=["Business"])
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def _load_business_analysis_modules():
+    try:
+        import numpy as np  # type: ignore
+        import pandas as pd  # type: ignore
+        return pd, np
+    except Exception:
+        return None, None
+
+
+def _load_business_graph_modules():
+    try:
+        os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+        import matplotlib
+        matplotlib.use("Agg")
+        from matplotlib import pyplot as plt  # type: ignore
+        return plt
+    except Exception:
+        return None
+
+
+def _business_graph_output_paths(user: BusinessUser, suffix: str) -> tuple[Path, str]:
+    directory = Path(__file__).resolve().parents[1] / "uploads" / "graphs"
+    directory.mkdir(parents=True, exist_ok=True)
+    filename = f"business-{user.id}-{suffix}.svg"
+    return directory / filename, f"/uploads/graphs/{filename}"
+
+
+def _write_business_revenue_time_graph(points: list[dict], user: BusinessUser) -> str | None:
+    plt = _load_business_graph_modules()
+    if plt is None:
+        return None
+
+    output_path, public_path = _business_graph_output_paths(user, "revenue-time")
+    labels = [str(point["date"]) for point in points] or ["No data"]
+    values = [float(point["revenue"]) for point in points] or [0.0]
+    x_positions = list(range(len(values)))
+
+    fig, ax = plt.subplots(figsize=(11, 4.4))
+    ax.plot(x_positions, values, color="#15803d", linewidth=3.2, marker="o", markersize=5.2)
+    ax.fill_between(x_positions, values, color="#22c55e", alpha=0.18)
+    ax.set_title("Revenue per time", fontsize=16, fontweight="bold", loc="left")
+    ax.set_ylabel("Revenue (TZS)")
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(labels)
+    ax.grid(axis="y", color="#d1fae5", linewidth=1)
+    ax.set_facecolor("#f7fff8")
+    fig.patch.set_facecolor("#ffffff")
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color("#86efac")
+    ax.spines["bottom"].set_color("#86efac")
+    ax.tick_params(axis="x", rotation=25, labelsize=9, colors="#166534")
+    ax.tick_params(axis="y", labelsize=9, colors="#166534")
+    fig.tight_layout()
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return public_path
+
+
+def _write_business_revenue_product_graph(points: list[dict], user: BusinessUser) -> str | None:
+    plt = _load_business_graph_modules()
+    if plt is None:
+        return None
+
+    output_path, public_path = _business_graph_output_paths(user, "revenue-product")
+    labels = [str(point["product"]) for point in points] or ["No data"]
+    values = [float(point["revenue"]) for point in points] or [0.0]
+
+    fig, ax = plt.subplots(figsize=(9.4, 4.8))
+    bars = ax.barh(labels, values, color="#22c55e", edgecolor="#15803d", linewidth=1.1)
+    ax.set_title("Revenue per product", fontsize=16, fontweight="bold", loc="left")
+    ax.set_xlabel("Revenue (TZS)")
+    ax.grid(axis="x", color="#d1fae5", linewidth=1)
+    ax.set_facecolor("#f7fff8")
+    fig.patch.set_facecolor("#ffffff")
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color("#86efac")
+    ax.spines["bottom"].set_color("#86efac")
+    ax.tick_params(axis="x", labelsize=9, colors="#166534")
+    ax.tick_params(axis="y", labelsize=9, colors="#166534")
+    ax.bar_label(bars, labels=[f"TZS {value:,.0f}" for value in values], padding=6, fontsize=8, color="#166534")
+    fig.tight_layout()
+    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return public_path
 
 
 def _serialize_business(user: BusinessUser, include_email: bool = True) -> dict:
@@ -614,9 +703,10 @@ def business_analytics(
     days = max(7, min(180, int(range_days or 30)))
     start_date = date.today() - timedelta(days=days - 1)
 
+    base_query = _seller_sales_query(db, user).filter(Sale.date >= start_date)
+
     rows = (
-        _seller_sales_query(db, user)
-        .filter(Sale.date >= start_date)
+        base_query
         .with_entities(Sale.date, func.sum(Sale.quantity * Sale.unit_price))
         .group_by(Sale.date)
         .order_by(Sale.date.asc())
@@ -625,8 +715,7 @@ def business_analytics(
     revenue_timeline = [{"date": row[0].isoformat(), "revenue": float(row[1] or 0)} for row in rows if row[0]]
 
     demand_rows = (
-        _seller_sales_query(db, user)
-        .filter(Sale.date >= start_date)
+        base_query
         .with_entities(Sale.category, func.sum(Sale.quantity))
         .group_by(Sale.category)
         .order_by(func.sum(Sale.quantity).desc())
@@ -634,10 +723,41 @@ def business_analytics(
     )
     demand = [{"category": row[0] or "Uncategorized", "units": int(row[1] or 0)} for row in demand_rows]
 
+    product_rows = (
+        base_query
+        .with_entities(Sale.product, func.sum(Sale.quantity * Sale.unit_price).label("revenue"))
+        .group_by(Sale.product)
+        .order_by(func.sum(Sale.quantity * Sale.unit_price).desc())
+        .limit(8)
+        .all()
+    )
+    revenue_by_product = [{"product": row[0] or "Unspecified product", "revenue": float(row[1] or 0)} for row in product_rows]
+
+    pd, np = _load_business_analysis_modules()
+    if pd is not None and np is not None and revenue_timeline:
+        revenue_frame = pd.DataFrame.from_records(revenue_timeline)
+        revenue_frame["revenue"] = pd.to_numeric(revenue_frame["revenue"], errors="coerce").fillna(0.0)
+        revenue_timeline = [
+            {"date": str(row["date"]), "revenue": float(np.round(row["revenue"], 2))}
+            for _, row in revenue_frame.iterrows()
+        ]
+    if pd is not None and np is not None and revenue_by_product:
+        product_frame = pd.DataFrame.from_records(revenue_by_product)
+        product_frame["revenue"] = pd.to_numeric(product_frame["revenue"], errors="coerce").fillna(0.0)
+        revenue_by_product = [
+            {"product": str(row["product"]), "revenue": float(np.round(row["revenue"], 2))}
+            for _, row in product_frame.iterrows()
+        ]
+
     return {
         "range_days": days,
         "revenue_timeline": revenue_timeline,
+        "revenue_by_product": revenue_by_product,
         "demand_by_category": demand,
+        "graphs": {
+            "revenueOverTime": _write_business_revenue_time_graph(revenue_timeline, user),
+            "revenueByProduct": _write_business_revenue_product_graph(revenue_by_product, user),
+        },
     }
 
 
