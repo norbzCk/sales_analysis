@@ -20,12 +20,12 @@ import { ProfilePage } from "../pages/ProfilePage";
 import { ProvidersPage } from "../pages/ProvidersPage";
 import { SellerDashboardPage } from "../pages/SellerDashboardPage";
 import { SellerDeliveriesPage } from "../pages/SellerDeliveriesPage";
-import { SellerProfilePage } from "../pages/SellerProfilePage"; // Imported new page
+import { SellerProfilePage } from "../pages/SellerProfilePage";
 import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
-import { SuperadminLoginPage } from "../pages/SuperadminLoginPage"; // Fixed import path
+import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
-import { LogisticsProfilePage } from "../pages/LogisticsProfilePage"; // Imported new page
-import { SuperadminProfilePage } from "../pages/SuperadminProfilePage"; // Imported new page
+import { LogisticsProfilePage } from "../pages/LogisticsProfilePage";
+import { SuperadminProfilePage } from "../pages/SuperadminProfilePage";
 
 import { ProductDetailPage } from "../pages/ProductDetailPage";
 
@@ -63,12 +63,12 @@ export function App() {
         <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="superadmin" element={<SuperadminDashboardPage />} />
         <Route path="seller" element={<SellerDashboardPage />} />
-        <Route path="seller/profile" element={<SellerProfilePage />} /> {/* Route for Seller Profile */}
+        <Route path="seller/profile" element={<SellerProfilePage />} />
         <Route path="seller/deliveries" element={<SellerDeliveriesPage />} />
         <Route path="customer" element={<CustomerDashboardPage />} />
-        <Route path="customer/profile" element={<ProfilePage />} /> {/* Route for Customer Profile */}
+        <Route path="customer/profile" element={<ProfilePage />} />
         <Route path="logistics" element={<LogisticsDashboardPage />} />
-        <Route path="logistics/profile" element={<LogisticsProfilePage />} /> {/* Route for Logistics Profile */}
+        <Route path="logistics/profile" element={<LogisticsProfilePage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
@@ -76,8 +76,8 @@ export function App() {
         <Route path="product/:productId" element={<ProductDetailPage />} />
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="payments" element={<PaymentsPage />} />
-        <Route path="profile" element={<ProfilePage />} /> {/* This might be redundant if customer/profile is specific */}
-        <Route path="superadmin/profile" element={<SuperadminProfilePage />} /> {/* Route for Superadmin Profile */}
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="superadmin/profile" element={<SuperadminProfilePage />} />
         <Route path="users" element={<UsersPage />} />
       </Route>
 
