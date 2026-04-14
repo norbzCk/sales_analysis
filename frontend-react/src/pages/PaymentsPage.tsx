@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
 import type { Order, PaymentHistoryItem, PaymentMethod, PaymentResponse } from "../types/domain";
@@ -9,12 +10,16 @@ function formatMoney(value?: number) {
 
 export function PaymentsPage() {
   const { user } = useAuth();
+  const [params] = useSearchParams();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [history, setHistory] = useState<PaymentHistoryItem[]>([]);
   const [result, setResult] = useState<PaymentResponse | null>(null);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+
+  const preselectedOrderId = params.get("order_id") || "";
+  const preselectedAmount = params.get("amount") || "";
 
   useEffect(() => {
     if (user?.role === "user") {
@@ -89,14 +94,14 @@ export function PaymentsPage() {
           <h2>Initiate payment</h2>
           <label>
             Order
-            <select name="order_id" required>
+            <select name="order_id" defaultValue={preselectedOrderId} required>
               <option value="">Select order</option>
               {orders.map((order) => (
                 <option key={order.id} value={order.id}>#{order.id} {order.product} - {formatMoney(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0))}</option>
               ))}
             </select>
           </label>
-          <label>Amount<input name="amount" type="number" min="0" step="0.01" required /></label>
+          <label>Amount<input name="amount" type="number" min="0" step="0.01" defaultValue={preselectedAmount} required /></label>
           <label>
             Method
             <select name="payment_method" required>
