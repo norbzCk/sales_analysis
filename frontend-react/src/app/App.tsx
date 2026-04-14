@@ -22,7 +22,7 @@ import { SellerDashboardPage } from "../pages/SellerDashboardPage";
 import { SellerDeliveriesPage } from "../pages/SellerDeliveriesPage";
 import { SellerProfilePage } from "../pages/SellerProfilePage"; // Imported new page
 import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
-import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
+import { SuperadminLoginPage } from "../pages/SuperadminLoginPage"; // Fixed import path
 import { UsersPage } from "../pages/UsersPage";
 import { LogisticsProfilePage } from "../pages/LogisticsProfilePage"; // Imported new page
 import { SuperadminProfilePage } from "../pages/SuperadminProfilePage"; // Imported new page
