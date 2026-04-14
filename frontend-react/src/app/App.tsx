@@ -18,13 +18,14 @@ import { NotificationsPage } from "../pages/NotificationsPage";
 import { ProductsPage } from "../pages/ProductsPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { ProvidersPage } from "../pages/ProvidersPage";
-import { SalesPage } from "../pages/SalesPage";
 import { SellerDashboardPage } from "../pages/SellerDashboardPage";
 import { SellerDeliveriesPage } from "../pages/SellerDeliveriesPage";
 import { SellerProfilePage } from "../pages/SellerProfilePage";
 import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
 import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
+
+import { ProductDetailPage } from "../pages/ProductDetailPage";
 
 function AppLanding() {
   const { user } = useAuth();
@@ -40,6 +41,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/product/:productId" element={<ProductDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/superadmin" element={<SuperadminLoginPage />} />
@@ -67,11 +69,11 @@ export function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="product/:productId" element={<ProductDetailPage />} />
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="users" element={<UsersPage />} />
-        <Route path="sales" element={<SalesPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
