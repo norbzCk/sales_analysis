@@ -2,7 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
-import { Modal } from "../components/Modal"; // Assuming a Modal component exists
+import { Modal } from "../components/Modal"; // This import should now resolve
 
 interface ProfileState {
   name: string;
