@@ -14,6 +14,7 @@ export function AppShell() {
   const isSeller = role === "seller";
   const isCustomer = role === "user";
   const isLogistics = role === "logistics";
+  
   const roleLabel =
     role === "seller"
       ? "Seller"
@@ -26,6 +27,7 @@ export function AppShell() {
             : role === "owner"
               ? "Owner"
               : "Admin";
+
   const currentSection = location.pathname
     .replace(/^\/app\/?/, "")
     .split("/")
@@ -33,39 +35,46 @@ export function AppShell() {
     .map((segment) => segment.replace(/-/g, " "))
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" / ") || "Dashboard";
-  const normalizedSection = isSeller && location.pathname === "/app/seller" ? "Business Overview" : currentSection;
+
+  const pageTitle = isSeller 
+    ? (location.pathname === "/app/seller" ? "Business Workspace" : currentSection)
+    : isCustomer 
+      ? (location.pathname === "/app/customer" ? "Customer Hub" : currentSection)
+      : isLogistics
+        ? (location.pathname === "/app/logistics" ? "Logistics Center" : currentSection)
+        : currentSection;
 
   const navItems = isLogistics
     ? [
-        { to: "/app/logistics", label: "Logistics Dashboard" },
+        { to: "/app/logistics", label: "Dashboard" },
         { to: "/app/notifications", label: "Notifications" },
       ]
     : isCustomer
       ? [
           { to: "/app/customer", label: "Dashboard" },
-          { to: "/app/products", label: "Shop" },
-          { to: "/app/orders", label: "Orders" },
+          { to: "/app/products", label: "Marketplace" },
+          { to: "/app/orders", label: "My Orders" },
           { to: "/app/payments", label: "Payments" },
           { to: "/app/notifications", label: "Notifications" },
-          { to: "/app/profile", label: "Profile" },
+          { to: "/app/profile", label: "Settings" },
         ]
       : isSeller
         ? [
-            { to: "/app/seller", label: "Business Overview" },
-            { to: "/app/products", label: "Products" },
-            { to: "/app/orders", label: "Orders" },
-            { to: "/app/seller/deliveries", label: "Deliveries" },
+            { to: "/app/seller", label: "Overview" },
+            { to: "/app/products", label: "Inventory" },
+            { to: "/app/orders", label: "Sales Orders" },
+            { to: "/app/seller/deliveries", label: "Shipments" },
             { to: "/app/notifications", label: "Notifications" },
-            { to: "/app/seller/profile", label: "Business Profile" },
+            { to: "/app/seller/profile", label: "Storefront" },
           ]
       : [
-          { to: "/app/dashboard", label: "Dashboard" },
-          { to: "/app/products", label: "Products" },
-          { to: "/app/orders", label: "Orders" },
+          { to: "/app/dashboard", label: "Admin Panel" },
+          { to: "/app/products", label: "Catalog" },
+          { to: "/app/orders", label: "All Orders" },
           { to: "/app/notifications", label: "Notifications" },
-          { to: "/app/providers", label: "Providers" },
-          ...(role === "super_admin" || role === "owner" ? [{ to: "/app/customers", label: "Customers" }, { to: "/app/sales", label: "Sales" }] : []),
-          { to: "/app/users", label: "Users" },
+          { to: "/app/providers", label: "Vendors" },
+          ...(role === "super_admin" || role === "owner" ? [{ to: "/app/customers", label: "Clients" }] : []),
+          { to: "/app/users", label: "Account Access" },
         ];
 
   useEffect(() => {
@@ -83,10 +92,7 @@ export function AppShell() {
     }
     void loadSummary();
 
-    // Listen for notifications being marked as read
-    function handleNotificationsRead() {
-      void loadSummary();
-    }
+    const handleNotificationsRead = () => void loadSummary();
     window.addEventListener('notifications-read', handleNotificationsRead);
 
     return () => {
@@ -100,56 +106,61 @@ export function AppShell() {
     navigate("/login");
   }
 
-  const sidebarTitle = isSeller
-    ? "Manage your storefront, sales, and deliveries in one dashboard"
-    : "Trade, order, and deliver in one place";
-  const sidebarCopy = isSeller
-    ? "You can manage product listings, process customer orders, assign deliveries, and track performance from your business workspace."
-    : "Sellers manage products and stock, customers compare and order, and delivery teams coordinate fulfillment from the same platform.";
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div>
-          <BrandMark subtitle="Marketplace operations hub" />
-          <p className="eyebrow">Marketplace workspace</p>
-          <h1 className="sidebar-title">{sidebarTitle}</h1>
-          <p className="sidebar-copy">{sidebarCopy}</p>
+        <div className="sidebar-top">
+          <BrandMark />
+          <nav className="nav-list">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to.split('/').length <= 3}
+                className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+              >
+                <span>{item.label}</span>
+                {item.to.includes("notifications") && unreadNotifications > 0 ? (
+                  <span className="nav-item-badge">{unreadNotifications}</span>
+                ) : null}
+              </NavLink>
+            ))}
+          </nav>
         </div>
 
-        <nav className="nav-list">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
-            >
-              <span>{item.label}</span>
-              {item.to === "/app/notifications" && unreadNotifications > 0 ? (
-                <span className="nav-item-badge">{unreadNotifications}</span>
-              ) : null}
-            </NavLink>
-          ))}
-        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="user-avatar">{(user?.name || "U")[0].toUpperCase()}</div>
+            <div className="user-details">
+              <p className="user-name">{user?.name || "User"}</p>
+              <p className="user-role-label">{roleLabel}</p>
+            </div>
+          </div>
+          <div className="sidebar-actions">
+            <button className="sidebar-logout" onClick={handleLogout}>
+              Sign Out
+            </button>
+          </div>
+        </div>
       </aside>
 
       <main className="content">
-        <header className="topbar">
-          <div>
-            <p className="topbar-breadcrumb">{normalizedSection}</p>
+        <header className="top-header">
+          <div className="header-left">
+            <h1 className="header-title">{pageTitle}</h1>
+            <p className="header-subtitle">Welcome back to your {roleLabel.toLowerCase()} dashboard</p>
           </div>
-          <div className="topbar-actions">
-            <Link className="role-chip role-chip-link" to="/app/notifications">
-              {unreadNotifications} unread
-            </Link>
-            <span className="role-chip">{roleLabel}</span>
-            <button className="secondary-button" onClick={handleLogout}>
-              Log out
-            </button>
+          <div className="header-right">
+             <Link to="/app/notifications" className="header-icon-btn">
+                <span className="icon">🔔</span>
+                {unreadNotifications > 0 && <span className="unread-dot">{unreadNotifications}</span>}
+             </Link>
           </div>
         </header>
 
-        <Outlet />
+        <div className="page-body">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
