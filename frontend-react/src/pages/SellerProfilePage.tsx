@@ -40,6 +40,7 @@ export function SellerProfilePage() {
   const [editing, setEditing] = useState(false);
   const [passwordUpdating, setPasswordUpdating] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false }); // <-- added for eye toggle
 
   useEffect(() => {
     void load();
@@ -251,29 +252,59 @@ export function SellerProfilePage() {
           </div>
           <label>
             Current password
-            <input
-              type="password"
-              value={passwordDraft.current_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.current ? "text" : "password"}
+                value={passwordDraft.current_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+              />
+              <button
+                type="button"
+                className="password-toggle-button"
+                onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
+                aria-label={showPassword.current ? "Hide password" : "Show password"}
+              >
+                {showPassword.current ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
           </label>
           <label>
             New password
-            <input
-              type="password"
-              minLength={8}
-              value={passwordDraft.new_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.new ? "text" : "password"}
+                minLength={8}
+                value={passwordDraft.new_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+              />
+              <button
+                type="button"
+                className="password-toggle-button"
+                onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
+                aria-label={showPassword.new ? "Hide password" : "Show password"}
+              >
+                {showPassword.new ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
           </label>
           <label>
             Confirm new password
-            <input
-              type="password"
-              minLength={8}
-              value={passwordDraft.confirm_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
-            />
+            <div className="password-input-wrapper">
+              <input
+                type={showPassword.confirm ? "text" : "password"}
+                minLength={8}
+                value={passwordDraft.confirm_password}
+                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+              />
+              <button
+                type="button"
+                className="password-toggle-button"
+                onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                aria-label={showPassword.confirm ? "Hide password" : "Show password"}
+              >
+                {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
           </label>
           <label className="full-width">Business description<textarea value={profile.description || ""} onChange={(event) => setProfile((prev) => ({ ...prev, description: event.target.value }))} /></label>
           <div className="hero-actions">

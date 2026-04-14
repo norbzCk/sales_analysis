@@ -10,6 +10,7 @@ export function LoginPage() {
   const { login } = useAuth();
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // <-- added for eye toggle
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,7 +65,22 @@ export function LoginPage() {
         </label>
         <label>
           Password
-          <input name="password" type="password" placeholder="Enter your password" required />
+          <div className="password-input-wrapper">
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              required
+            />
+            <button
+              type="button"
+              className="password-toggle-button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? "👁️" : "👁️‍🗨️"}
+            </button>
+          </div>
         </label>
         <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">
           {isSubmitting ? "Signing in..." : "Sign in"}
