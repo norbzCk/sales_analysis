@@ -284,6 +284,15 @@ def create_product(
         provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
         if not provider:
             raise HTTPException(status_code=400, detail="Provider not found")
+            
+    # Determine seller_id
+    seller_id = None
+    if _is_seller(current):
+        seller_id = current.id
+    elif product.seller_id:
+        # Admin/Super Admin can assign to a seller
+        seller_id = product.seller_id
+        
     new_product = Product(
         name=product.name,
         category=product.category,
@@ -291,7 +300,7 @@ def create_product(
         stock=product.stock,
         description=product.description,
         image_url=product.image_url,
-        seller_id=current.id if _is_seller(current) else None,
+        seller_id=seller_id,
         is_active=True,
         provider_id=provider.id if provider else None,
 )
@@ -299,9 +308,13 @@ def create_product(
     db.commit()
     db.refresh(new_product)
 
+    seller = None
+    if new_product.seller_id:
+        seller = db.query(BusinessUser).filter(BusinessUser.id == new_product.seller_id).first()
+
     return {
         "message": "Product created",
-        "product": _serialize_product(new_product, provider, current if isinstance(current, BusinessUser) else None)
+        "product": _serialize_product(new_product, provider, seller)
     }
 
 @router.delete("/{product_id}")
@@ -338,6 +351,10 @@ def update_product(
     product.description = product_data.description
     product.image_url = product_data.image_url
     
+    if product_data.seller_id and not _is_seller(current):
+        # Admin can update the seller
+        product.seller_id = product_data.seller_id
+        
     if product_data.provider_id:
         provider = db.query(Provider).filter(Provider.id == product_data.provider_id).first()
         if provider:

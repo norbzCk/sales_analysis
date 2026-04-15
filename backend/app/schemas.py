@@ -11,6 +11,7 @@ class ProductCreate(BaseModel):
     description: str
     image_url: str | None = None
     provider_id: int | None = None
+    seller_id: int | None = None
 
 
 class ProductSearchQuery(BaseModel):

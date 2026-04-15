@@ -65,23 +65,6 @@ export function Sidebar() {
         <BrandMark />
       </header>
 
-      {/* User avatar / initials */}
-      <section className="sidebar-profile">
-        {profilePhotoUrl ? (
-          <img
-            src={resolveImageUrl(profilePhotoUrl)}
-            alt={displayName}
-            className="sidebar-avatar"
-          />
-        ) : (
-          <div className="sidebar-avatar placeholder">
-            {getInitials(displayName)}
-          </div>
-        )}
-        <h3 className="sidebar-username">{displayName}</h3>
-        <p className="sidebar-role">{user?.role?.replace("_", " ") || "User"}</p>
-      </section>
-
       {/* Navigation links */}
       <nav className="sidebar-nav">
         <NavLink to="/app/dashboard" className="nav-link">
@@ -102,7 +85,6 @@ export function Sidebar() {
         <NavLink to={profilePath} className="nav-link">
           Profile
         </NavLink>
-        {/* Role‑specific pages */}
         {role === "seller" && (
           <NavLink to="/app/seller/deliveries" className="nav-link">
             Deliveries
@@ -118,13 +100,14 @@ export function Sidebar() {
             Admin Dashboard
           </NavLink>
         )}
+        <NavLink to={profilePath} className="nav-link settings-link">
+          Settings
+        </NavLink>
         <button
           type="button"
           className="nav-link logout-button"
           onClick={() => {
             logout();
-            // After logout, the AuthProvider will clear the session;
-            // navigation is handled by the router (e.g., redirect to /login)
           }}
         >
           Sign Out

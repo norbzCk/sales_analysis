@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../lib/http";
 import type { NotificationEntry } from "../types/domain";
+import { useAuth } from "../features/auth/AuthContext";
 
 interface NotificationResponse {
   items: NotificationEntry[];
@@ -24,15 +25,18 @@ function severityClass(value?: string) {
 }
 
 export function NotificationsPage() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const isSeller = String(user?.role || "") === "seller";
+
   useEffect(() => {
     void load();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!flash) return undefined;
@@ -44,20 +48,37 @@ export function NotificationsPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiRequest<NotificationResponse>("/notifications");
-      const items = data.items || [];
-      const unread = Number(data.unread_count || 0);
-      setNotifications(items.map((item) => ({ ...item, is_read: true })));
+      const endpoints = ["/notifications"];
+      if (isSeller) {
+        endpoints.push("/business/notifications");
+      }
+
+      const results = await Promise.all(
+        endpoints.map((ep) =>
+          apiRequest<NotificationResponse>(ep).catch(() => ({ items: [], unread_count: 0 }))
+        )
+      );
+
+      const allItems = results.flatMap((r) => r.items || []);
+      const totalUnread = results.reduce((acc, r) => acc + Number(r.unread_count || 0), 0);
+
+      // Sort by created_at descending
+      allItems.sort((a, b) => {
+        const da = new Date(a.created_at || 0).getTime();
+        const db = new Date(b.created_at || 0).getTime();
+        return db - da;
+      });
+
+      setNotifications(allItems.map((item) => ({ ...item, is_read: true })));
       setUnreadCount(0);
 
-      if (unread > 0) {
+      if (totalUnread > 0) {
         try {
           await apiRequest("/notifications/read-all", { method: "POST" });
-          // Refresh the global unread count
-          window.dispatchEvent(new CustomEvent('notifications-read'));
+          window.dispatchEvent(new CustomEvent("notifications-read"));
         } catch {
-          setNotifications(items);
-          setUnreadCount(unread);
+          setNotifications(allItems);
+          setUnreadCount(totalUnread);
         }
       }
     } catch (err) {

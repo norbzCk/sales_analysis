@@ -830,30 +830,7 @@ export function CustomerDashboardPage() {
         </div>
       </div>
 
-      {liveAlerts.length ? (
-        <div className="buyer-section-grid">
-          {liveAlerts.map((notification) => (
-            <article key={notification.id} className="panel buyer-card">
-              <div className="buyer-card__header">
-                <div>
-                  <p className="eyebrow">Live alert</p>
-                  <strong>{notification.title}</strong>
-                </div>
-                <div className="buyer-inline-actions">
-                  <span className={getNotificationToneClass(notification)}>{notification.severity || "info"}</span>
-                  <button type="button" className="secondary-button" onClick={() => dismissAlert(notification.id)}>
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-              <p>{notification.message}</p>
-              <p className="muted">{formatDateTime(notification.createdAt)}</p>
-            </article>
-          ))}
-        </div>
-      ) : null}
-
-      {error ? <p className="alert error">Live orders could not be refreshed. Showing your smart dashboard fallback. {error}</p> : null}
+      {error ? <p className="alert error">Live orders could not be refreshed. {error}</p> : null}
 
       <div className="buyer-section-grid">
         <article className="panel buyer-card">
@@ -893,105 +870,6 @@ export function CustomerDashboardPage() {
         <article className="panel buyer-card">
           <div className="buyer-card__header">
             <div>
-              <p className="eyebrow">Saved preferences</p>
-              <h2>How we personalize your buying flow</h2>
-            </div>
-            <button type="button" className="secondary-button">Update</button>
-          </div>
-          <div className="panel-stack">
-            {snapshot.preferences?.map((preference) => (
-              <div key={preference.id} className="buyer-kpi">
-                <span className="muted">{preference.category || "Preference"}</span>
-                <strong>{preference.label || preference.key}</strong>
-                <span>{Array.isArray(preference.value) ? preference.value.join(", ") : String(preference.value ?? "—")}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-      </div>
-
-      <div className="buyer-section-grid buyer-section-grid--wide">
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">Intelligent discovery</p>
-              <h2>Find products by need, seller, or habit</h2>
-            </div>
-            <div className="buyer-inline-actions">
-              <input
-                value={filterKeyword}
-                onChange={(event) => setFilterKeyword(event.target.value)}
-                placeholder="Search products, sellers, keywords"
-              />
-            </div>
-          </div>
-
-          <div className="buyer-pill-row">
-            {searchableCategories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className="buyer-pill"
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          <div className="buyer-product-grid">
-            {filteredProducts.length ? (
-              filteredProducts.map((product) => (
-                <div key={product.id} className="buyer-product-card">
-                  <div className="buyer-product-card__image">{product.imageLabel}</div>
-                  <strong>{product.name}</strong>
-                  <span className="muted">{product.category}</span>
-                  <span>{product.provider}</span>
-                  <span className="buyer-badge">{product.rating.toFixed(1)}★ rated</span>
-                  <strong>{formatMoney(product.price)}</strong>
-                  <div className="buyer-inline-actions">
-                    <button type="button" className="primary-button">Add to cart</button>
-                    <button type="button" className="secondary-button">Save</button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="buyer-empty">No products match your current filter. Try a broader keyword or switch category.</p>
-            )}
-          </div>
-        </article>
-
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">Smart suggestions</p>
-              <h2>Recommended next actions</h2>
-            </div>
-          </div>
-          <div className="panel-stack">
-            {snapshot.suggestions?.map((suggestion) => (
-              <div key={suggestion.id} className="buyer-kpi">
-                <div className="buyer-card__header">
-                  <strong>{suggestion.title}</strong>
-                  <span className="buyer-badge buyer-badge--good">{suggestion.category}</span>
-                </div>
-                <p>{suggestion.description}</p>
-                <p className="muted">{suggestion.reason}</p>
-                <div className="buyer-inline-actions">
-                  <span>{suggestion.provider?.name || "Marketplace"}</span>
-                  {suggestion.priceHint ? <strong>{formatMoney(suggestion.priceHint)}</strong> : null}
-                  {suggestion.availabilityText ? <span className="muted">{suggestion.availabilityText}</span> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      </div>
-
-      <div className="buyer-section-grid buyer-section-grid--wide">
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
               <p className="eyebrow">Price comparison</p>
               <h2>Compare sellers before you buy</h2>
             </div>
@@ -1023,34 +901,6 @@ export function CustomerDashboardPage() {
             </table>
           </div>
         </article>
-
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">Cart summary</p>
-              <h2>Ready for checkout</h2>
-            </div>
-            <button type="button" className="primary-button">Checkout</button>
-          </div>
-          <div className="buyer-cart-list">
-            {snapshot.cartItems?.map((item) => (
-              <div key={item.id} className="buyer-cart-row">
-                <div>
-                  <strong>{item.product?.name || "Item"}</strong>
-                  <p className="muted">{item.provider?.name || "Marketplace seller"}</p>
-                </div>
-                <div>
-                  <span className="muted">Qty {item.quantity}</span>
-                  <strong>{formatMoney(item.subtotal || item.unitPrice)}</strong>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="buyer-kpi">
-            <span className="muted">Estimated delivery and service fees are optimized using your saved address.</span>
-            <strong>{formatMoney(summary.cartValue)}</strong>
-          </div>
-        </article>
       </div>
 
       <div className="buyer-section-grid buyer-section-grid--wide">
@@ -1068,10 +918,10 @@ export function CustomerDashboardPage() {
               <p>
                 <strong>{getOrderProductName(currentOrder)}</strong> from {getOrderProviderName(currentOrder)}
               </p>
-              <div className="buyer-progress-bar">
+              <div className="buyer-progress-bar" style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
                 <div
                   className="buyer-progress-bar__fill"
-                  style={{ width: `${currentOrder.progressPercent || getProgressPercent(currentOrder.status)}%` }}
+                  style={{ width: `${currentOrder.progressPercent || getProgressPercent(currentOrder.status)}%`, height: '100%', background: 'var(--brand-blue)', transition: 'width 0.3s ease' }}
                 />
               </div>
               <div className="buyer-status-track">
@@ -1084,20 +934,6 @@ export function CustomerDashboardPage() {
                     </div>
                   );
                 })}
-              </div>
-              <div className="buyer-history-list">
-                {currentOrder.events?.map((event) => (
-                  <div key={event.id} className="buyer-history-item">
-                    <div>
-                      <div className="buyer-card__header">
-                        <strong>{event.title || event.status}</strong>
-                        <span className={getStatusTone(event.status)}>{event.status}</span>
-                      </div>
-                      <p>{event.description}</p>
-                      <p className="muted">{formatDateTime(event.timestamp)}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </>
           ) : (
@@ -1126,108 +962,10 @@ export function CustomerDashboardPage() {
                 <span className="muted">Destination</span>
                 <strong>{getAddressSummary(currentOrder.address) || selectedAddress?.label || "Primary address"}</strong>
               </div>
-              <div className="buyer-inline-actions">
-                <button type="button" className="secondary-button">Call rider</button>
-                <button type="button" className="secondary-button">Reschedule</button>
-              </div>
             </div>
           ) : (
             <p className="buyer-empty">No delivery coordination needed right now.</p>
           )}
-        </article>
-      </div>
-
-      <div className="buyer-section-grid">
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">Notifications</p>
-              <h2>What needs your attention</h2>
-            </div>
-            <div className="buyer-inline-actions">
-              <span className="buyer-pill">{summary.unreadNotifications} unread</span>
-              <button type="button" className="secondary-button" onClick={toggleNotificationCenter}>
-                {notificationCenterOpen ? "Hide inbox" : "Open inbox"}
-              </button>
-            </div>
-          </div>
-
-          {notificationCenterOpen ? (
-            <div className="panel-stack">
-              {notifications.length ? (
-                notifications.map((notification) => {
-                  const isExpanded = expandedNotificationId === notification.id;
-                  return (
-                    <div key={notification.id} className="buyer-history-item">
-                      <div>
-                        <div className="buyer-card__header">
-                          <strong>{notification.title}</strong>
-                          <span className={notification.isRead ? "buyer-badge" : "buyer-badge buyer-badge--warn"}>
-                            {notification.isRead ? "Read" : "New"}
-                          </span>
-                        </div>
-                        <p>{notification.message}</p>
-                        {isExpanded ? (
-                          <div className="buyer-inline-actions">
-                            <span className="muted">{formatDateTime(notification.createdAt)}</span>
-                            <span className={getNotificationToneClass(notification)}>{notification.type || "system"}</span>
-                            {notification.actionLabel ? <span className="muted">{notification.actionLabel}</span> : null}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="buyer-inline-actions">
-                        <button type="button" className="secondary-button" onClick={() => handleNotificationOpen(notification.id)}>
-                          {isExpanded ? "Collapse" : "Open"}
-                        </button>
-                        <button type="button" className="secondary-button" onClick={() => dismissAlert(notification.id)}>
-                          Clear alert
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="buyer-empty">You are all caught up.</p>
-              )}
-            </div>
-          ) : (
-            <p className="buyer-empty">Open the inbox to instantly clear unread badges and review the latest updates.</p>
-          )}
-        </article>
-
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">In-app chat</p>
-              <h2>Quick seller and agent messages</h2>
-            </div>
-          </div>
-          <div className="buyer-chat-list">
-            {snapshot.chatThreads?.map((thread) => (
-              <div key={thread.id} className="buyer-history-item">
-                <div>
-                  <div className="buyer-card__header">
-                    <div>
-                      <strong>{thread.participantName || thread.title}</strong>
-                      <p className="muted">{thread.title}</p>
-                    </div>
-                    {thread.unreadCount ? <span className="buyer-badge buyer-badge--warn">{thread.unreadCount} new</span> : null}
-                  </div>
-                  <div className="buyer-chat-list">
-                    {thread.messages?.slice(-2).map((message) => (
-                      <div
-                        key={message.id}
-                        className={`buyer-chat-bubble${message.senderRole === "agent" || message.senderRole === "seller" ? " buyer-chat-bubble--agent" : ""}`}
-                      >
-                        <p>{message.message}</p>
-                        <span className="muted">{formatDateTime(message.sentAt)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </article>
       </div>
 
@@ -1241,23 +979,21 @@ export function CustomerDashboardPage() {
         <div className="buyer-history-list">
           {snapshot.trackedOrders?.length ? (
             snapshot.trackedOrders.map((order) => (
-              <div key={order.id} className="buyer-history-item">
-                <div>
-                  <div className="buyer-card__header">
-                    <div>
-                      <strong>#{order.orderNumber || order.id} · {getOrderProductName(order)}</strong>
-                      <p className="muted">
-                        {getOrderProviderName(order)} · {formatDate(order.placedAt)} · Qty {getOrderQuantity(order)}
-                      </p>
-                    </div>
-                    <span className={getStatusTone(order.status)}>{order.status}</span>
+              <div key={order.id} className="buyer-history-item" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong>#{order.orderNumber || order.id} · {getOrderProductName(order)}</strong>
+                    <p className="muted" style={{ margin: '4px 0' }}>
+                      {getOrderProviderName(order)} · {formatDate(order.placedAt)} · Qty {getOrderQuantity(order)}
+                    </p>
+                    <strong style={{ display: 'block', marginTop: '8px' }}>Total {formatMoney(getOrderTotal(order))}</strong>
                   </div>
-                  <div className="buyer-inline-actions">
-                    <span>Total {formatMoney(getOrderTotal(order))}</span>
-                    <div className="buyer-inline-actions">
-                      <button type="button" className="secondary-button">Reorder</button>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className={getStatusTone(order.status)} style={{ display: 'inline-block', marginBottom: '10px' }}>{order.status}</span>
+                    <div className="buyer-inline-actions" style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" className="secondary-button" style={{ padding: '6px 12px' }}>Reorder</button>
                       {order.status !== "Delivered" && order.status !== "Cancelled" ? (
-                        <button type="button" className="secondary-button">Cancel</button>
+                        <button type="button" className="secondary-button" style={{ padding: '6px 12px', color: 'var(--danger)' }}>Cancel</button>
                       ) : null}
                     </div>
                   </div>
@@ -1265,7 +1001,7 @@ export function CustomerDashboardPage() {
               </div>
             ))
           ) : (
-            <p className="buyer-empty">No order history yet. Start exploring products above.</p>
+            <p className="buyer-empty">No order history yet.</p>
           )}
         </div>
       </article>

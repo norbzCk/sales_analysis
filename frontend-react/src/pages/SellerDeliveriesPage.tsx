@@ -167,11 +167,27 @@ export function SellerDeliveriesPage() {
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
 
-      <div className="stat-grid">
-        <article className="stat-card"><span className="stat-label">Total deliveries</span><strong>{summary.total}</strong></article>
-        <article className="stat-card"><span className="stat-label">Ongoing</span><strong>{summary.ongoing}</strong></article>
-        <article className="stat-card"><span className="stat-label">Delivered</span><strong>{summary.completed}</strong></article>
-        <article className="stat-card"><span className="stat-label">Cancelled</span><strong>{summary.cancelled}</strong></article>
+      <div className="seller-classic-stats-grid">
+        <article className="stat-card seller-classic-stat-card">
+          <span className="stat-label">Total deliveries</span>
+          <strong>{summary.total}</strong>
+          <p className="muted">All time</p>
+        </article>
+        <article className="stat-card seller-classic-stat-card">
+          <span className="stat-label">Ongoing</span>
+          <strong>{summary.ongoing}</strong>
+          <p className="muted">In progress</p>
+        </article>
+        <article className="stat-card seller-classic-stat-card">
+          <span className="stat-label">Delivered</span>
+          <strong>{summary.completed}</strong>
+          <p className="muted">Successful</p>
+        </article>
+        <article className="stat-card seller-classic-stat-card">
+          <span className="stat-label">Cancelled</span>
+          <strong>{summary.cancelled}</strong>
+          <p className="muted">Total failed</p>
+        </article>
       </div>
 
       <div className="panel filter-grid">

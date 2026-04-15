@@ -214,14 +214,14 @@ export function LogisticsProfilePage() {
       ) : (
         <form className="panel form-grid auth-form-two-col" onSubmit={handleSubmit}>
           <label>Name<input value={profile.name} onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))} required /></label>
-          <label>Email<input type="email" value={profile.email} onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))} /></label>
+          <label>Email<input type="email" value={profile.email || ""} onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))} /></label>
           <label>Phone<input value={profile.phone} onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))} required /></label>
           <label>Account type<input value={profile.account_type} onChange={(e) => setProfile((prev) => ({ ...prev, account_type: e.target.value }))} required /></label>
-          <label>Vehicle type<input value={profile.vehicle_type} onChange={(e) => setProfile((prev) => ({ ...prev, vehicle_type: e.target.value }))} /></label>
-          <label>Plate number<input value={profile.plate_number} onChange={(e) => setProfile((prev) => ({ ...prev, plate_number: e.target.value }))} /></label>
-          <label>License number<input value={profile.license_number} onChange={(e) => setProfile((prev) => ({ ...prev, license_number: e.target.value }))} /></label>
-          <label>Base area<input value={profile.base_area} onChange={(e) => setProfile((prev) => ({ ...prev, base_area: e.target.value }))} /></label>
-          <label>Coverage areas (comma separated)<input value={profile.coverage_areas} onChange={(e) => setProfile((prev) => ({ ...prev, coverage_areas: e.target.value }))} /></label>
+          <label>Vehicle type<input value={profile.vehicle_type || ""} onChange={(e) => setProfile((prev) => ({ ...prev, vehicle_type: e.target.value }))} /></label>
+          <label>Plate number<input value={profile.plate_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, plate_number: e.target.value }))} /></label>
+          <label>License number<input value={profile.license_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, license_number: e.target.value }))} /></label>
+          <label>Base area<input value={profile.base_area || ""} onChange={(e) => setProfile((prev) => ({ ...prev, base_area: e.target.value }))} /></label>
+          <label>Coverage areas (comma separated)<input value={profile.coverage_areas || ""} onChange={(e) => setProfile((prev) => ({ ...prev, coverage_areas: e.target.value }))} /></label>
 
           <label>
             Upload profile photo (optional)
@@ -229,7 +229,7 @@ export function LogisticsProfilePage() {
           </label>
           <label>
             Profile photo URL (optional)
-            <input value={profile.profile_photo} onChange={(e) => setProfile((prev) => ({ ...prev, profile_photo: e.target.value }))} />
+            <input value={profile.profile_photo || ""} onChange={(e) => setProfile((prev) => ({ ...prev, profile_photo: e.target.value }))} />
           </label>
           {profile.profile_photo ? (
             <img

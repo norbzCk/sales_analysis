@@ -555,28 +555,6 @@ export function SellerDashboardPage() {
                   ))}
                 </div>
               </article>
-
-              <article className="panel seller-list-panel seller-notification-panel">
-                <div className="panel-header">
-                  <div>
-                    <h3>Notifications</h3>
-                    <p className="muted">Operational alerts and updates</p>
-                  </div>
-                  <span className="notification-count">{notifications.length} notifications</span>
-                </div>
-                <div className="stack-list">
-                  {!notifications.length ? <p className="muted">No notifications yet.</p> : null}
-                  {notifications.map((item, index) => (
-                    <div key={`${item.type}-${index}`} className="list-card notification-item">
-                      <div className="notification-content">
-                        <strong className="notification-title">{item.title}</strong>
-                        <p className="muted notification-message">{item.message}</p>
-                      </div>
-                      <span className="notification-type">{item.type}</span>
-                    </div>
-                  ))}
-                </div>
-              </article>
             </div>
           </div>
 

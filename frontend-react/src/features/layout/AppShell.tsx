@@ -1,6 +1,25 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Sidebar } from "../../components/Sidebar";
+import { env } from "../../config/env";
+
+function resolveImageUrl(url?: string | null) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/")) return `${env.apiBase}${raw}`;
+  return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
+}
+
+function getInitials(name?: string) {
+  const text = String(name || "User").trim();
+  return text
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
 
 /**
  * AppShell provides a consistent layout for all authenticated routes.
@@ -63,6 +82,14 @@ export function AppShell() {
     navigate("/login");
   }
 
+  const profilePhotoUrl = user?.profile_photo;
+  const displayName = user?.name || user?.business_name || user?.owner_name || user?.email || "User";
+  const profilePath = role === "seller" ? "/app/seller/profile" 
+    : role === "logistics" ? "/app/logistics/profile" 
+    : role === "user" ? "/app/customer/profile" 
+    : role === "super_admin" ? "/app/superadmin/profile" 
+    : "/app/profile";
+
   return (
     <div className="app-shell">
       {/* Sidebar with profile photo and navigation */}
@@ -78,9 +105,23 @@ export function AppShell() {
             </p>
           </div>
           <div className="header-right">
-            <button className="header-logout-button" onClick={handleLogout}>
-              Sign Out
-            </button>
+            <Link to={profilePath} className="header-user-profile">
+              <div className="header-user-info">
+                <span className="header-user-name">{displayName}</span>
+                <span className="header-user-role">{roleLabel}</span>
+              </div>
+              {profilePhotoUrl ? (
+                <img 
+                  src={resolveImageUrl(profilePhotoUrl)} 
+                  alt={displayName} 
+                  className="header-user-avatar" 
+                />
+              ) : (
+                <div className="header-user-avatar placeholder">
+                  {getInitials(displayName)}
+                </div>
+              )}
+            </Link>
           </div>
         </header>
 

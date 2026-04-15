@@ -13,9 +13,9 @@ interface ProfileState {
 }
 
 interface PasswordState {
-  current_password: "";
-  new_password: "";
-  confirm_password: "";
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 function resolveImageUrl(url?: string | null) {
@@ -288,11 +288,8 @@ export function ProfilePage() {
             />
           ) : null}
           <div className="hero-actions">
-            <button className="primary-button" type="button" onClick={handleProfileSubmit} disabled={uploadingPhoto}>
-              {uploadingPhoto ? "Uploading..." : "Save Photo"}
-            </button>
-            <button className="secondary-button" type="button" onClick={() => setShowPhotoModal(false)}>
-              Cancel
+            <button className="primary-button" onClick={() => setShowPhotoModal(false)} disabled={uploadingPhoto}>
+              {uploadingPhoto ? "Uploading..." : "Close"}
             </button>
           </div>
         </form>

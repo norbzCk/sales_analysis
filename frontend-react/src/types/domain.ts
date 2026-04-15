@@ -197,6 +197,7 @@ export interface LogisticsDelivery {
   order_id?: number | null;
   pickup_location: string;
   delivery_location: string;
+  delivery_address?: string | null;
   status: string;
   price?: number | null;
   special_instructions?: string | null;
@@ -204,6 +205,22 @@ export interface LogisticsDelivery {
   created_at?: string | null;
   picked_at?: string | null;
   delivered_at?: string | null;
+}
+
+export interface LogisticsUser {
+  id: number;
+  name: string;
+  phone: string;
+  email?: string | null;
+  account_type: string;
+  vehicle_type?: string | null;
+  plate_number?: string | null;
+  license_number?: string | null;
+  base_area?: string | null;
+  coverage_areas?: string | null;
+  profile_photo?: string | null;
+  verification_status?: string | null;
+  created_at?: string | null;
 }
 
 export interface BusinessProfile {

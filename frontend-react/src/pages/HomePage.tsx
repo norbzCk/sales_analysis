@@ -6,9 +6,27 @@ import { env } from "../config/env";
 import { getPostLoginPath } from "../features/auth/authStorage";
 import { apiRequest } from "../lib/http";
 import type { Product, Provider } from "../types/domain";
-import "../../../frontend/css/style.css";
+import "./Home.css";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80";
+
+const SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80",
+    title: "Global Sourcing Made Simple",
+    description: "Connect with verified manufacturers and suppliers worldwide."
+  },
+  {
+    image: "https://images.unsplash.com/photo-1493934558415-9d19f0b2b4d2?auto=format&fit=crop&w=1600&q=80",
+    title: "Quality Products, Best Prices",
+    description: "Discover millions of products ready for your business."
+  },
+  {
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80",
+    title: "Secure Trade Assurance",
+    description: "Protect your orders from payment to delivery."
+  }
+];
 
 function formatMoney(value?: number) {
   return `TZS ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -22,14 +40,6 @@ function resolveImageUrl(url?: string | null) {
   return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
 }
 
-function productRating(product: Product) {
-  return Number(product.rating_avg || 0);
-}
-
-function ratingCount(product: Product) {
-  return Number(product.rating_count || 0);
-}
-
 function renderStars(ratingValue?: number) {
   const rounded = Math.max(0, Math.min(5, Math.round(Number(ratingValue || 0))));
   return `${"★".repeat(rounded)}${"✩".repeat(5 - rounded)}`;
@@ -39,14 +49,10 @@ export function HomePage() {
   const { token, user, loading } = useAuth();
   const navigate = useNavigate();
   const [allItems, setAllItems] = useState<Product[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("featured");
-  const [heroTab, setHeroTab] = useState("AI Mode");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
-  const [rfqStatus, setRfqStatus] = useState("");
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     if (!loading && token && user) {
@@ -58,17 +64,19 @@ export function HomePage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   async function load() {
     try {
-      const [items, publicProviders] = await Promise.all([
-        apiRequest<Product[]>("/products/public", { auth: false }),
-        apiRequest<Provider[]>("/providers/public", { auth: false }),
-      ]);
+      const items = await apiRequest<Product[]>("/products/public", { auth: false });
       setAllItems(Array.isArray(items) ? items : []);
-      setProviders(Array.isArray(publicProviders) ? publicProviders : []);
     } catch {
       setAllItems([]);
-      setProviders([]);
     }
   }
 
@@ -78,466 +86,186 @@ export function HomePage() {
   }, [allItems]);
 
   const filteredItems = useMemo(() => {
-    let data = allItems.filter((item) => {
+    return allItems.filter((item) => {
       const inCategory = activeCategory === "all" || (item.category || "").trim() === activeCategory;
       if (!inCategory) return false;
       if (!search.trim()) return true;
       return `${item.name || ""} ${item.category || ""}`.toLowerCase().includes(search.trim().toLowerCase());
     });
+  }, [activeCategory, allItems, search]);
 
-    if (sort === "price_low") {
-      data = data.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    } else if (sort === "price_high") {
-      data = data.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    } else if (sort === "in_stock") {
-      data = data.sort((a, b) => Number(Boolean(b.in_stock)) - Number(Boolean(a.in_stock)));
+  function handleSearch() {
+    if (search.trim()) {
+      setActiveCategory("all");
     }
-
-    return data;
-  }, [activeCategory, allItems, search, sort]);
-
-  const frequentItems = useMemo(() => allItems.slice(0, 3), [allItems]);
-  const hotPicks = useMemo(
-    () =>
-      [...allItems]
-        .sort((a, b) => ratingCount(b) - ratingCount(a) || productRating(b) - productRating(a))
-        .slice(0, 4),
-    [allItems],
-  );
-
-  const supplierItems = useMemo(() => {
-    if (providers.length) return providers;
-    const categories = categoryValues.filter((item) => item !== "all");
-    const locations = ["Dar es Salaam", "Nairobi", "Mumbai", "Shenzhen", "Dubai", "Ho Chi Minh City"];
-    return categories.slice(0, 6).map((category, index) => ({
-      id: index + 1,
-      name: `${category} Co.`,
-      location: locations[index % locations.length],
-      email: `${category.toLowerCase().replace(/\s+/g, "-")}@sokolnk.local`,
-      verified: index % 2 === 0,
-      response_time: index % 2 === 0 ? "< 6 hrs" : "< 12 hrs",
-      min_order_qty: index % 2 === 0 ? "200 pcs" : "100 pcs",
-    }));
-  }, [categoryValues, providers]);
-
-  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setImagePreviewUrl("");
-      return;
-    }
-    setImagePreviewUrl(URL.createObjectURL(file));
+    const element = document.getElementById("products");
+    element?.scrollIntoView({ behavior: "smooth" });
   }
 
-  function handleHeroTab(tab: string) {
-    setHeroTab(tab);
+  function handleTabClick(tab: string) {
+    setCurrentSlide(0); // Optional: reset slider or use for state
     if (tab === "Products") {
       setActiveCategory("all");
       setSearch("");
     } else if (tab === "Manufacturers") {
-      setSearch("manufacturer");
-      setActiveCategory("all");
+      setSearch("manufacturer"); // Or handle specifically
     } else if (tab === "Worldwide") {
       setSearch("global");
-      setActiveCategory("all");
-    } else {
-      setSearch("");
-      setActiveCategory("all");
     }
-  }
-
-  function handleSearchClick() {
-    if (search.trim()) {
-      setActiveCategory("all");
-    }
-    scrollToSection("#products");
-  }
-
-  async function handleRfqSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setRfqStatus("Submitting your RFQ...");
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      company_name: String(form.get("company_name") || "").trim(),
-      contact_name: String(form.get("contact_name") || "").trim(),
-      email: String(form.get("email") || "").trim(),
-      phone: String(form.get("phone") || "").trim() || null,
-      product_interest: String(form.get("product_interest") || "").trim(),
-      quantity: Number(form.get("quantity") || 0),
-      target_budget: String(form.get("target_budget") || "").trim() || null,
-      notes: String(form.get("notes") || "").trim() || null,
-    };
-
-    try {
-      await apiRequest("/rfq", { method: "POST", auth: false, body: payload });
-      event.currentTarget.reset();
-      setRfqStatus("RFQ submitted. Suppliers will reach out soon.");
-    } catch (err) {
-      setRfqStatus(err instanceof Error ? err.message : "RFQ submission failed");
-    }
-  }
-
-  function scrollToSection(selector: string) {
-    document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const element = document.getElementById("products");
+    element?.scrollIntoView({ behavior: "smooth" });
   }
 
   return (
     <div className="public-page">
-      <nav className="alibaba-nav">
-        <div className="alibaba-topbar">
-          <a href="#marketplace">Home</a>
-          <a href="#support">Help Center</a>
-          <a href="#rfq">Sell on SokoLnk</a>
-          <a href="#suppliers">Deliver to Dar es Salaam</a>
+      <header className="home-header">
+        <div className="header-top">
+          <span>Welcome to SokoLink - Your B2B Marketplace</span>
+          <div className="header-top-links">
+            <a href="#rfq" onClick={(e) => { e.preventDefault(); document.getElementById('footer')?.scrollIntoView({behavior: 'smooth'}); }}>Sell on SokoLnk</a>
+            <a href="#support" onClick={(e) => { e.preventDefault(); document.getElementById('footer')?.scrollIntoView({behavior: 'smooth'}); }}>Help Center</a>
+          </div>
         </div>
-        <div className="alibaba-mainbar">
-          <a href="#marketplace" className="alibaba-logo">
-            <div className="alibaba-logo-icon">
-              <img src={logoUrl} alt="SokoLnk" />
-            </div>
-            <div className="alibaba-logo-text"><span>SokoLnk</span></div>
-          </a>
-          <div className="alibaba-search-bar">
+        <div className="header-main">
+          <Link to="/" className="logo-link">
+            <img src={logoUrl} alt="SokoLink" className="logo-img" />
+            <span className="logo-text">SokoLink</span>
+            <span className="logo-description">We deliver to right where you are!</span>
+
+          </Link>
+          <div className="search-container">
             <input
               type="text"
-              placeholder="Search products, manufacturers, or categories"
+              className="search-input"
+              placeholder="What are you looking for today?"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button type="button" onClick={handleSearchClick}>Search</button>
+            <button className="search-button" onClick={handleSearch}>Search</button>
           </div>
-          <div className="alibaba-actions">
-            <Link to="/login" className="nav-signin">Sign In</Link>
-            <Link to="/register/customer" className="btn btn-primary btn-join-free">Join Free</Link>
+          <div className="header-actions">
+            <Link to="/login" className="btn-login">Sign In</Link>
+            <Link to="/register/customer" className="btn-register">Join Free</Link>
           </div>
         </div>
-        <div className="alibaba-nav-links">
-          <a href="#categories">Categories</a>
-          <a href="#products">Products</a>
-          <a href="#suppliers">Manufacturers</a>
-          <a href="#rfq">Request for Quotation</a>
-          <a href="#products">Sell Products</a>
-          <a href="#suppliers">Become a Supplier</a>
-          <a href="#support">Delivery Services</a>
-        </div>
-      </nav>
+        <nav className="header-nav">
+          {['all', ...categoryValues.filter(c => c !== 'all')].map(cat => (
+            <a 
+              key={cat} 
+              href={`#${cat}`} 
+              onClick={(e) => { e.preventDefault(); setActiveCategory(cat); document.getElementById('products')?.scrollIntoView({behavior: 'smooth'}); }}
+              style={activeCategory === cat ? { color: 'var(--brand-blue)', fontWeight: 700, borderBottom: '2px solid var(--brand-blue)' } : {}}
+            >
+              {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </a>
+          ))}
+        </nav>
+      </header>
 
-      <main className="public-wrap">
-        <section className="market-hero" id="marketplace">
-          <div className="hero-main">
-            <div className="hero-tabs" role="tablist" aria-label="Marketplace filters">
-              {['AI Mode', 'Products', 'Manufacturers', 'Worldwide'].map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  tabIndex={heroTab === tab ? 0 : -1}
-                  className={`hero-tab${heroTab === tab ? " active" : ""}`}
-                  onClick={() => handleHeroTab(tab)}
-                >
-                  {tab}
-                </button>
+      <main className="home-main">
+        <section className="slider-section">
+          <div className="slider-container">
+            {SLIDES.map((slide, idx) => (
+              <div key={idx} className={`slide ${idx === currentSlide ? 'active' : ''}`}>
+                <img src={slide.image} alt={slide.title} className="slide-img" />
+                <div className="slide-content">
+                  <h2>{slide.title}</h2>
+                  <p>{slide.description}</p>
+                  <Link to="/register/customer" className="btn-register" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>Get Started</Link>
+                </div>
+              </div>
+            ))}
+            <div className="slider-dots">
+              {SLIDES.map((_, idx) => (
+                <div 
+                  key={idx} 
+                  className={`dot ${idx === currentSlide ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(idx)}
+                />
               ))}
-            </div>
-
-            <h1 className="market-title">A unified digital marketplace for buyers, sellers, delivery agents, and admins.</h1>
-            <p className="market-subtitle">Sellers list live products with stock, prices, and store locations. Buyers compare vendors, place orders online, and receive goods safely through coordinated delivery and order tracking.</p>
-
-            <div className="hero-search">
-              <input
-                id="publicSearch"
-                placeholder="Search products, categories, or manufacturers"
-                aria-label="Search products"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <select id="publicSort" title="Sort results" value={sort} onChange={(event) => setSort(event.target.value)}>
-                <option value="featured">Sort: Featured</option>
-                <option value="price_low">Price: Low to High</option>
-                <option value="price_high">Price: High to Low</option>
-                <option value="in_stock">In stock first</option>
-              </select>
-              <button className="btn btn-primary" id="publicSearchBtn" type="button">Search</button>
-            </div>
-
-            <div className="hero-search-meta">
-              <label className="image-search" htmlFor="imageSearchInput">
-                <input id="imageSearchInput" type="file" accept="image/*" onChange={handleImageChange} />
-                <span>Image Search</span>
-              </label>
-              <div id="imageSearchPreview" className="image-preview">
-                {imagePreviewUrl ? (
-                  <div className="preview-card">
-                    <img src={imagePreviewUrl} alt="Selected search" />
-                    <span className="muted">Image ready</span>
-                  </div>
-                ) : null}
-              </div>
-              <span className="hero-tip">Try: smart watches, custom packaging, mobile phones</span>
-            </div>
-
-            <div id="publicSuggestions" className="hero-suggestions">
-              {categoryValues.slice(1, 5).map((category) => (
-                <button key={category} className="suggestion-chip" type="button" onClick={() => { setActiveCategory(category); setSearch(category); }}>
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            <div className="hero-metrics">
-              <article className="metric-card">
-                <p className="metric-label">Products</p>
-                <p className="metric-value" id="statProducts">{allItems.length}</p>
-              </article>
-              <article className="metric-card">
-                <p className="metric-label">Active suppliers</p>
-                <p className="metric-value" id="statSuppliers">{providers.length || Math.max((categoryValues.length - 1) * 12, 24)}</p>
-              </article>
-              <article className="metric-card">
-                <p className="metric-label">In stock today</p>
-                <p className="metric-value" id="statInStock">{allItems.filter((item) => item.in_stock).length}</p>
-              </article>
-            </div>
-          </div>
-
-          <aside className="hero-aside">
-            <article className="hero-card">
-              <p className="badge">Trade Assurance</p>
-              <h3>Protect every payment.</h3>
-              <p className="muted">Verified suppliers, transparent pricing, and delivery protection built in.</p>
-              <button className="btn btn-secondary" type="button" onClick={() => scrollToSection("#rfq")}>Get protected</button>
-            </article>
-            <article className="hero-card highlight">
-              <p className="badge">Request for Quotation</p>
-              <h3>Send one RFQ, get multiple offers.</h3>
-              <p className="muted">Describe your sourcing needs and receive curated supplier responses.</p>
-              <button className="btn btn-primary" type="button" onClick={() => scrollToSection("#rfq")}>Start RFQ</button>
-            </article>
-            <article className="hero-card glass">
-              <p className="badge">Top ranking</p>
-              <h3>Trusted manufacturers.</h3>
-              <p className="muted">Compare ratings, response times, and fulfillment history.</p>
-            </article>
-          </aside>
-        </section>
-
-        <section className="market-highlights">
-          <article className="highlight-tile">
-            <h3>Multi-vendor ordering</h3>
-            <p className="muted">Buyers can compare sellers across the market and order from the best fit.</p>
-          </article>
-          <article className="highlight-tile">
-            <h3>Reliable delivery coordination</h3>
-            <p className="muted">Orders move from seller pickup to customer address with clearer coordination.</p>
-          </article>
-          <article className="highlight-tile">
-            <h3>Safer, less crowded trade</h3>
-            <p className="muted">The platform reduces unnecessary market visits while keeping goods moving on time.</p>
-          </article>
-        </section>
-
-        <section className="market-discovery" id="categories">
-          <aside className="market-categories">
-            <h2 className="section-title">Categories for you</h2>
-            <div id="publicCategoryList" className="category-list">
-              {categoryValues.map((category) => (
-                <button
-                  key={category}
-                  className={`category-chip${activeCategory === category ? " active" : ""}`}
-                  type="button"
-                  onClick={() => setActiveCategory(category)}
-                >
-                  {category === "all" ? "All" : category}
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <div className="market-featured">
-            <div className="featured-card">
-              <div className="featured-head">
-                <h3>Frequently searched</h3>
-                <span className="badge">Updated hourly</span>
-              </div>
-              <div id="publicFrequent" className="frequent-grid">
-                {frequentItems.length ? frequentItems.map((item) => (
-                  <article key={item.id} className="frequent-card" data-product-id={item.id} tabIndex={0} onClick={() => setSelectedProduct(item)}>
-                    <h4>{item.category || "General"}</h4>
-                    <p className="muted">{item.name || "Top pick"}</p>
-                  </article>
-                )) : <p className="muted">No trends yet.</p>}
-              </div>
-            </div>
-            <div className="featured-card hot-picks">
-              <div className="featured-head">
-                <h3>Hot picks</h3>
-                <span className="badge">Trending now</span>
-              </div>
-              <div id="publicHotPicks" className="hot-grid">
-                {hotPicks.length ? hotPicks.map((item) => (
-                  <article key={item.id} className="hot-card" data-product-id={item.id} tabIndex={0} onClick={() => setSelectedProduct(item)}>
-                    <img src={resolveImageUrl(item.image_url)} alt={item.name || "Product"} loading="lazy" />
-                    <div>
-                      <h4>{item.name || "Product"}</h4>
-                      <p className="muted">{item.category || "General"}</p>
-                      <p className="hot-price">{formatMoney(item.price)}</p>
-                    </div>
-                  </article>
-                )) : <p className="muted">No hot picks yet.</p>}
-              </div>
             </div>
           </div>
         </section>
 
-        <section className="card market-products" id="products">
-          <div className="market-products-head">
+        <section className="products-section" id="products">
+          <div className="section-head">
             <div>
-              <h2 className="section-title">Recommended for your business</h2>
-              <p className="muted">Verified suppliers and trade-ready products.</p>
+              <h2>Recommended for You</h2>
+              <p className="muted">Based on latest trends and top-rated suppliers</p>
             </div>
-            <span className="badge" id="publicShownBadge">Showing: {filteredItems.length}</span>
           </div>
-          <div id="publicCategories" className="public-categories">
-            {categoryValues.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={`category-pill${activeCategory === category ? " active" : ""}`}
-                onClick={() => setActiveCategory(category)}
+
+          <div className="products-grid">
+            {filteredItems.map((product) => (
+              <article 
+                key={product.id} 
+                className="product-card"
+                onClick={() => navigate(`/product/${product.id}`)}
               >
-                {category === "all" ? "All products" : category}
-              </button>
+                <div className="product-img-wrapper">
+                  <img 
+                    src={resolveImageUrl(product.image_url)} 
+                    alt={product.name} 
+                    className="product-img"
+                    loading="lazy" 
+                  />
+                </div>
+                <div className="product-info">
+                  <div className="product-category">{product.category || "General"}</div>
+                  <h3 className="product-name">{product.name}</h3>
+                  <div className="product-price">{formatMoney(product.price)}</div>
+                  <div className="product-seller">
+                    <div className="seller-avatar">
+                      {(product.seller_name || "S")[0].toUpperCase()}
+                    </div>
+                    <span>{product.seller_name || "Independent Seller"}</span>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
-          <div id="publicProducts" className="public-product-grid">
-            {filteredItems.length ? filteredItems.map((item) => {
-              const rating = productRating(item);
-              const count = ratingCount(item);
-              return (
-                <article
-                  key={item.id}
-                  className="public-product-card"
-                  data-product-id={item.id}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`View ${item.name || "product"}`}
-                  onClick={() => setSelectedProduct(item)}
-                >
-                  <div className="product-card-media">
-                    <img src={resolveImageUrl(item.image_url)} alt={item.name || "Product"} loading="lazy" />
-                    <span className="pill">{item.in_stock ? "In stock" : "Out of stock"}</span>
-                  </div>
-                  <div>
-                    <h3>{item.name || "Product"}</h3>
-                    <p className="muted">{item.category || "General"}</p>
-                    <p className="muted">{item.seller_name || item.seller?.business_name || "Independent seller"}</p>
-                    <div className="public-meta">
-                      <span className="rating-stars">{renderStars(rating)}</span>
-                      <span className="muted">{count ? `${rating.toFixed(1)} (${count})` : "No ratings yet"}</span>
-                    </div>
-                    <p className="public-price">{formatMoney(item.price)}</p>
-                  </div>
-                </article>
-              );
-            }) : <p className="muted">No products match this view.</p>}
-          </div>
-        </section>
-
-        <section className="market-suppliers" id="suppliers">
-          <div className="market-products-head">
-            <div>
-              <h2 className="section-title">Manufacturers you can trust</h2>
-              <p className="muted">Compare suppliers by region, verification, and response time.</p>
-            </div>
-          </div>
-          <div id="publicSuppliers" className="supplier-grid">
-            {supplierItems.length ? supplierItems.map((provider) => (
-              <article key={provider.id} className="supplier-card">
-                <div className="supplier-head">
-                  <div>
-                    <h3>{provider.name || "SokoLnk Supplier"}</h3>
-                    <p className="muted">{provider.location || "Dar es Salaam, TZ"}</p>
-                  </div>
-                  <span className={`pill ${provider.verified ? "verified" : ""}`}>{provider.verified ? "Verified" : "Factory"}</span>
-                </div>
-                <p className="muted">{provider.email || "Wholesale, sourcing, and fulfillment partner."}</p>
-                <div className="supplier-meta">
-                  <span>Response: {provider.response_time || "< 12 hrs"}</span>
-                  <span>MOQ: {provider.min_order_qty || "100 pcs"}</span>
-                </div>
-              </article>
-            )) : <p className="muted">Supplier data will appear after your first products are added.</p>}
-          </div>
-        </section>
-
-        <section className="card market-rfq" id="rfq">
-          <div className="rfq-copy">
-            <h2 className="section-title">Request for quotation</h2>
-            <p className="muted">Describe what you need and let suppliers compete for your order while the platform coordinates pricing, fulfillment, and delivery reliability.</p>
-            <ul className="rfq-points">
-              <li>Match with verified suppliers in minutes.</li>
-              <li>Share specs, quantities, and target pricing once.</li>
-              <li>Track responses, orders, and delivery progress inside your dashboard.</li>
-            </ul>
-          </div>
-          <form id="rfqForm" className="rfq-form" onSubmit={handleRfqSubmit}>
-            <input name="company_name" placeholder="Company name" required />
-            <input name="contact_name" placeholder="Contact name" required />
-            <input name="email" type="email" placeholder="Email" required />
-            <input name="phone" placeholder="Phone (optional)" />
-            <input name="product_interest" placeholder="Product or category" required />
-            <input name="quantity" type="number" min="1" step="1" placeholder="Estimated quantity" required />
-            <input name="target_budget" placeholder="Target budget (optional)" />
-            <textarea name="notes" rows={3} placeholder="Specifications, customization, or delivery notes" />
-            <button className="btn btn-primary" type="submit">Submit RFQ</button>
-            <p id="rfqStatus" className="muted">{rfqStatus}</p>
-          </form>
-        </section>
-
-        <section className="public-contact card" id="support">
-          <h2 className="section-title">Contact</h2>
-          <div className="public-contact-grid">
-            <p><strong>Email:</strong> sales@yourcompany.com</p>
-            <p><strong>Phone:</strong> +255 700 000 000</p>
-            <p><strong>Address:</strong> Dar es Salaam, Tanzania</p>
-            <p><strong>Working Hours:</strong> Mon - Sat, 08:00 - 18:00</p>
-          </div>
-          <p className="muted contact-note">
-            SokoLnk helps sellers publish inventory, lets customers order from different vendors, and supports delivery coordination so goods arrive safely and on time.
-          </p>
         </section>
       </main>
 
-      <div className={`public-modal${selectedProduct ? " show" : ""}`} id="publicModal" onClick={() => setSelectedProduct(null)}>
-        <div className="public-modal-card" onClick={(event) => event.stopPropagation()}>
-          <button className="public-modal-close" id="publicModalClose" type="button" onClick={() => setSelectedProduct(null)}>Close</button>
-          <div id="publicModalBody">
-            {selectedProduct ? (
-              <div className="public-modal-layout">
-                <img src={resolveImageUrl(selectedProduct.image_url)} alt={selectedProduct.name || "Product"} />
-                <div>
-                  <h3>{selectedProduct.name || "Product"}</h3>
-                  <p className="muted">{selectedProduct.category || "General"}</p>
-                  <p className="public-price">{formatMoney(selectedProduct.price)}</p>
-                  <p className="muted">{selectedProduct.description || "No description provided yet."}</p>
-                  <p className="muted">Stock: {Number(selectedProduct.stock || 0)} available</p>
-                  <p className="muted">
-                    Businessman: {selectedProduct.seller_name || selectedProduct.seller?.business_name || "Independent seller"}
-                  </p>
-                  <p className="muted">
-                    Location: {[selectedProduct.seller?.area, selectedProduct.seller?.region].filter(Boolean).join(", ") || "Not specified"}
-                  </p>
-                  <p className="muted">{selectedProduct.in_stock ? "Available now" : "Currently out of stock"}</p>
-                </div>
-              </div>
-            ) : null}
+      <footer className="home-footer" id="footer">
+        <div className="footer-main">
+          <div className="footer-col">
+            <h4 style={{ color: 'var(--brand-orange)', fontWeight: 700 }}>SokoLink</h4>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              The leading B2B marketplace for global trade. Connecting millions of buyers and suppliers around the world.
+            </p>
           </div>
-          <div className="public-modal-actions">
-            <Link className="btn btn-secondary" to="/login">Login to Continue</Link>
-            <Link className="btn btn-primary" to="/register/customer">Create Account</Link>
+          <div className="footer-col">
+            <h4>Customer Service</h4>
+            <ul>
+              <li><a href="#help">Help Center</a></li>
+              <li><a href="#report">Report Abuse</a></li>
+              <li><a href="#dispute">Submit a Dispute</a></li>
+              <li><a href="#policies">Policies & Rules</a></li>
+            </ul>
+          </div>
+          <div className="footer-col">
+            <h4>About Us</h4>
+            <ul>
+              <li><a href="#about">About SokoLnk</a></li>
+              <li><a href="#sustainability">Sustainability</a></li>
+              <li><a href="#careers">Careers</a></li>
+            </ul>
+          </div>
+          <div className="footer-col">
+            <h4>Sell on SokoLink</h4>
+            <ul>
+              <li><a href="#supplier">Supplier Memberships</a></li>
+              <li><a href="#learning">Learning Center</a></li>
+              <li><a href="#partner">Partner Program</a></li>
+            </ul>
           </div>
         </div>
-      </div>
+        <div className="footer-bottom">
+          <p>© 2026 SokoLink. All rights reserved. | Sourcing with Confidence.</p>
+        </div>
+      </footer>
     </div>
   );
 }

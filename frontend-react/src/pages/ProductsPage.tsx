@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
@@ -14,20 +15,12 @@ interface ProductDraft {
   description: string;
   image_url: string;
   provider_id: string;
+  seller_id: string;
 }
 
-interface CartDraftItem {
-  id: string;
-  product_id: number;
-  product_name: string;
-  seller_name: string;
-  quantity: number;
-  unit_price: number;
-  order_date: string;
-  delivery_address: string;
-  delivery_phone: string;
-  delivery_method: string;
-  delivery_notes: string;
+interface BusinessmanOption {
+  id: number;
+  business_name: string;
 }
 
 const emptyDraft: ProductDraft = {
@@ -38,6 +31,7 @@ const emptyDraft: ProductDraft = {
   description: "",
   image_url: "",
   provider_id: "",
+  seller_id: "",
 };
 
 function formatMoney(value?: number) {
@@ -48,66 +42,29 @@ function canManage(role?: string) {
   return ["admin", "super_admin", "owner", "seller"].includes(String(role || ""));
 }
 
-function stockLabel(stock?: number) {
-  const units = Number(stock || 0);
-  if (units <= 0) return "Out of stock";
-  if (units < 5) return "Low stock";
-  return "In stock";
-}
-
-function stockClass(stock?: number) {
-  const units = Number(stock || 0);
-  if (units <= 0) return "danger";
-  if (units < 5) return "warn";
-  return "ok";
-}
-
 export function ProductsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [businessmen, setBusinessmen] = useState<BusinessmanOption[]>([]);
   const [inventory, setInventory] = useState<InventoryStats | null>(null);
   const [flash, setFlash] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [providerId, setProviderId] = useState("all");
   const [sort, setSort] = useState("featured");
   const [draft, setDraft] = useState<ProductDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [bulkRows, setBulkRows] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [cartDrafts, setCartDrafts] = useState<CartDraftItem[]>([]);
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
   const sellerMode = String(user?.role || "") === "seller";
-  const customerMode = String(user?.role || "") === "user";
-  const draftStorageKey = `orders_draft_${user?.id || "guest"}`;
+  const adminMode = ["admin", "super_admin", "owner"].includes(String(user?.role || ""));
 
   useEffect(() => {
     void load();
   }, [sellerMode]);
-
-  useEffect(() => {
-    if (!customerMode) return;
-    try {
-      const raw = localStorage.getItem(draftStorageKey);
-      if (!raw) {
-        setCartDrafts([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as CartDraftItem[];
-      setCartDrafts(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setCartDrafts([]);
-    }
-  }, [customerMode, draftStorageKey]);
-
-  useEffect(() => {
-    if (!customerMode) return;
-    localStorage.setItem(draftStorageKey, JSON.stringify(cartDrafts));
-  }, [cartDrafts, customerMode, draftStorageKey]);
 
   async function load() {
     setLoading(true);
@@ -116,11 +73,16 @@ export function ProductsPage() {
       const [productData, providerData, inventoryData] = await Promise.all([
         apiRequest<Product[]>("/products/"),
         apiRequest<Provider[]>("/providers/"),
-        apiRequest<InventoryStats>("/products/inventory/stats"),
+        !adminMode && !sellerMode ? Promise.resolve(null) : apiRequest<InventoryStats>("/products/inventory/stats"),
       ]);
       setProducts(productData);
       setProviders(providerData);
       setInventory(inventoryData);
+
+      if (adminMode) {
+        const sellers = await apiRequest<{ items: BusinessmanOption[] }>("/business/");
+        setBusinessmen(sellers.items || []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -146,25 +108,13 @@ export function ProductsPage() {
     if (category !== "all") {
       data = data.filter((item) => item.category === category);
     }
-    if (providerId !== "all") {
-      data = data.filter((item) => String(item.provider_id || "") === providerId);
-    }
     if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      data = data.filter((item) => `${item.name || ""} ${item.category || ""} ${item.description || ""}`.toLowerCase().includes(q));
+      data = data.filter((item) => item.name?.toLowerCase().includes(search.toLowerCase()));
     }
-    if (sort === "price_low") data.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    if (sort === "price_high") data.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    if (sort === "stock_high") data.sort((a, b) => Number(b.stock || 0) - Number(a.stock || 0));
-    if (sort === "featured") data.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+    if (sort === "price_low") data.sort((a, b) => (a.price || 0) - (b.price || 0));
+    if (sort === "price_high") data.sort((a, b) => (b.price || 0) - (a.price || 0));
     return data;
-  }, [category, products, providerId, search, sort]);
-
-  function resetForm() {
-    setDraft(emptyDraft);
-    setEditingId(null);
-    setUploadingImage(false);
-  }
+  }, [products, category, search, sort]);
 
   function beginEdit(product: Product) {
     setEditingId(product.id);
@@ -176,35 +126,16 @@ export function ProductsPage() {
       description: String(product.description || ""),
       image_url: String(product.image_url || ""),
       provider_id: product.provider_id ? String(product.provider_id) : "",
+      seller_id: product.seller_id ? String(product.seller_id) : "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setError("");
+  function resetForm() {
+    setEditingId(null);
+    setDraft(emptyDraft);
     setFlash("");
-    setUploadingImage(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await apiRequest<{ image_url: string }>("/products/upload-image", {
-        method: "POST",
-        body: formData,
-      });
-
-      setDraft((prev) => ({ ...prev, image_url: response.image_url }));
-      setFlash("Product image uploaded.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload image");
-    } finally {
-      setUploadingImage(false);
-      event.target.value = "";
-    }
+    setError("");
   }
 
   async function handleCreateOrUpdate(event: FormEvent<HTMLFormElement>) {
@@ -220,20 +151,21 @@ export function ProductsPage() {
       description: draft.description.trim(),
       image_url: draft.image_url.trim() || null,
       provider_id: draft.provider_id ? Number(draft.provider_id) : null,
+      seller_id: draft.seller_id ? Number(draft.seller_id) : null,
     };
 
-    if (!payload.name || !payload.category || payload.price <= 0 || payload.stock < 0 || !payload.description) {
-      setError("Please provide valid product name, category, price, stock, and description.");
+    if (!payload.name || !payload.category || payload.price <= 0 || !payload.description) {
+      setError("Please provide a valid product name, category, price, and description.");
       return;
     }
 
     try {
       if (editingId) {
         await apiRequest(`/products/${editingId}`, { method: "PUT", body: payload });
-        setFlash("Product updated.");
+        setFlash("Product updated successfully.");
       } else {
         await apiRequest("/products/", { method: "POST", body: payload });
-        setFlash("Product added.");
+        setFlash("Product created successfully.");
       }
       resetForm();
       await load();
@@ -242,345 +174,172 @@ export function ProductsPage() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!window.confirm("Deactivate this product listing?")) return;
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
     setError("");
-    setFlash("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const data = await apiRequest<{ image_url: string }>("/products/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      setDraft((prev) => ({ ...prev, image_url: data.image_url }));
+      setFlash("Image uploaded successfully.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed. Please try again.");
+    } finally {
+      setUploadingImage(false);
+      event.target.value = "";
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
       await apiRequest(`/products/${id}`, { method: "DELETE" });
-      setFlash("Product deactivated.");
-      if (editingId === id) {
-        resetForm();
-      }
       await load();
+      setFlash("Product deleted.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deactivate product");
+      setError(err instanceof Error ? err.message : "Failed to delete product");
     }
   }
-
-  function parseBulkRows(raw: string) {
-    const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    return lines.map((line, index) => {
-      const parts = line.split(",").map((item) => item.trim());
-      const [name = "", categoryValue = "", price = "", stock = "", description = "", image_url = ""] = parts;
-      return {
-        index,
-        item: {
-          name,
-          category: categoryValue,
-          price: Number(price || 0),
-          stock: Number(stock || 0),
-          description,
-          image_url: image_url || null,
-        },
-      };
-    });
-  }
-
-  async function handleBulkUpload() {
-    setError("");
-    setFlash("");
-    const rows = parseBulkRows(bulkRows);
-    if (!rows.length) {
-      setError("Add at least one product row before uploading.");
-      return;
-    }
-
-    const items = rows.map((entry) => entry.item);
-    try {
-      const result = await apiRequest<{ created_count: number; skipped: Array<{ index: number; reason: string }> }>("/business/products/bulk", {
-        method: "POST",
-        body: { items },
-      });
-      setFlash(`Bulk upload complete. Created: ${result.created_count}, Skipped: ${result.skipped.length}.`);
-      setBulkRows("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload products in bulk");
-    }
-  }
-
-  function addToCart(product: Product) {
-    if (!customerMode) return;
-    if (Number(product.stock || 0) <= 0) {
-      setError("This product is currently out of stock.");
-      return;
-    }
-    const existing = cartDrafts.find((item) => item.product_id === product.id);
-    if (existing) {
-      setCartDrafts((prev) =>
-        prev.map((item) =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        ),
-      );
-      setFlash("Added one more item to cart draft.");
-      return;
-    }
-    const item: CartDraftItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      product_id: product.id,
-      product_name: product.name || `Product #${product.id}`,
-      seller_name: product.seller_name || product.seller?.business_name || product.provider?.name || "Marketplace seller",
-      quantity: 1,
-      unit_price: Number(product.price || 0),
-      order_date: new Date().toISOString().slice(0, 10),
-      delivery_address: user?.address || "",
-      delivery_phone: user?.phone || "",
-      delivery_method: "Standard",
-      delivery_notes: "",
-    };
-    setCartDrafts((prev) => [...prev, item]);
-    setCartDrawerOpen(true);
-    setFlash("Product added to cart draft.");
-  }
-
-  function removeDraftItem(id: string) {
-    setCartDrafts((prev) => prev.filter((item) => item.id !== id));
-  }
-
-  async function confirmCartDrafts() {
-    if (!cartDrafts.length) {
-      setError("Add products to cart before confirming.");
-      return;
-    }
-    setError("");
-    setFlash("");
-    let created = 0;
-    const failures: string[] = [];
-    for (const item of cartDrafts) {
-      try {
-        await apiRequest("/orders/", {
-          method: "POST",
-          body: {
-            product_id: item.product_id,
-            quantity: item.quantity,
-            order_date: item.order_date,
-            delivery_address: item.delivery_address,
-            delivery_phone: item.delivery_phone,
-            delivery_method: item.delivery_method,
-            delivery_notes: item.delivery_notes,
-          },
-        });
-        created += 1;
-      } catch (err) {
-        failures.push(`${item.product_name}: ${err instanceof Error ? err.message : "failed"}`);
-      }
-    }
-    if (created) {
-      setCartDrafts([]);
-      localStorage.removeItem(draftStorageKey);
-    }
-    if (failures.length) setError(`Some items failed: ${failures.join(" | ")}`);
-    setFlash(created ? `${created} order(s) created from cart.` : "No orders were created.");
-  }
-
-  const cartTotal = useMemo(
-    () => cartDrafts.reduce((sum, item) => sum + item.unit_price * item.quantity, 0),
-    [cartDrafts],
-  );
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <p className="eyebrow">Products</p>
-        <h1>{sellerMode ? "Seller product and inventory management" : "Shop - browse and add to cart"}</h1>
-        <p className="muted">
-          {sellerMode
-            ? "Add products, update prices in real time, manage stock states, and upload multiple items in one batch."
-            : "Browse products, add to cart drafts, and confirm when you are ready to place orders."}
-        </p>
-      </div>
+    <div className="panel-stack">
+      {inventory ? (
+        <div className="stat-grid">
+          <article className="stat-card">
+            <span className="stat-label">Total Inventory</span>
+            <strong>{inventory.total_products}</strong>
+            <p className="muted">Across all categories</p>
+          </article>
+          <article className="stat-card">
+            <span className="stat-label">Low Stock</span>
+            <strong style={{ color: 'var(--brand-orange-strong)' }}>{inventory.low_stock_count}</strong>
+            <p className="muted">Needs attention</p>
+          </article>
+          <article className="stat-card">
+            <span className="stat-label">Out of Stock</span>
+            <strong style={{ color: 'var(--danger)' }}>{inventory.out_of_stock_count}</strong>
+            <p className="muted">Currently unavailable</p>
+          </article>
+          <article className="stat-card">
+            <span className="stat-label">Total Value</span>
+            <strong>{formatMoney(inventory.total_value)}</strong>
+            <p className="muted">Estimated worth</p>
+          </article>
+        </div>
+      ) : null}
 
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
 
-      {inventory && !customerMode ? (
-        <div className="stat-grid">
-          <article className="stat-card"><span className="stat-label">Products</span><strong>{inventory.total_products}</strong></article>
-          <article className="stat-card"><span className="stat-label">Low stock</span><strong>{inventory.low_stock_count}</strong></article>
-          <article className="stat-card"><span className="stat-label">Out of stock</span><strong>{inventory.out_of_stock_count}</strong></article>
-          <article className="stat-card"><span className="stat-label">Inventory value</span><strong>{formatMoney(inventory.total_value)}</strong></article>
-        </div>
-      ) : null}
-
       {canManage(user?.role) ? (
         <form className="panel form-grid auth-form-two-col" onSubmit={handleCreateOrUpdate}>
-          <h2>{editingId ? `Edit product #${editingId}` : "Create product"}</h2>
-          <label>Product name<input value={draft.name} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} required /></label>
-          <label>Category<input value={draft.category} onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))} required /></label>
-          <label>Price<input value={draft.price} onChange={(event) => setDraft((prev) => ({ ...prev, price: event.target.value }))} type="number" min="0" step="0.01" required /></label>
-          <label>Stock<input value={draft.stock} onChange={(event) => setDraft((prev) => ({ ...prev, stock: event.target.value }))} type="number" min="0" required /></label>
-          <label className="full-width">Description<textarea value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} required /></label>
-          <label>
-            Upload image
-            <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
-          </label>
-          <label>Image URL<input value={draft.image_url} onChange={(event) => setDraft((prev) => ({ ...prev, image_url: event.target.value }))} placeholder="/uploads/product-image.jpg or https://example.com/image.jpg" /></label>
-          {draft.image_url ? (
-            <div className="full-width">
-              <p className="muted">{uploadingImage ? "Uploading image..." : "Uploaded image preview"}</p>
-              <img
-                className="product-card-image"
-                src={resolveImageUrl(draft.image_url)}
-                alt={draft.name || "Product preview"}
-                style={{ maxWidth: "220px" }}
-              />
-            </div>
-          ) : null}
-          {!sellerMode ? (
+          <div className="full-width">
+            <h2>{editingId ? `Update Product #${editingId}` : "List New Product"}</h2>
+            <p className="muted">Provide the details for your marketplace listing.</p>
+          </div>
+          
+          <label>Product Name<input value={draft.name} onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))} required /></label>
+          <label>Category<input value={draft.category} onChange={(e) => setDraft(prev => ({ ...prev, category: e.target.value }))} required /></label>
+          
+          {adminMode ? (
             <label>
-              Provider
-              <select value={draft.provider_id} onChange={(event) => setDraft((prev) => ({ ...prev, provider_id: event.target.value }))}>
-                <option value="">Select provider</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>{provider.name}</option>
-                ))}
+              Assign to Seller
+              <select value={draft.seller_id} onChange={(e) => setDraft(prev => ({ ...prev, seller_id: e.target.value }))}>
+                <option value="">Select Seller</option>
+                {businessmen.map(s => <option key={s.id} value={s.id}>{s.business_name}</option>)}
               </select>
             </label>
           ) : null}
-          <div className="hero-actions">
-            <button className="primary-button" type="submit">{editingId ? "Update product" : "Save product"}</button>
-            {editingId ? <button className="secondary-button" type="button" onClick={resetForm}>Cancel edit</button> : null}
+          
+          <label>Price (TZS)<input type="number" value={draft.price} onChange={(e) => setDraft(prev => ({ ...prev, price: e.target.value }))} required /></label>
+          <label>Initial Stock<input type="number" value={draft.stock} onChange={(e) => setDraft(prev => ({ ...prev, stock: e.target.value }))} required /></label>
+          
+          {!sellerMode ? (
+            <label>
+              Provider (Optional)
+              <select value={draft.provider_id} onChange={(e) => setDraft(prev => ({ ...prev, provider_id: e.target.value }))}>
+                <option value="">Select Provider</option>
+                {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </label>
+          ) : null}
+
+          <label className="full-width">Detailed Description<textarea value={draft.description} onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))} required /></label>
+          
+          <label className="full-width">
+            Product Image
+            <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
+              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
+              <input type="text" placeholder="Or enter Image URL" value={draft.image_url} onChange={(e) => setDraft(prev => ({ ...prev, image_url: e.target.value }))} />
+            </div>
+          </label>
+
+          {draft.image_url && (
+            <div className="full-width">
+              <img src={resolveImageUrl(draft.image_url)} alt="Preview" style={{ width: '120px', height: '120px', borderRadius: '12px', objectFit: 'cover' }} />
+            </div>
+          )}
+
+          <div className="full-width" style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+            <button className="primary-button" style={{ background: 'var(--brand-blue)', height: '48px', padding: '0 32px' }} type="submit">
+              {editingId ? "Update Listing" : "Save Product"}
+            </button>
+            {editingId && <button className="secondary-button" type="button" onClick={resetForm}>Cancel</button>}
           </div>
         </form>
       ) : null}
 
-      {sellerMode ? (
-        <article className="panel form-grid">
-          <h2>Bulk upload products</h2>
-          <p className="muted">Use one row per product in this format: `name, category, price, stock, description, image_url`.</p>
-          <textarea
-            rows={5}
-            value={bulkRows}
-            onChange={(event) => setBulkRows(event.target.value)}
-            placeholder={"Sugar 50kg, Groceries, 75000, 20, Refined sugar bag, https://example.com/sugar.jpg\nCooking Oil 1L, Groceries, 5200, 80, Premium sunflower oil, https://example.com/oil.jpg"}
-          />
-          <div className="hero-actions">
-            <button className="secondary-button" type="button" onClick={handleBulkUpload}>Upload products in bulk</button>
-          </div>
-        </article>
-      ) : null}
-
       <div className="panel filter-grid">
-        <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products" /></label>
-        <label>
-          Category
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            {categories.map((item) => <option key={item} value={item}>{item === "all" ? "All categories" : item}</option>)}
+        <label>Search Catalog<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name..." /></label>
+        <label>Category
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
         </label>
-        {!sellerMode ? (
-          <label>
-            Provider
-            <select value={providerId} onChange={(event) => setProviderId(event.target.value)}>
-              <option value="all">All providers</option>
-              {providers.map((provider) => <option key={provider.id} value={String(provider.id)}>{provider.name}</option>)}
-            </select>
-          </label>
-        ) : null}
-        <label>
-          Sort
-          <select value={sort} onChange={(event) => setSort(event.target.value)}>
+        <label>Sort By
+          <select value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="featured">Featured</option>
-            <option value="price_low">Price low</option>
-            <option value="price_high">Price high</option>
-            <option value="stock_high">Stock high</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
           </select>
         </label>
       </div>
 
       <div className="catalog-grid">
-        {loading ? <div className="panel">Loading products...</div> : null}
-        {!loading && !visibleProducts.length ? <div className="panel">No products found.</div> : null}
+        {loading ? <div className="panel">Loading catalog...</div> : null}
         {visibleProducts.map((product) => (
-          <article key={product.id} className="panel product-card-react">
-            <img className="product-card-image" src={resolveImageUrl(product.image_url)} alt={product.name} />
-            <div className="stack-list">
-              <div>
-                <h2>{product.name}</h2>
-                <p className="muted">{product.category || "General"}</p>
+          <article key={product.id} className="panel product-card-react" style={{ padding: '0', overflow: 'hidden', cursor: 'pointer' }} onClick={() => navigate(`/app/product/${product.id}`)}>
+            <img src={resolveImageUrl(product.image_url)} alt={product.name} className="product-card-image" style={{ borderRadius: '0' }} />
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h3 style={{ margin: '0' }}>{product.name}</h3>
+                  <p className="muted" style={{ fontSize: '0.85rem' }}>{product.category}</p>
+                </div>
+                <strong style={{ color: 'var(--brand-blue)' }}>{formatMoney(product.price)}</strong>
               </div>
-              <p className="muted">{product.description || "No description"}</p>
-              <div className="two-up">
-                <span>{formatMoney(product.price)}</span>
-                <span className={`status-pill ${stockClass(product.stock)}`}>{stockLabel(product.stock)} ({product.stock || 0})</span>
-              </div>
-              <p className="muted">
-                Seller: {product.seller_name || product.seller?.business_name || product.provider?.name || "Independent seller"}
-              </p>
-              {product.seller?.area || product.seller?.region ? (
-                <p className="muted">Location: {[product.seller?.area, product.seller?.region].filter(Boolean).join(", ")}</p>
-              ) : null}
-              <div className="hero-actions">
-                {user?.role === "user" ? (
-                  <button className="primary-button" onClick={() => addToCart(product)} type="button">
-                    Add to cart
-                  </button>
-                ) : null}
-                {canManage(user?.role) ? (
-                  <>
-                    <button className="secondary-button" onClick={() => beginEdit(product)} type="button">
-                      Edit
-                    </button>
-                    <button className="secondary-button" onClick={() => handleDelete(product.id)} type="button">
-                      Deactivate
-                    </button>
-                  </>
-                ) : null}
+              <p className="muted" style={{ fontSize: '0.9rem', margin: '12px 0', height: '2.7rem', overflow: 'hidden' }}>{product.description}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                <span className={`status-pill ${product.stock && product.stock > 0 ? "ok" : "danger"}`}>
+                  {product.stock && product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                </span>
+                {canManage(user?.role) && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={(e) => { e.stopPropagation(); beginEdit(product); }}>Edit</button>
+                    <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>Delete</button>
+                  </div>
+                )}
               </div>
             </div>
           </article>
         ))}
       </div>
-
-      {customerMode ? (
-        <>
-          <button
-            className="cart-drawer-toggle"
-            type="button"
-            onClick={() => setCartDrawerOpen((prev) => !prev)}
-          >
-            {cartDrawerOpen ? "Hide cart" : "Show cart"}
-            <span className="cart-drawer-badge">{cartDrafts.length}</span>
-          </button>
-
-          <aside className={`cart-drawer${cartDrawerOpen ? " open" : ""}`}>
-            <div className="cart-drawer-header">
-              <h2>Cart draft</h2>
-              <button className="secondary-button" type="button" onClick={() => setCartDrawerOpen(false)}>
-                Close
-              </button>
-            </div>
-            {!cartDrafts.length ? <p className="muted">No products in cart draft yet.</p> : null}
-            <div className="stack-list cart-drawer-items">
-              {cartDrafts.map((item) => (
-                <div key={item.id} className="list-card">
-                  <div>
-                    <strong>{item.product_name}</strong>
-                    <p className="muted">{item.seller_name}</p>
-                    <p className="muted">Qty {item.quantity}</p>
-                  </div>
-                  <div className="stack-list">
-                    <strong>{formatMoney(item.unit_price * item.quantity)}</strong>
-                    <button className="secondary-button" type="button" onClick={() => removeDraftItem(item.id)}>
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="buyer-kpi">
-              <span className="muted">Total</span>
-              <strong>{formatMoney(cartTotal)}</strong>
-            </div>
-            <button className="primary-button" type="button" onClick={() => void confirmCartDrafts()} disabled={!cartDrafts.length}>
-              Confirm order(s)
-            </button>
-          </aside>
-        </>
-      ) : null}
-    </section>
+    </div>
   );
 }

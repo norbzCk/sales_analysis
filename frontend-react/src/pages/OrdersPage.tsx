@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
 import type { LogisticsDelivery, Order, Product } from "../types/domain";
@@ -79,6 +79,7 @@ function formatOrderDate(value?: string | null) {
 export function OrdersPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [deliveries, setDeliveries] = useState<LogisticsDelivery[]>([]);
@@ -736,6 +737,16 @@ export function OrdersPage() {
 
               {user?.role === "user" ? (
                 <div className="hero-actions">
+                  {normalizedStatus(selectedOrder.status) === "Confirmed" ? (
+                    <button 
+                      className="primary-button" 
+                      onClick={() => navigate(`/app/payments?order_id=${selectedOrder.id}&amount=${selectedOrder.total || (Number(selectedOrder.unit_price || 0) * Number(selectedOrder.quantity || 0))}`)} 
+                      type="button"
+                      style={{ background: 'var(--brand-blue)', height: '44px' }}
+                    >
+                      💳 Pay Now
+                    </button>
+                  ) : null}
                   {["Pending", "Confirmed"].includes(normalizedStatus(selectedOrder.status)) ? <button className="secondary-button" onClick={() => cancelOrder(selectedOrder.id)} type="button">Cancel order</button> : null}
                   {normalizedStatus(selectedOrder.status) === "Shipped" ? <button className="secondary-button" onClick={() => receiveOrder(selectedOrder.id)} type="button">Mark received</button> : null}
                   {normalizedStatus(selectedOrder.status) === "Received" && !selectedOrder.rating ? (
