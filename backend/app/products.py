@@ -6,11 +6,29 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.app.auth import get_current_user, require_roles
 from backend.database import get_db
-from backend.models import BusinessUser, Product, Provider, User
-from backend.app.schemas import ProductCreate, ProductSearchQuery
+from backend.app.marketplace_intelligence import (
+    build_ai_product_insight,
+    build_cart_optimization,
+    compute_seller_badges,
+    refresh_business_metrics,
+)
+from backend.models import BusinessUser, Product, Provider, User, BusinessMetrics
+from backend.app.schemas import (
+    ProductCreate, ProductSearchQuery, 
+    AISuggestRequest, AISuggestResponse
+)
 
 router = APIRouter(prefix="/products", tags=["Products"])
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+@router.post("/ai-suggest", response_model=AISuggestResponse)
+def get_ai_product_suggestion(
+    payload: AISuggestRequest,
+    db: Session = Depends(get_db),
+    _: User | BusinessUser = Depends(require_roles("seller", "admin", "super_admin", "owner")),
+):
+    return build_ai_product_insight(db, payload)
 
 
 def _serialize_provider(provider: Provider | None) -> dict | None:
@@ -28,9 +46,10 @@ def _serialize_provider(provider: Provider | None) -> dict | None:
     }
 
 
-def _serialize_seller(seller: BusinessUser | None) -> dict | None:
+def _serialize_seller(db: Session, seller: BusinessUser | None, metrics: BusinessMetrics | None = None) -> dict | None:
     if not seller:
         return None
+
     return {
         "id": seller.id,
         "business_name": seller.business_name,
@@ -41,10 +60,17 @@ def _serialize_seller(seller: BusinessUser | None) -> dict | None:
         "area": seller.area,
         "street": seller.street,
         "verification_status": seller.verification_status,
+        "badges": compute_seller_badges(db, seller, metrics),
     }
 
 
-def _serialize_product(product: Product, provider: Provider | None, seller: BusinessUser | None = None) -> dict:
+def _serialize_product(
+    db: Session,
+    product: Product,
+    provider: Provider | None,
+    seller: BusinessUser | None = None,
+    metrics: BusinessMetrics | None = None,
+) -> dict:
     return {
         "id": product.id,
         "name": product.name,
@@ -57,15 +83,21 @@ def _serialize_product(product: Product, provider: Provider | None, seller: Busi
         "is_active": bool(product.is_active) if product.is_active is not None else True,
         "provider_id": product.provider_id,
         "provider": _serialize_provider(provider),
-        "seller": _serialize_seller(seller),
+        "seller": _serialize_seller(db, seller, metrics),
         "seller_name": seller.business_name if seller else None,
         "rating_avg": product.rating_avg or 0,
         "rating_count": product.rating_count or 0,
     }
 
 
-def _serialize_public_product(product: Product, provider: Provider | None, seller: BusinessUser | None = None) -> dict:
-    data = _serialize_product(product, provider, seller)
+def _serialize_public_product(
+    db: Session,
+    product: Product,
+    provider: Provider | None,
+    seller: BusinessUser | None = None,
+    metrics: BusinessMetrics | None = None,
+) -> dict:
+    data = _serialize_product(db, product, provider, seller, metrics)
     data["in_stock"] = bool((product.stock or 0) > 0)
     return data
 
@@ -117,7 +149,8 @@ def get_products(
     products = query.order_by(Product.id.desc()).all()
     providers = {p.id: p for p in db.query(Provider).all()}
     sellers = {s.id: s for s in db.query(BusinessUser).all()}
-    return [_serialize_product(p, providers.get(p.provider_id), sellers.get(p.seller_id)) for p in products]
+    metrics = {m.business_id: m for m in db.query(BusinessMetrics).all()}
+    return [_serialize_product(db, p, providers.get(p.provider_id), sellers.get(p.seller_id), metrics.get(p.seller_id)) for p in products]
 
 
 @router.get("/public")
@@ -133,8 +166,9 @@ def get_public_products(
     )
     providers = {p.id: p for p in db.query(Provider).all()}
     sellers = {s.id: s for s in db.query(BusinessUser).all()}
+    metrics = {m.business_id: m for m in db.query(BusinessMetrics).all()}
     return [
-        _serialize_public_product(p, providers.get(p.provider_id), sellers.get(p.seller_id))
+        _serialize_public_product(db, p, providers.get(p.provider_id), sellers.get(p.seller_id), metrics.get(p.seller_id))
         for p in items
     ]
 
@@ -217,6 +251,7 @@ def search_products(
     items = query.offset(offset).limit(limit).all()
     providers = {p.id: p for p in db.query(Provider).all()}
     sellers = {s.id: s for s in db.query(BusinessUser).all()}
+    metrics = {m.business_id: m for m in db.query(BusinessMetrics).all()}
     
     rows = (
         db.query(func.trim(Product.category))
@@ -228,7 +263,7 @@ def search_products(
     categories = [row[0] for row in rows if (row[0] or "").strip()]
     
     return {
-        "items": [_serialize_public_product(p, providers.get(p.provider_id), sellers.get(p.seller_id)) for p in items],
+        "items": [_serialize_public_product(db, p, providers.get(p.provider_id), sellers.get(p.seller_id), metrics.get(p.seller_id)) for p in items],
         "total": total,
         "categories": categories
     }
@@ -257,19 +292,18 @@ def get_marketplace_products(
 def get_product(
     product_id: int,
     db: Session = Depends(get_db),
-    current: User = Depends(get_current_user),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    _ensure_product_owner(product, current)
     provider = None
     if product.provider_id:
         provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
     seller = None
     if product.seller_id:
         seller = db.query(BusinessUser).filter(BusinessUser.id == product.seller_id).first()
-    return _serialize_product(product, provider, seller)
+    metrics = db.query(BusinessMetrics).filter(BusinessMetrics.business_id == product.seller_id).first() if product.seller_id else None
+    return _serialize_public_product(db, product, provider, seller, metrics)
 
 
 
@@ -311,10 +345,12 @@ def create_product(
     seller = None
     if new_product.seller_id:
         seller = db.query(BusinessUser).filter(BusinessUser.id == new_product.seller_id).first()
+        refresh_business_metrics(db, new_product.seller_id)
+        db.commit()
 
     return {
         "message": "Product created",
-        "product": _serialize_product(new_product, provider, seller)
+        "product": _serialize_product(db, new_product, provider, seller)
     }
 
 @router.delete("/{product_id}")
@@ -372,10 +408,12 @@ def update_product(
     seller = None
     if product.seller_id:
         seller = db.query(BusinessUser).filter(BusinessUser.id == product.seller_id).first()
+        refresh_business_metrics(db, product.seller_id)
+        db.commit()
 
     return {
         "message": "Product updated",
-        "product": _serialize_product(product, provider, seller)
+        "product": _serialize_product(db, product, provider, seller)
     }
 
 
@@ -422,3 +460,12 @@ def get_inventory_stats(
         "total_value": total_value,
         "alerts": alerts[:10]
     }
+
+
+@router.post("/cart-optimization")
+def get_cart_optimization(
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    items = payload.get("items") or []
+    return build_cart_optimization(db, items if isinstance(items, list) else [])

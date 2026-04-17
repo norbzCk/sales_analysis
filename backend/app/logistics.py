@@ -7,6 +7,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, He
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.database import get_db
+from backend.app.marketplace_intelligence import (
+    build_tracking_payload,
+    coords_for_location,
+    haversine_km,
+    interpolate_coords,
+)
 from backend.models import LogisticsUser, LogisticsMetrics, DeliveryOrder, BusinessUser, Sale, User
 from backend.app.schemas import (
     LogisticsRegister, LogisticsLogin, LogisticsProfile,
@@ -322,6 +328,24 @@ def update_my_logistics_profile(
     return {"message": "Logistics profile updated", "user": _serialize_logistics(user)}
 
 
+@router.post("/verify")
+def request_logistics_verification(
+    payload: dict,
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    user = get_current_logistics_user(db, auth)
+    user.verification_status = "pending"
+    db.add(user)
+    db.commit()
+    return {
+        "message": "Verification request submitted",
+        "status": user.verification_status,
+        "document_type": (payload.get("document_type") or "").strip() or None,
+        "document_url": (payload.get("document_url") or "").strip() or None,
+    }
+
+
 @router.post("/upload-profile-photo")
 async def upload_logistics_profile_photo(
     file: UploadFile = File(...),
@@ -453,8 +477,19 @@ def create_delivery_order(
         delivery_phone=payload.delivery_phone,
         price=payload.price,
         status="assigned",
-        verification_code=verification_code
+        verification_code=verification_code,
     )
+    pickup_coords = coords_for_location(payload.pickup_location)
+    destination_coords = coords_for_location(payload.delivery_location)
+    delivery.pickup_lat = pickup_coords[0]
+    delivery.pickup_lng = pickup_coords[1]
+    delivery.destination_lat = destination_coords[0]
+    delivery.destination_lng = destination_coords[1]
+    delivery.current_lat = pickup_coords[0]
+    delivery.current_lng = pickup_coords[1]
+    delivery.last_location_name = payload.pickup_location or "Pickup point"
+    delivery.estimated_distance_km = round(haversine_km(pickup_coords, destination_coords), 1)
+    delivery.tracking_updated_at = datetime.utcnow()
     db.add(delivery)
     db.commit()
     db.refresh(delivery)
@@ -507,6 +542,8 @@ def get_my_deliveries(
                 "status": d.status,
                 "price": d.price,
                 "verification_code": d.verification_code,
+                "last_location_name": d.last_location_name,
+                "tracking_updated_at": d.tracking_updated_at.isoformat() if d.tracking_updated_at else None,
                 "created_at": d.created_at.isoformat() if d.created_at else None,
                 "picked_at": d.picked_at.isoformat() if d.picked_at else None,
                 "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None
@@ -548,14 +585,30 @@ def update_delivery_status(
             raise HTTPException(status_code=400, detail="Invalid verification code")
     
     delivery.status = payload.status
+    pickup_coords = (
+        float(delivery.pickup_lat) if delivery.pickup_lat is not None else coords_for_location(delivery.pickup_location)[0],
+        float(delivery.pickup_lng) if delivery.pickup_lng is not None else coords_for_location(delivery.pickup_location)[1],
+    )
+    destination_coords = (
+        float(delivery.destination_lat) if delivery.destination_lat is not None else coords_for_location(delivery.delivery_location)[0],
+        float(delivery.destination_lng) if delivery.destination_lng is not None else coords_for_location(delivery.delivery_location)[1],
+    )
     
     if payload.status == "picked_up":
         delivery.picked_at = datetime.utcnow()
+        current_coords = interpolate_coords(pickup_coords, destination_coords, 0.28)
+        delivery.current_lat = current_coords[0]
+        delivery.current_lng = current_coords[1]
+        delivery.last_location_name = payload.current_location or "Package collected"
         order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
         if order and (order.status or "").strip().title() not in {"Cancelled", "Received"}:
             order.status = "Shipped"
             db.add(order)
     elif payload.status == "in_transit":
+        current_coords = interpolate_coords(pickup_coords, destination_coords, 0.7)
+        delivery.current_lat = payload.current_lat if payload.current_lat is not None else current_coords[0]
+        delivery.current_lng = payload.current_lng if payload.current_lng is not None else current_coords[1]
+        delivery.last_location_name = payload.current_location or "In transit"
         order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
         if order and (order.status or "").strip().title() not in {"Cancelled", "Received"}:
             order.status = "Shipped"
@@ -563,6 +616,9 @@ def update_delivery_status(
     elif payload.status == "delivered":
         delivery.delivered_at = datetime.utcnow()
         user.availability = "available"
+        delivery.current_lat = destination_coords[0]
+        delivery.current_lng = destination_coords[1]
+        delivery.last_location_name = payload.current_location or delivery.delivery_location or "Delivered"
         order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
         if order and (order.status or "").strip().title() != "Cancelled":
             order.status = "Received"
@@ -573,6 +629,12 @@ def update_delivery_status(
         if metrics:
             metrics.total_deliveries += 1
             metrics.success_rate = (metrics.total_deliveries / (metrics.total_deliveries + metrics.cancel_rate)) * 100
+    else:
+        delivery.current_lat = payload.current_lat if payload.current_lat is not None else pickup_coords[0]
+        delivery.current_lng = payload.current_lng if payload.current_lng is not None else pickup_coords[1]
+        delivery.last_location_name = payload.current_location or delivery.pickup_location or "Awaiting pickup"
+
+    delivery.tracking_updated_at = datetime.utcnow()
 
     _notify_delivery_event(
         db,
@@ -603,6 +665,24 @@ def update_delivery_status(
             "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None
         }
     }
+
+
+@router.get("/deliveries/{delivery_id}/tracking")
+def get_delivery_tracking(
+    delivery_id: int,
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    user = get_current_logistics_user(db, auth)
+    delivery = db.query(DeliveryOrder).filter(
+        DeliveryOrder.id == delivery_id,
+        DeliveryOrder.logistics_id == user.id,
+    ).first()
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+
+    order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
+    return build_tracking_payload(delivery, order=order, logistics=user)
 
 
 @router.get("/available")

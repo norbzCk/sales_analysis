@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -44,7 +45,12 @@
       <section class="card" id="productFormCard" data-role-min="admin">
         <h2 class="section-title">Add Product</h2>
         <form id="productForm" class="form-grid">
-          <input id="name" placeholder="Product name" required>
+          <div class="input-with-action-wrap" style="grid-column: span 2; display: flex; gap: 8px;">
+            <input id="name" placeholder="Product name" required style="flex: 1;">
+            <button class="btn btn-secondary" type="button" id="aiSuggestBtn" title="Get AI insights">
+              <span class="material-symbols-outlined" style="vertical-align: middle;">auto_awesome</span> AI Suggest
+            </button>
+          </div>
           <input id="category" placeholder="Category" required>
           <select id="provider_id">
             <option value="">Select provider</option>
@@ -85,6 +91,29 @@
         <div id="productViewContent" class="muted">Choose any product card to preview details here.</div>
       </section>
     </main>
+  </div>
+
+  <!-- Floating Cart -->
+  <button class="floating-cart-trigger" id="cartTrigger" data-role-only="user">
+    <span class="material-symbols-outlined">shopping_cart</span>
+    <span class="cart-count-badge-new" id="cartBadgeCount">0</span>
+  </button>
+
+  <div class="cart-popout" id="cartPopout">
+    <div class="cart-header">
+      <h3>Temporary Orders</h3>
+      <button class="btn btn-secondary btn-sm" id="closeCart">Hide</button>
+    </div>
+    <div class="cart-items-list" id="cartItemsList">
+      <!-- Items dynamically added -->
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total-row">
+        <span>Total:</span>
+        <span id="cartTotalDisplay">TZS 0</span>
+      </div>
+      <button class="btn btn-primary full-width" id="checkoutBtn">Make Order</button>
+    </div>
   </div>
 
   <script src="js/config.js"></script>

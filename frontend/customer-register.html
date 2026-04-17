@@ -12,28 +12,37 @@
 <body class="public-page">
   <div class="register-container">
     <div class="register-card">
-      <h1 class="register-heading">🛒 Create Customer Account</h1>
-      <p class="muted register-subtitle">Shop from Kariakoo's marketplace</p>
+      <div class="register-header-new">
+        <div class="register-icon-wrap">🛒</div>
+        <h1>Create Customer Account</h1>
+        <p>Shop from Kariakoo's marketplace</p>
+      </div>
       
       <div class="flash" id="flash"></div>
       
-      <form id="registerForm">
-        <div class="form-row">
-          <input id="name" class="full-width" placeholder="Full Name *" required>
-          <input id="phone" type="tel" class="full-width" placeholder="Phone Number *" required pattern="[0-9]{10,}">
-          <input id="email" type="email" class="full-width" placeholder="Email (optional)">
-          <input id="password" type="password" class="full-width" placeholder="Password *" required minlength="6">
+      <form id="registerForm" class="form-grid-new">
+        <div class="input-group-new">
+          <input id="name" placeholder="Full Name *" required>
+        </div>
+        <div class="input-group-new">
+          <input id="phone" type="tel" placeholder="Phone Number *" required pattern="[0-9]{10,}">
+        </div>
+        <div class="input-group-new">
+          <input id="email" type="email" placeholder="Email (optional)">
+        </div>
+        <div class="input-group-new">
+          <input id="password" type="password" placeholder="Password *" required minlength="6">
         </div>
         
-        <div class="form-row">
-          <select id="region" class="full-width">
+        <div class="form-row-new">
+          <select id="region">
             <option value="Dar es Salaam">Dar es Salaam</option>
           </select>
-          <select id="area" class="full-width">
+          <select id="area">
             <option value="">Select Area (optional)</option>
             <option value="Kariakoo">Kariakoo</option>
             <option value="Ilala">Ilala</option>
-            <option value="Kinondoni">Kinondoni</option>
+            <option value="Kinononi">Kinondoni</option>
             <option value="Ubungo">Ubungo</option>
             <option value="Kigamboni">Kigamboni</option>
           </select>
@@ -42,8 +51,9 @@
         <button class="btn btn-primary full-width register-submit" type="submit">Create Account</button>
       </form>
       
-      <p class="toggle-link">Already have an account? <a href="login.html">Login here</a></p>
-      <p class="toggle-link register-toggle">Want to sell on Kariakoo? <a href="business-register.html">Register as Business</a></p>
+      <div class="register-footer-new">
+        <p>Already have an account? <a href="login.html" class="bold">Login here</a></p>
+      </div>
     </div>
   </div>
 

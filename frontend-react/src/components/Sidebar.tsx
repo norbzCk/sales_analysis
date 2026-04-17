@@ -1,4 +1,4 @@
-import { Link, NavLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { BrandMark } from "./BrandMark";
 import { env } from "../config/env";
@@ -57,6 +57,13 @@ export function Sidebar() {
           : role === "super_admin" || role === "owner"
             ? "/app/superadmin/profile"
             : "/app/profile";
+  const settingsPath = "/app/settings";
+
+  const isSeller = role === "seller";
+  const isLogistics = role === "logistics";
+  const isCustomer = role === "user";
+  const isSuperadmin = role === "super_admin" || role === "owner";
+  const isAdmin = role === "admin";
 
   return (
     <aside className="sidebar">
@@ -67,40 +74,104 @@ export function Sidebar() {
 
       {/* Navigation links */}
       <nav className="sidebar-nav">
-        <NavLink to="/app/dashboard" className="nav-link">
-          Dashboard
-        </NavLink>
-        <NavLink to="/app/products" className="nav-link">
-          Products
-        </NavLink>
-        <NavLink to="/app/orders" className="nav-link">
-          Orders
-        </NavLink>
-        <NavLink to="/app/payments" className="nav-link">
-          Payments
-        </NavLink>
-        <NavLink to="/app/notifications" className="nav-link">
-          Notifications
-        </NavLink>
-        <NavLink to={profilePath} className="nav-link">
+        {isSuperadmin ? (
+          <NavLink to="/app/superadmin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+            Dashboard
+          </NavLink>
+        ) : null}
+        {isAdmin ? (
+          <NavLink to="/app/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+            Dashboard
+          </NavLink>
+        ) : null}
+        {isSeller ? (
+          <>
+            <NavLink to="/app/seller" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Dashboard
+            </NavLink>
+            <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Products
+            </NavLink>
+            <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Orders
+            </NavLink>
+            <NavLink to="/app/providers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Providers
+            </NavLink>
+            <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Notifications
+            </NavLink>
+            <NavLink to="/app/seller/deliveries" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Deliveries
+            </NavLink>
+          </>
+        ) : null}
+        {isCustomer ? (
+          <>
+            <NavLink to="/app/customer" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Dashboard
+            </NavLink>
+            <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Products
+            </NavLink>
+            <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Orders
+            </NavLink>
+            <NavLink to="/app/payments" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Payments
+            </NavLink>
+            <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Notifications
+            </NavLink>
+          </>
+        ) : null}
+        {isLogistics ? (
+          <>
+            <NavLink to="/app/logistics" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Dashboard
+            </NavLink>
+            <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Notifications
+            </NavLink>
+          </>
+        ) : null}
+        {(isAdmin || isSuperadmin) ? (
+          <>
+            {!isSuperadmin ? (
+              <>
+                <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Products
+                </NavLink>
+                <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Orders
+                </NavLink>
+                <NavLink to="/app/providers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Providers
+                </NavLink>
+                <NavLink to="/app/users" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Users
+                </NavLink>
+              </>
+            ) : null}
+            {isSuperadmin ? (
+              <>
+                <NavLink to="/app/customers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Customers
+                </NavLink>
+                <NavLink to="/app/users" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+                  Users
+                </NavLink>
+              </>
+            ) : null}
+            <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
+              Notifications
+            </NavLink>
+          </>
+        ) : null}
+        <NavLink to={profilePath} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
           Profile
         </NavLink>
-        {role === "seller" && (
-          <NavLink to="/app/seller/deliveries" className="nav-link">
-            Deliveries
-          </NavLink>
-        )}
-        {role === "logistics" && (
-          <NavLink to="/app/logistics/deliveries" className="nav-link">
-            Deliveries
-          </NavLink>
-        )}
-        {role === "super_admin" && (
-          <NavLink to="/app/superadmin" className="nav-link">
-            Admin Dashboard
-          </NavLink>
-        )}
-        <NavLink to={profilePath} className="nav-link settings-link">
+        <NavLink to={settingsPath} className={({ isActive }) => `nav-link settings-link ${isActive ? 'active' : ''}`} end>
           Settings
         </NavLink>
         <button

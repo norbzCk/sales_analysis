@@ -7,44 +7,45 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-page">
-  <div class="login-wrapper">
-    <div class="login-hero">
-      <div class="login-hero-logo">
-        <img src="salesLOGO.png" alt="Kariakoo Sales" class="login-logo-img">
-        <div class="login-hero-title">Kariakoo</div>
-      </div>
-      <h2 class="login-hero-heading">Welcome Back!</h2>
-      <p class="login-hero-subtitle">Sign in to access your personalized dashboard</p>
-      <ul class="login-hero-features">
-        <li><span>✓</span> Browse millions of products</li>
-        <li><span>✓</span> Connect with verified suppliers</li>
-        <li><span>✓</span> Track your orders in real-time</li>
-        <li><span>✓</span> Secure payment protection</li>
-      </ul>
-    </div>
-
-    <div class="login-form-side">
-      <div class="login-header">
-        <h1>Sign In</h1>
-        <p>Enter your phone or email to access your account</p>
+  <div class="login-clean-container">
+    <div class="login-card-new">
+      <div class="login-card-header">
+        <img src="salesLOGO.png" alt="Kariakoo" class="login-logo-small">
+        <h1>Welcome Back</h1>
+        <p>Login to your account to continue</p>
       </div>
 
       <div class="flash" id="loginFlash"></div>
 
-      <form class="login-form" id="loginForm">
-        <input id="loginIdentifier" type="text" placeholder="Phone number OR Email" autocomplete="off">
-        <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password">
-        <button class="btn" type="submit" id="loginBtn">Sign In</button>
+      <form class="login-form-new" id="loginForm">
+        <div class="input-group-new">
+          <span class="material-symbols-outlined icon">person</span>
+          <input id="loginIdentifier" type="text" placeholder="Phone number or Email" autocomplete="off" required>
+        </div>
+        
+        <div class="input-group-new">
+          <span class="material-symbols-outlined icon">lock</span>
+          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="togglePassword">
+            <span class="material-symbols-outlined" id="toggleIcon">visibility</span>
+          </button>
+        </div>
+
+        <button class="btn btn-primary full-width" type="submit" id="loginBtn">Sign In</button>
       </form>
 
-      <div class="login-divider">or</div>
-
-      <div class="login-footer">
-        <p>Don't have an account?</p>
-        <p><a href="customer-register.html">Join as Customer</a> · <a href="business-register.html">Sell on Kariakoo</a> · <a href="logistics-register.html">Become a Driver</a></p>
+      <div class="login-footer-new">
+        <p>Don't have an account? <a href="customer-register.html" class="bold">Join as Customer</a></p>
+        <div class="partner-links">
+          <span>Other ways to join:</span>
+          <a href="business-register.html">Sell on Kariakoo</a>
+          <span class="dot">·</span>
+          <a href="logistics-register.html">Delivery Partner</a>
+        </div>
       </div>
     </div>
   </div>
@@ -55,8 +56,17 @@
     const form = document.getElementById("loginForm");
     const flash = document.getElementById("loginFlash");
     const loginBtn = document.getElementById("loginBtn");
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("loginPassword");
+    const toggleIcon = document.getElementById("toggleIcon");
 
     const API_BASE = window.API_BASE || window.__APP_CONFIG__?.API_BASE || "http://127.0.0.1:8000";
+
+    togglePassword.addEventListener("click", () => {
+      const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+      passwordInput.setAttribute("type", type);
+      toggleIcon.textContent = type === "password" ? "visibility" : "visibility_off";
+    });
 
     function showFlash(type, message) {
       flash.className = `flash show ${type}`;

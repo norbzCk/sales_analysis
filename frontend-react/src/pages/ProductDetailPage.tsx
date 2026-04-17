@@ -2,6 +2,7 @@ import { useEffect, useState, MouseEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/http";
 import { useAuth } from "../features/auth/AuthContext";
+import { useCart } from "../features/auth/CartContext";
 import { Modal } from "../components/Modal";
 import type { Product } from "../types/domain";
 import { env } from "../config/env";
@@ -24,6 +25,7 @@ export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addToCart, setIsOpen } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,14 @@ export function ProductDetailPage() {
           </div>
         </div>
 
+        {product.seller?.badges?.length ? (
+          <div className="buyer-pill-row">
+            {product.seller.badges.map((badge) => (
+              <span key={badge.id} className="buyer-badge buyer-badge--good">{badge.label}</span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="order-actions">
           <div className="order-quantity-selector">
             <button className="quantity-btn" onClick={() => setQuantity(q => Math.max(1, q - 1))}>−</button>
@@ -146,6 +156,27 @@ export function ProductDetailPage() {
             onClick={handleOrder}
           >
             {submitting ? "Placing Order..." : "Confirm & Place Order"}
+          </button>
+
+          <button 
+            className="secondary-button" 
+            style={{ width: '100%', height: '48px', marginTop: '8px' }}
+            disabled={!product.stock || product.stock <= 0}
+            onClick={() => {
+              addToCart({
+                id: product.id,
+                name: product.name || "Product",
+                price: product.price || 0,
+                image_url: product.image_url,
+                seller_id: product.seller_id,
+                seller_name: product.seller_name || product.seller?.business_name || null,
+                seller_area: product.seller?.area || null,
+                seller_region: product.seller?.region || null,
+              });
+              setIsOpen(true);
+            }}
+          >
+            Add to Cart
           </button>
           
           <p className="muted" style={{ textAlign: 'center', fontSize: '0.85rem' }}>

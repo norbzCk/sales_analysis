@@ -163,107 +163,150 @@ export function ProfilePage() {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Profile</p>
-            <h1>Your account information</h1>
+            <p className="eyebrow">Profile & Settings</p>
+            <h1>Manage your account</h1>
           </div>
-          {!editing ? (
-            <button className="secondary-button" type="button" onClick={() => setEditing(true)}>
-              Edit profile
-            </button>
-          ) : null}
         </div>
       </div>
+
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
 
-      {!editing ? (
-        <article className="panel stack-list">
-          <div className="panel-header">
-            <div className="profile-avatar-section">
-              {profile.profile_photo ? (
-                <img
-                  src={resolveImageUrl(profile.profile_photo)}
-                  alt={profile.name || "Profile"}
-                  className="profile-avatar"
-                />
-              ) : (
-                <div className="profile-avatar-placeholder">
-                  <span>{getInitials(profile.name || "User")}</span>
-                </div>
-              )}
-              <div>
-                <h2>{profile.name || "User"}</h2>
-                <p className="muted">Account profile</p>
+      <div className="profile-page-grid">
+        <div className="profile-info-section">
+          <article className="panel profile-header-card">
+            {profile.profile_photo ? (
+              <img
+                src={resolveImageUrl(profile.profile_photo)}
+                alt={profile.name || "Profile"}
+                className="profile-avatar"
+              />
+            ) : (
+              <div className="profile-avatar-placeholder">
+                <span>{getInitials(profile.name || "User")}</span>
               </div>
-            </div>
-            <div className="profile-actions">
-              <button className="secondary-button" type="button" onClick={() => setShowPhotoModal(true)}>
+            )}
+            <div>
+              <h2>{profile.name || "User"}</h2>
+              <p className="muted">{user?.email}</p>
+              <button
+                className="secondary-button"
+                style={{ marginTop: "12px", padding: "8px 16px" }}
+                onClick={() => setShowPhotoModal(true)}
+              >
                 Change Photo
               </button>
-              <button className="secondary-button" type="button" onClick={() => setShowPasswordModal(true)}>
-                Change Password
+            </div>
+          </article>
+
+          <form className="panel form-grid" onSubmit={handleProfileSubmit}>
+            <h2 className="section-title">Personal Details</h2>
+            <label>
+              Full Name
+              <input
+                value={profile.name}
+                onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))}
+                required
+              />
+            </label>
+            <label>
+              Email
+              <input value={profile.email} readOnly disabled style={{ background: "var(--surface-soft)" }} />
+            </label>
+            <div className="profile-details-grid">
+              <label>
+                Phone
+                <input
+                  value={profile.phone}
+                  onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))}
+                />
+              </label>
+              <label>
+                Address
+                <input
+                  value={profile.address}
+                  onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="form-actions" style={{ marginTop: "12px" }}>
+              <button className="primary-button" type="submit" disabled={uploadingPhoto}>
+                {uploadingPhoto ? "Processing..." : "Update Profile"}
               </button>
             </div>
-          </div>
-          <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
-          <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
-          <div className="list-card"><strong>Phone</strong><span>{profile.phone || "-"}</span></div>
-          <div className="list-card"><strong>Address</strong><span>{profile.address || "-"}</span></div>
-        </article>
-      ) : (
-        <form className="panel form-grid" onSubmit={handleProfileSubmit}>
-          <h2>Edit profile</h2>
-          <label>Name<input value={profile.name} onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))} required /></label>
-          <label>Email<input value={profile.email} readOnly /></label>
-          <label>Phone<input value={profile.phone} onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))} /></label>
-          <label>Address<input value={profile.address} onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))} /></label>
-          
-          <div className="full-width">
-            <p className="eyebrow">Security</p>
-          </div>
-          <label>
-            Current password
-            <input
-              type="password"
-              value={passwordDraft.current_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
-            />
-          </label>
-          <label>
-            New password
-            <input
-              type="password"
-              minLength={8}
-              value={passwordDraft.new_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
-            />
-          </label>
-          <label>
-            Confirm new password
-            <input
-              type="password"
-              minLength={8}
-              value={passwordDraft.confirm_password}
-              onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
-            />
-          </label>
-          <div className="hero-actions">
-            <button className="primary-button" type="submit">
-              {uploadingPhoto || passwordUpdating ? "Saving..." : "Save profile"}
-            </button>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => {
-                setEditing(false);
-                setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+          </form>
+        </div>
+
+        <div className="security-section">
+          <form className="panel form-grid" onSubmit={handlePasswordSubmit}>
+            <h2 className="section-title">Change Password</h2>
+            <p className="muted" style={{ marginBottom: "16px" }}>
+              Keep your account secure with a strong password.
+            </p>
+            <label>
+              Current password
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword.current ? "text" : "password"}
+                  value={passwordDraft.current_password}
+                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
+                >
+                  {showPassword.current ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+            </label>
+            <label>
+              New password
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword.new ? "text" : "password"}
+                  minLength={8}
+                  value={passwordDraft.new_password}
+                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
+                >
+                  {showPassword.new ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+            </label>
+            <label>
+              Confirm new password
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword.confirm ? "text" : "password"}
+                  minLength={8}
+                  value={passwordDraft.confirm_password}
+                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                >
+                  {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+            </label>
+            <div className="form-actions" style={{ marginTop: "12px" }}>
+              <button className="primary-button" type="submit" disabled={passwordUpdating}>
+                {passwordUpdating ? "Updating..." : "Update Password"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       {/* Change Photo Modal */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo">

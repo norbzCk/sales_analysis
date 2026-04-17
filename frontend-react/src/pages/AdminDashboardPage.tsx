@@ -81,6 +81,8 @@ export function AdminDashboardPage() {
             revenueByProduct: data.revenueByProduct || [],
             revenueOverTime: data.revenueOverTime || [],
             recentSales: data.recentSales || [],
+            peakPeriods: data.peakPeriods,
+            customerPatterns: data.customerPatterns,
           });
         }
       } catch (err) {
@@ -125,10 +127,18 @@ export function AdminDashboardPage() {
   return (
     <section className="panel-stack admin-dashboard">
       <div className="panel admin-overview-hero">
-        <div>
-          <p className="eyebrow">Business workspace</p>
-          <h1>Business Overview</h1>
-          <p className="muted">Live totals and trends from your recorded sales.</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div>
+            <p className="eyebrow">Business workspace</p>
+            <h1>Business Overview</h1>
+            <p className="muted">Live totals and trends from your recorded sales.</p>
+          </div>
+          <button 
+            className="btn btn-secondary"
+            onClick={() => window.open(`${env.apiBase}/dashboard/export-sales`, "_blank")}
+          >
+            Export Report (CSV)
+          </button>
         </div>
       </div>
 
@@ -255,6 +265,65 @@ export function AdminDashboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="admin-chart-grid">
+            {analytics.peakPeriods && (
+              <article className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Peak Sales by Day</h2>
+                    <p className="muted">Orders distributed across days of week.</p>
+                  </div>
+                </div>
+                <div className="admin-product-bars">
+                  {Object.entries(analytics.peakPeriods.day_of_week).map(([day, stats]) => (
+                    <div key={day} className="admin-product-bar">
+                      <div className="admin-product-bar__header">
+                        <strong>{day}</strong>
+                        <span>{stats.orders} orders</span>
+                      </div>
+                      <div className="admin-product-bar__track">
+                        <div
+                          className="admin-product-bar__fill"
+                          style={{ width: `${Math.min(100, (stats.orders / (analytics.cards.find(c => c.id === 'total_orders')?.value || 1)) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            )}
+
+            {analytics.customerPatterns && (
+              <article className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h2>Customer Loyalty</h2>
+                    <p className="muted">Repeat purchase rate and top customers.</p>
+                  </div>
+                  <span>{analytics.customerPatterns.repeat_purchase_rate_percent}% Repeat Rate</span>
+                </div>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Orders</th>
+                      <th>Total Spent</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.customerPatterns.top_customers.map((c) => (
+                      <tr key={c.id}>
+                        <td>{c.name}</td>
+                        <td>{c.orders}</td>
+                        <td>{formatMoney(c.total_spent)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </article>
+            )}
           </div>
         </>
       ) : null}

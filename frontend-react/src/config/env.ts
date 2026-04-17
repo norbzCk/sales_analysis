@@ -10,6 +10,10 @@ function resolveDefaultApiBase() {
     return "http://127.0.0.1:8000";
   }
 
+  if (protocol === "https:" && hostname.endsWith("netlify.app")) {
+    return "https://sales-analysis-api.onrender.com";
+  }
+
   if (protocol === "https:") {
     return "https://sales-analysis-api.onrender.com";
   }

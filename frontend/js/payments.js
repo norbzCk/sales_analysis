@@ -1,10 +1,16 @@
-const paymentsTable = document.getElementById("paymentsTable") || document.getElementById("paymentHistoryTable");
-const paymentMethodsDiv = document.getElementById("paymentMethods");
+const paymentsTable = document.getElementById("paymentHistoryTable");
 const paymentForm = document.getElementById("paymentForm");
 const paymentResult = document.getElementById("paymentResult");
 const methodSelect = document.getElementById("paymentMethodSelect");
 const phoneInput = document.getElementById("paymentPhone");
 const flash = document.getElementById("paymentFlash");
+const orderSelect = document.getElementById("paymentOrderId");
+const amountInput = document.getElementById("paymentAmount");
+const instructionPanel = document.getElementById("paymentInstructions");
+const instructionText = document.getElementById("instructionText");
+
+let confirmedOrders = [];
+let availableMethods = [];
 
 function formatMoney(value) {
   return `TZS ${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -28,34 +34,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function statusFromOrder(order) {
-  const status = String(order.status || "").trim();
-  if (status === "Received" || status === "Delivered") return "Paid";
-  if (status === "Cancelled") return "Cancelled";
-  return "Pending";
-}
-
-function renderPaymentMethodCard(method) {
-  const icons = {
-    mpesa: "📱",
-    airtel_money: "📱",
-    tigopesa: "📱",
-    bank_transfer: "🏦",
-    cash: "💵",
-    credit: "💳"
-  };
-  const icon = icons[method.id] || "💰";
-  return `
-    <article class="payment-method-card">
-      <div class="payment-method-icon">${icon}</div>
-      <div class="payment-method-info">
-        <h4>${escapeHtml(method.name)}</h4>
-        <p class="muted">${escapeHtml(method.instructions || "")}</p>
-      </div>
-    </article>
-  `;
-}
-
 function renderPaymentRow(payment) {
   return `
     <tr>
@@ -63,22 +41,9 @@ function renderPaymentRow(payment) {
       <td>#${payment.order_id}</td>
       <td>${escapeHtml(payment.product || "-")}</td>
       <td>${formatMoney(payment.amount)}</td>
+      <td>${escapeHtml(payment.payment_method || "-")}</td>
       <td><span class="badge">${escapeHtml(payment.status)}</span></td>
-      <td>${payment.date || "-"}</td>
-    </tr>
-  `;
-}
-
-function row(order) {
-  const paymentStatus = statusFromOrder(order);
-  const total = Number(order.unit_price || 0) * Number(order.quantity || 0);
-  return `
-    <tr>
-      <td>#${order.id}</td>
-      <td>${order.order_date ?? "-"}</td>
-      <td>${order.product ?? "-"}</td>
-      <td>${formatMoney(total)}</td>
-      <td><span class="badge">${paymentStatus}</span></td>
+      <td>${payment.date ? new Date(payment.date).toLocaleDateString() : "-"}</td>
     </tr>
   `;
 }
@@ -86,49 +51,38 @@ function row(order) {
 async function loadPaymentMethods() {
   try {
     const data = await apiFetch("/payments/methods");
-    const methods = data.payment_methods || [];
-    
-    if (paymentMethodsDiv) {
-      paymentMethodsDiv.innerHTML = methods.map(renderPaymentMethodCard).join("");
-    }
-    
+    availableMethods = data.payment_methods || [];
     if (methodSelect) {
       methodSelect.innerHTML = '<option value="">Select payment method</option>' +
-        methods.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
+        availableMethods.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
     }
   } catch (err) {
     console.error("Failed to load payment methods:", err);
   }
 }
 
-async function loadPayments() {
-  const data = await apiFetch("/orders/");
-  const orders = Array.isArray(data) ? data : [];
+async function loadConfirmedOrders() {
+  try {
+    const orders = await apiFetch("/orders/");
+    confirmedOrders = orders.filter(o => o.status === "Confirmed");
 
-  const total = orders.reduce((sum, o) => {
-    const oTotal = Number(o.unit_price || 0) * Number(o.quantity || 0);
-    return sum + oTotal;
-  }, 0);
-  const paidAmount = orders.reduce((sum, o) => sum + (statusFromOrder(o) === "Paid" ? Number(o.unit_price || 0) * Number(o.quantity || 0) : 0), 0);
-  const paidOrders = orders.filter((o) => statusFromOrder(o) === "Paid").length;
-  const balance = Math.max(0, total - paidAmount);
-
-  const totalEl = document.getElementById("payTotalValue");
-  const paidEl = document.getElementById("payPaidAmount");
-  const balanceEl = document.getElementById("payBalance");
-  const ordersEl = document.getElementById("payPaidOrders");
-
-  if (totalEl) totalEl.textContent = formatMoney(total);
-  if (paidEl) paidEl.textContent = formatMoney(paidAmount);
-  if (balanceEl) balanceEl.textContent = formatMoney(balance);
-  if (ordersEl) ordersEl.textContent = String(paidOrders);
-
-  if (paymentsTable) {
-    if (!orders.length) {
-      paymentsTable.innerHTML = '<tr><td class="empty" colspan="5">No payment history yet</td></tr>';
-      return;
+    if (orderSelect) {
+      orderSelect.innerHTML = '<option value="">Choose a confirmed order</option>' +
+        confirmedOrders.map(o => `<option value="${o.id}">${escapeHtml(o.product)} (#${o.id}) - ${formatMoney(o.total)}</option>`).join("");
     }
-    paymentsTable.innerHTML = orders.map(row).join("");
+
+    // Summary stats
+    const totalValue = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const paidOrders = orders.filter(o => ["Shipped", "Received"].includes(o.status));
+    const paidAmount = paidOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+
+    if (document.getElementById("payTotalValue")) document.getElementById("payTotalValue").textContent = formatMoney(totalValue);
+    if (document.getElementById("payPaidAmount")) document.getElementById("payPaidAmount").textContent = formatMoney(paidAmount);
+    if (document.getElementById("payBalance")) document.getElementById("payBalance").textContent = formatMoney(totalValue - paidAmount);
+    if (document.getElementById("payPaidOrders")) document.getElementById("payPaidOrders").textContent = paidOrders.length;
+
+  } catch (err) {
+    console.error("Failed to load orders:", err);
   }
 }
 
@@ -138,45 +92,55 @@ async function loadPaymentHistory() {
     const data = await apiFetch("/payments/history");
     const payments = data.payments || [];
     if (!payments.length) {
-      paymentsTable.innerHTML = '<tr><td class="empty" colspan="6">No payment history yet</td></tr>';
+      paymentsTable.innerHTML = '<tr><td class="empty" colspan="7">No payment history yet</td></tr>';
       return;
     }
     paymentsTable.innerHTML = payments.map(renderPaymentRow).join("");
   } catch (err) {
-    console.error("Failed to load payment history:", err);
+    paymentsTable.innerHTML = `<tr><td class="empty" colspan="7">${err.message}</td></tr>`;
   }
+}
+
+if (orderSelect) {
+  orderSelect.addEventListener("change", () => {
+    const order = confirmedOrders.find(o => o.id == orderSelect.value);
+    if (order) {
+      amountInput.value = order.total;
+    } else {
+      amountInput.value = "";
+    }
+  });
 }
 
 if (methodSelect) {
   methodSelect.addEventListener("change", () => {
-    const selected = methodSelect.value;
-    const isMobileMoney = ["mpesa", "airtel_money", "tigopesa"].includes(selected);
+    const method = availableMethods.find(m => m.id === methodSelect.value);
+    const isMobileMoney = ["mpesa", "airtel_money", "tigopesa"].includes(methodSelect.value);
+
     phoneInput.style.display = isMobileMoney ? "block" : "none";
+
+    if (method && method.instructions) {
+      instructionPanel.style.display = "block";
+      instructionText.textContent = method.instructions;
+    } else {
+      instructionPanel.style.display = "none";
+    }
   });
 }
 
 if (paymentForm) {
   paymentForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    
-    const orderId = document.getElementById("paymentOrderId").value;
-    const amount = document.getElementById("paymentAmount").value;
-    const method = document.getElementById("paymentMethodSelect").value;
-    const phone = document.getElementById("paymentPhone").value;
-    
-    if (!orderId || !amount || !method) {
-      showFlash("error", "Please fill all required fields");
-      return;
-    }
-    
+    const orderId = orderSelect.value;
+    const amount = amountInput.value;
+    const method = methodSelect.value;
+    const phone = phoneInput.value;
+
+    if (!orderId || !method) return;
+
     try {
       let response;
-      
       if (["mpesa", "airtel_money", "tigopesa"].includes(method)) {
-        if (!phone) {
-          showFlash("error", "Phone number required for mobile money");
-          return;
-        }
         response = await apiFetch("/payments/mobile-money/stk-push", {
           method: "POST",
           body: JSON.stringify({
@@ -197,46 +161,32 @@ if (paymentForm) {
           })
         });
       }
-      
+
+      showFlash("success", "Payment successful! Order is now being processed.");
+      paymentForm.reset();
+      instructionPanel.style.display = "none";
+      await loadConfirmedOrders();
+      await loadPaymentHistory();
+
       if (paymentResult) {
         paymentResult.innerHTML = `
-          <div class="payment-success">
-            <h4>Payment Initiated</h4>
-            <p><strong>Transaction ID:</strong> <code>${escapeHtml(response.transaction_id)}</code></p>
-            <p><strong>Amount:</strong> ${formatMoney(response.amount)}</p>
-            <p class="muted">${escapeHtml(response.message)}</p>
-            ${response.instructions ? `<p class="muted"><strong>Instructions:</strong> ${escapeHtml(response.instructions)}</p>` : ""}
+          <div style="background: #f0fdf4; padding: 16px; border-radius: 12px; margin-top: 16px; border: 1px solid #bcf0da;">
+            <p style="color: #166534; font-weight: 700;">Transaction ID: ${response.transaction_id}</p>
+            <p style="color: #166534; font-size: 0.9rem;">Status: ${response.status}</p>
           </div>
         `;
       }
-      
-      showFlash("success", "Payment initiated successfully");
-      paymentForm.reset();
-      
     } catch (err) {
       showFlash("error", err.message);
-      if (paymentResult) {
-        paymentResult.innerHTML = `<p class="error">${escapeHtml(err.message)}</p>`;
-      }
     }
   });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
   const user = await requireAuthPage();
-  if (!user) return;
-  if (user.role !== "user") {
-    redirectToPostLogin(user);
-    return;
-  }
+  if (!user || user.role !== "user") return;
 
-  try {
-    await loadPaymentMethods();
-    await loadPayments();
-    await loadPaymentHistory();
-  } catch (err) {
-    if (paymentsTable) {
-      paymentsTable.innerHTML = `<tr><td class="empty" colspan="5">${err.message}</td></tr>`;
-    }
-  }
+  await loadPaymentMethods();
+  await loadConfirmedOrders();
+  await loadPaymentHistory();
 });

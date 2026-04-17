@@ -24,9 +24,27 @@ from backend.app.schemas import (
 )
 from backend.app.auth import hash_password, verify_password, create_token, decode_token
 from backend.app.notification_service import build_login_email, create_notification, list_notifications_for_subject, resolve_subject, serialize_notification
+from backend.app.marketplace_intelligence import (
+    compute_seller_badges,
+    coords_for_location,
+    haversine_km,
+    refresh_business_metrics,
+)
+
+from backend.analysis import sales_analysis
 
 router = APIRouter(prefix="/business", tags=["Business"])
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+@router.get("/inventory/forecast")
+def get_business_inventory_forecast(
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    user = get_current_business_user(db, auth)
+    forecasts = sales_analysis.calculate_inventory_forecast(db, user.id)
+    return {"items": forecasts}
 
 
 def _load_business_analysis_modules():
@@ -135,6 +153,7 @@ def _serialize_business(user: BusinessUser, include_email: bool = True) -> dict:
         "shop_logo_url": user.shop_logo_url,
         "shop_images": user.shop_images,
         "profile_photo": user.profile_photo,
+        "auto_confirm": user.auto_confirm,
         "verification_status": user.verification_status,
         "role": user.role,
         "created_at": user.created_at.isoformat() if user.created_at else None,
@@ -398,6 +417,8 @@ def update_my_profile(
         user.shop_images = payload.shop_images
     if payload.profile_photo is not None:
         user.profile_photo = payload.profile_photo
+    if payload.auto_confirm is not None:
+        user.auto_confirm = payload.auto_confirm
     
     db.commit()
     db.refresh(user)
@@ -656,8 +677,12 @@ def business_dashboard_overview(
     completed_deliveries = deliveries_query.filter(DeliveryOrder.status == "delivered").count()
 
     inventory = _inventory_overview(db, user)
+    metrics = refresh_business_metrics(db, user.id)
+    forecast = sales_analysis.calculate_inventory_forecast(db, user.id)[:6]
+    db.commit()
     return {
         "business": _serialize_business(user),
+        "performance_badges": compute_seller_badges(db, user, metrics),
         "summary": {
             "revenue_today": revenue(today_sales),
             "revenue_week": revenue(week_sales),
@@ -681,6 +706,7 @@ def business_dashboard_overview(
             for row in top_products
         ],
         "inventory": inventory,
+        "inventory_forecast": forecast,
     }
 
 
@@ -979,6 +1005,17 @@ def business_assign_delivery(
             special_instructions=(payload.get("special_instructions") or "").strip() or None,
             verification_code=secrets.token_hex(4).upper(),
         )
+        pickup_coords = coords_for_location(delivery.pickup_location, selected_seller.area, selected_seller.region)
+        destination_coords = coords_for_location(delivery.delivery_location, order.delivery_address)
+        delivery.pickup_lat = pickup_coords[0]
+        delivery.pickup_lng = pickup_coords[1]
+        delivery.destination_lat = destination_coords[0]
+        delivery.destination_lng = destination_coords[1]
+        delivery.current_lat = pickup_coords[0]
+        delivery.current_lng = pickup_coords[1]
+        delivery.last_location_name = delivery.pickup_location or "Seller location"
+        delivery.estimated_distance_km = round(haversine_km(pickup_coords, destination_coords), 1)
+        delivery.tracking_updated_at = datetime.utcnow()
         db.add(delivery)
     else:
         delivery.seller_id = selected_seller.id
@@ -997,6 +1034,18 @@ def business_assign_delivery(
             delivery.delivery_location = payload.get("delivery_location")
         if payload.get("price") is not None:
             delivery.price = float(payload.get("price") or 0) or None
+        pickup_coords = coords_for_location(delivery.pickup_location, selected_seller.area, selected_seller.region)
+        destination_coords = coords_for_location(delivery.delivery_location, order.delivery_address)
+        delivery.pickup_lat = pickup_coords[0]
+        delivery.pickup_lng = pickup_coords[1]
+        delivery.destination_lat = destination_coords[0]
+        delivery.destination_lng = destination_coords[1]
+        if delivery.current_lat is None or delivery.current_lng is None:
+            delivery.current_lat = pickup_coords[0]
+            delivery.current_lng = pickup_coords[1]
+        delivery.last_location_name = delivery.last_location_name or delivery.pickup_location or "Seller location"
+        delivery.estimated_distance_km = round(haversine_km(pickup_coords, destination_coords), 1)
+        delivery.tracking_updated_at = datetime.utcnow()
 
     order.status = "Ready For Shipping"
     logistics.availability = "busy"
@@ -1254,6 +1303,7 @@ def get_business_public_profile(
         "shop_logo_url": user.shop_logo_url,
         "shop_images": user.shop_images,
         "profile_photo": user.profile_photo,
+        "auto_confirm": user.auto_confirm,
         "verification_status": user.verification_status,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "metrics": {

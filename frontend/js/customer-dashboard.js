@@ -42,6 +42,34 @@ function renderNotifications(orders) {
   notifications.innerHTML = lines.join("");
 }
 
+let trackingMap = null;
+let trackingMarker = null;
+
+function initTrackingMap() {
+  if (trackingMap) return;
+  const container = document.getElementById("trackingMap");
+  if (!container) return;
+  
+  const kariakooCenter = [-6.816, 39.276];
+  trackingMap = L.map("trackingMap").setView(kariakooCenter, 15);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap",
+  }).addTo(trackingMap);
+
+  trackingMarker = L.marker(kariakooCenter).addTo(trackingMap)
+    .bindPopup("Delivery Partner is here")
+    .openPopup();
+  
+  // Simulate movement
+  let step = 0;
+  setInterval(() => {
+    step += 0.0005;
+    const newPos = [kariakooCenter[0] + Math.sin(step) * 0.002, kariakooCenter[1] + Math.cos(step) * 0.002];
+    trackingMarker.setLatLng(newPos);
+  }, 2000);
+}
+
 async function loadDashboard() {
   const data = await apiFetch("/orders/");
   const orders = Array.isArray(data) ? data : [];
@@ -65,6 +93,17 @@ async function loadDashboard() {
   }
 
   renderNotifications(orders);
+
+  const hasInTransit = orders.some(o => ["Shipped", "In Transit", "Out For Delivery"].includes(statusFromOrder(o)));
+  const mapCard = document.getElementById("trackingMapCard");
+  if (mapCard) {
+    if (hasInTransit) {
+      mapCard.style.display = "block";
+      setTimeout(initTrackingMap, 500);
+    } else {
+      mapCard.style.display = "none";
+    }
+  }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {

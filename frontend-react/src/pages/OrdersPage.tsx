@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
+import { useCart } from "../features/auth/CartContext";
 import { apiRequest } from "../lib/http";
-import type { LogisticsDelivery, Order, Product } from "../types/domain";
+import type { LogisticsDelivery, Order, OrderTracking, Product } from "../types/domain";
 
 const TRACKING_STEPS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"];
 const STATUS_OPTIONS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received", "Cancelled"];
@@ -78,6 +79,7 @@ function formatOrderDate(value?: string | null) {
 
 export function OrdersPage() {
   const { user } = useAuth();
+  const { cart, clearCart } = useCart();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -100,6 +102,8 @@ export function OrdersPage() {
   const [assignInstructionsByOrder, setAssignInstructionsByOrder] = useState<Record<number, string>>({});
   const [assignBusinessByOrder, setAssignBusinessByOrder] = useState<Record<number, string>>({});
   const [draftOrders, setDraftOrders] = useState<DraftOrderItem[]>([]);
+  const [tracking, setTracking] = useState<OrderTracking | null>(null);
+  const [trackingError, setTrackingError] = useState("");
 
   const sellerMode = canSellerManage(user?.role);
   const draftStorageKey = `orders_draft_${user?.id || "guest"}`;
@@ -193,6 +197,46 @@ export function OrdersPage() {
     }
   }, [selectedId, visibleOrders]);
 
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+
+    async function loadTracking() {
+      if (!selectedOrder || user?.role !== "user") {
+        setTracking(null);
+        setTrackingError("");
+        return;
+      }
+      const status = normalizedStatus(selectedOrder.status);
+      if (!["Ready For Shipping", "Shipped", "Received"].includes(status)) {
+        setTracking(null);
+        setTrackingError("");
+        return;
+      }
+      try {
+        const data = await apiRequest<OrderTracking>(`/orders/${selectedOrder.id}/tracking`);
+        if (!cancelled) {
+          setTracking(data);
+          setTrackingError("");
+        }
+        if (!cancelled && ["assigned", "picked_up", "in_transit"].includes(String(data.status || "").toLowerCase())) {
+          timer = window.setTimeout(() => void loadTracking(), 20000);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setTracking(null);
+          setTrackingError(err instanceof Error ? err.message : "Tracking unavailable");
+        }
+      }
+    }
+
+    void loadTracking();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [selectedOrder, user?.role]);
+
   const deliveryByOrderId = useMemo(() => {
     const map = new Map<number, LogisticsDelivery>();
     for (const item of deliveries) {
@@ -254,6 +298,30 @@ export function OrdersPage() {
 
   function removeDraftItem(id: string) {
     setDraftOrders((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function importCartToDrafts() {
+    if (!cart.length) {
+      setError("Your cart is empty.");
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const imported: DraftOrderItem[] = cart.map((item) => ({
+      id: `cart-${item.id}-${Date.now()}`,
+      product_id: item.id,
+      product_name: item.name,
+      seller_name: item.seller_name || "Marketplace seller",
+      quantity: item.qty,
+      unit_price: item.price,
+      order_date: today,
+      delivery_address: user?.address || "",
+      delivery_phone: user?.phone || "",
+      delivery_method: "Standard",
+      delivery_notes: item.seller_area ? `Optimize around ${item.seller_area}` : "",
+    }));
+    setDraftOrders((prev) => [...prev, ...imported]);
+    clearCart();
+    setFlash(`${imported.length} cart item(s) moved into your temporary order list.`);
   }
 
   async function confirmDraftOrders() {
@@ -611,7 +679,12 @@ export function OrdersPage() {
           <article className="panel stack-list">
             <div className="panel-header">
               <h2>Temporary order list</h2>
-              <span>{draftOrders.length} item(s)</span>
+              <div className="hero-actions">
+                <span>{draftOrders.length} item(s)</span>
+                <button className="secondary-button" type="button" onClick={importCartToDrafts}>
+                  Import cart ({cart.length})
+                </button>
+              </div>
             </div>
             {!draftOrders.length ? <p className="muted">No temporary orders yet.</p> : null}
             {draftOrders.map((item) => (
@@ -722,6 +795,68 @@ export function OrdersPage() {
                   </div>
                 ))}
               </div>
+
+              {user?.role === "user" ? (
+                <div className="panel tracking-map-card">
+                  <div className="panel-header">
+                    <div>
+                      <strong>Real-time delivery map</strong>
+                      <p className="muted">Live route view during the in-transit phase.</p>
+                    </div>
+                    {tracking ? <span className="buyer-badge buyer-badge--good">{tracking.progress_percent}% complete</span> : null}
+                  </div>
+                  {tracking ? (
+                    <div className="tracking-map-grid">
+                      <div className="tracking-map-canvas">
+                        <div className="tracking-map-route" />
+                        <div className="tracking-map-route tracking-map-route--accent" />
+                        <div className="tracking-map-marker tracking-map-marker--pickup" style={{ left: "10%", top: "72%" }}>
+                          <span>P</span>
+                        </div>
+                        <div
+                          className="tracking-map-marker tracking-map-marker--current"
+                          style={{
+                            left: `${10 + ((tracking.progress_percent || 0) * 0.74)}%`,
+                            top: `${72 - ((tracking.progress_percent || 0) * 0.36)}%`,
+                          }}
+                        >
+                          <span>R</span>
+                        </div>
+                        <div className="tracking-map-marker tracking-map-marker--dropoff" style={{ left: "84%", top: "18%" }}>
+                          <span>D</span>
+                        </div>
+                        <div className="tracking-map-label tracking-map-label--pickup">{tracking.map.pickup.label}</div>
+                        <div className="tracking-map-label tracking-map-label--current">{tracking.map.current.label}</div>
+                        <div className="tracking-map-label tracking-map-label--dropoff">{tracking.map.destination.label}</div>
+                      </div>
+                      <div className="stack-list">
+                        <div className="buyer-kpi">
+                          <span className="muted">ETA</span>
+                          <strong>{tracking.eta_minutes} min</strong>
+                        </div>
+                        <div className="buyer-kpi">
+                          <span className="muted">Distance</span>
+                          <strong>{tracking.distance_km} km</strong>
+                        </div>
+                        <div className="buyer-kpi">
+                          <span className="muted">Rider</span>
+                          <strong>{tracking.logistics_partner?.name || "Delivery partner"}</strong>
+                        </div>
+                        <div className="stack-list">
+                          {tracking.checkpoints.map((checkpoint) => (
+                            <div key={checkpoint.id} className={`tracking-checkpoint${checkpoint.done ? " tracking-checkpoint--done" : ""}`}>
+                              <strong>{checkpoint.label}</strong>
+                              <span>{checkpoint.location || "Pending"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="muted">{trackingError || "Tracking becomes available once a logistics partner is assigned."}</p>
+                  )}
+                </div>
+              ) : null}
 
               {sellerMode ? renderSellerActions(selectedOrder) : null}
 

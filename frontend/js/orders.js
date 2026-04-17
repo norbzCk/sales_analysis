@@ -1,16 +1,10 @@
 const table = document.getElementById("orderTable");
-const form = document.getElementById("orderForm");
 const flash = document.getElementById("orderFlash");
-const productSelect = document.getElementById("product_id");
 const orderSearch = document.getElementById("orderSearch");
 const orderStatusFilter = document.getElementById("orderStatusFilter");
 const refreshOrdersBtn = document.getElementById("refreshOrders");
 const ordersShownBadge = document.getElementById("ordersShownBadge");
 const trackingPanel = document.getElementById("orderTrackingPanel");
-const deliveryAddressInput = document.getElementById("delivery_address");
-const deliveryPhoneInput = document.getElementById("delivery_phone");
-const deliveryMethodInput = document.getElementById("delivery_method");
-const deliveryNotesInput = document.getElementById("delivery_notes");
 
 const TRACKING_STEPS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"];
 
@@ -343,7 +337,6 @@ async function cancelOrder(orderId) {
     selectedOrderId = Number(orderId);
     showFlash("success", "Order cancelled.");
     await loadOrders();
-    await loadProductsForOrders();
   } catch (err) {
     showFlash("error", err.message);
   }
@@ -381,77 +374,9 @@ async function submitRating(orderId, rating) {
   }
 }
 
-async function loadProductsForOrders() {
-  if (!productSelect) return;
-  try {
-    const products = await apiFetch("/products/");
-    const options = ['<option value="">Select product</option>'];
-    for (const product of products) {
-      if (Number(product.stock || 0) <= 0) continue;
-      const provider = product.provider?.name ? ` - ${product.provider.name}` : "";
-      options.push(`<option value="${product.id}">${escapeHtml(product.name)} (${escapeHtml(product.category)})${escapeHtml(provider)}</option>`);
-    }
-    productSelect.innerHTML = options.join("");
-  } catch (err) {
-    showFlash("error", err.message);
-  }
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
-  if (document.getElementById("order_date")) {
-    document.getElementById("order_date").valueAsDate = new Date();
-  }
-
-  if (currentUser?.role === "user") {
-    if (deliveryAddressInput && !deliveryAddressInput.value) {
-      deliveryAddressInput.value = currentUser.address || "";
-    }
-    if (deliveryPhoneInput && !deliveryPhoneInput.value) {
-      deliveryPhoneInput.value = currentUser.phone || "";
-    }
-    await loadProductsForOrders();
-  }
-
   await loadOrders();
-
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const payload = {
-      order_date: document.getElementById("order_date").value,
-      product_id: parseInt(productSelect.value, 10),
-      quantity: parseInt(document.getElementById("quantity").value, 10),
-      delivery_address: deliveryAddressInput?.value?.trim() || null,
-      delivery_phone: deliveryPhoneInput?.value?.trim() || null,
-      delivery_method: deliveryMethodInput?.value || "Standard",
-      delivery_notes: deliveryNotesInput?.value?.trim() || null,
-    };
-    if (!payload.order_date || Number.isNaN(payload.product_id) || Number.isNaN(payload.quantity) || payload.quantity <= 0) {
-      showFlash("error", "Choose a product and valid quantity.");
-      return;
-    }
-
-    try {
-      const created = await apiFetch("/orders/", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      form.reset();
-      document.getElementById("order_date").valueAsDate = new Date();
-      if (deliveryAddressInput) {
-        deliveryAddressInput.value = currentUser?.address || "";
-      }
-      if (deliveryPhoneInput) {
-        deliveryPhoneInput.value = currentUser?.phone || "";
-      }
-      selectedOrderId = Number(created?.id || selectedOrderId);
-      showFlash("success", "Order created.");
-      await loadProductsForOrders();
-      await loadOrders();
-    } catch (err) {
-      showFlash("error", err.message);
-    }
-  });
 
   orderSearch?.addEventListener("input", renderOrders);
   orderStatusFilter?.addEventListener("change", renderOrders);

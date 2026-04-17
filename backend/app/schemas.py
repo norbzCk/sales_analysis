@@ -3,6 +3,23 @@
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
+class AISuggestRequest(BaseModel):
+    name: str
+    category: str | None = None
+    current_price: float | None = None
+    stock: int | None = None
+    description: str | None = None
+    seller_area: str | None = None
+
+class AISuggestResponse(BaseModel):
+    description: str
+    suggested_price: float
+    seo_keywords: list[str]
+    confidence: float
+    price_range: dict[str, float] | None = None
+    trend_summary: str | None = None
+    demand_level: str | None = None
+
 class ProductCreate(BaseModel):
     name: str
     category: str
@@ -210,6 +227,7 @@ class BusinessUpdate(BaseModel):
     social_instagram: str | None = None
     social_whatsapp: str | None = None
     social_x: str | None = None
+    auto_confirm: bool | None = None
 
 
 class BusinessVerificationSubmit(BaseModel):
@@ -281,3 +299,6 @@ class DeliveryOrderResponse(BaseModel):
 class DeliveryStatusUpdate(BaseModel):
     status: str
     verification_code: str | None = None
+    current_lat: float | None = None
+    current_lng: float | None = None
+    current_location: str | None = None

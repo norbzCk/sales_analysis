@@ -5,9 +5,10 @@ from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
 from backend.app.auth import get_current_user, require_roles
+from backend.app.marketplace_intelligence import build_tracking_payload, refresh_business_metrics
 from backend.app.notification_service import create_notification, resolve_subject
 from backend.database import get_db
-from backend.models import BusinessUser, Product, Provider, Sale, User
+from backend.models import BusinessUser, Product, Provider, Sale, User, PaymentTransaction, DeliveryOrder, LogisticsUser
 
 router = APIRouter(tags=["Sales", "Orders"])
 
@@ -233,7 +234,7 @@ def create_sale(
 ):
     sale_date = payload.get("date")
     model = Sale(
-        date=date.fromisoformat(sale_date) if sale_date else date.today(),
+        date=(datetime.fromisoformat(sale_date.replace('Z', '+00:00')).date() if sale_date else date.today()) if isinstance(sale_date, str) else (sale_date or date.today()),
         product=payload.get("product"),
         category=payload.get("category"),
         quantity=int(payload.get("quantity", 0)),
@@ -301,18 +302,18 @@ def create_order(
     delivery_phone = (payload.get("delivery_phone") or current.phone or "").strip() or None
     delivery_notes = (payload.get("delivery_notes") or "").strip() or None
     delivery_method = _normalized_delivery_method(payload.get("delivery_method"))
-    provider_name = None
-    if getattr(product, "provider_id", None):
-        provider = db.query(Provider).filter(Provider.id == product.provider_id).first()
-        if provider:
-            provider_name = provider.name
-    if not provider_name and getattr(product, "seller_id", None):
+    seller = None
+    if getattr(product, "seller_id", None):
         seller = db.query(BusinessUser).filter(BusinessUser.id == product.seller_id).first()
         if seller:
             provider_name = seller.business_name
 
+    initial_status = "Pending"
+    if seller and seller.auto_confirm:
+        initial_status = "Confirmed"
+
     model = Sale(
-        date=date.fromisoformat(sale_date) if sale_date else date.today(),
+        date=(datetime.fromisoformat(sale_date.replace('Z', '+00:00')).date() if sale_date else date.today()) if isinstance(sale_date, str) else (sale_date or date.today()),
         product=product.name,
         category=product.category,
         product_id=product.id,
@@ -321,7 +322,7 @@ def create_order(
         provider_name=provider_name,
         quantity=quantity,
         unit_price=float(product.price or 0),
-        status="Pending",
+        status=initial_status,
         created_by=current.id,
         delivery_address=delivery_address,
         delivery_phone=delivery_phone,
@@ -373,6 +374,18 @@ def update_order_status(
             status_code=400,
             detail=f"Cannot move order from {current_status} to {target_status}",
         )
+
+    # Check for payment before shipping
+    if target_status == "Shipped":
+        payment = db.query(PaymentTransaction).filter(
+            PaymentTransaction.order_id == order_id,
+            PaymentTransaction.status == "completed"
+        ).first()
+        if not payment:
+            raise HTTPException(
+                status_code=400,
+                detail="Payment must be completed before order can be shipped."
+            )
 
     order.status = target_status
     order.status_reason = (payload.get("reason") or "").strip() or None
@@ -501,6 +514,7 @@ def rate_order(
     db.add(order)
 
     _apply_product_rating_stats(db, order.product_id)
+    refresh_business_metrics(db, order.seller_id)
     _notify_order_event(
         db,
         background_tasks,
@@ -516,3 +530,22 @@ def rate_order(
     db.commit()
     db.refresh(order)
     return _serialize_order(order)
+
+
+@router.get("/orders/{order_id}/tracking")
+def get_order_tracking(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    order = db.query(Sale).filter(Sale.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    _ensure_owner_or_admin(order, current)
+    delivery = db.query(DeliveryOrder).filter(DeliveryOrder.order_id == order.id).first()
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Tracking is not available for this order yet")
+
+    logistics = db.query(LogisticsUser).filter(LogisticsUser.id == delivery.logistics_id).first() if delivery.logistics_id else None
+    return build_tracking_payload(delivery, order=order, logistics=logistics)

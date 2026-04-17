@@ -1,5 +1,6 @@
 [build]
-  publish = "frontend"
+  command = "cd frontend-react && npm install && npm run build"
+  publish = "frontend-react/dist"
 
 [[headers]]
   for = "/*"

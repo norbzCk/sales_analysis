@@ -51,18 +51,33 @@ function ratingCount(product) {
 }
 
 function renderStars(ratingValue) {
-  const rounded = Math.max(0, Math.min(5, Math.round(Number(ratingValue || 0))));
+  const rating = Number(ratingValue || 0);
+  if (rating <= 0) return "";
+  const rounded = Math.max(0, Math.min(5, Math.round(rating)));
   return `${"★".repeat(rounded)}${"✩".repeat(5 - rounded)}`;
+}
+
+function renderBadges(badges) {
+  if (!badges || !badges.length) return "";
+  return badges.map(b => `
+    <span class="badge badge-verified" title="${b.label}">
+      <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">${b.icon}</span> ${b.label}
+    </span>
+  `).join("");
 }
 
 function card(item) {
   const rating = productRating(item);
   const count = ratingCount(item);
+  const badges = renderBadges(item.seller?.badges);
   return `
     <article class="public-product-card" data-product-id="${item.id}" tabindex="0" role="button" aria-label="View ${escapeHtml(item.name || "product")}">
       <div class="product-card-media">
         <img src="${escapeHtml(resolveImageUrl(item.image_url))}" alt="${escapeHtml(item.name || "Product")}" loading="lazy">
-        <span class="pill">${item.in_stock ? "In stock" : "Out of stock"}</span>
+        <div class="badge-group" style="position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px;">
+          <span class="pill" style="background: rgba(0,0,0,0.6); color: white;">${item.in_stock ? "In stock" : "Out of stock"}</span>
+          ${badges}
+        </div>
       </div>
       <div>
         <h3>${escapeHtml(item.name || "Product")}</h3>

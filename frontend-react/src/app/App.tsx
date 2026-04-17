@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import { ProtectedRoute } from "../features/auth/ProtectedRoute";
+import { CartProvider } from "../features/auth/CartContext";
+import { ProtectedRoute, RoleRoute } from "../features/auth/ProtectedRoute";
 import { AppShell } from "../features/layout/AppShell";
 import { AdminDashboardPage } from "../pages/AdminDashboardPage";
 import { BusinessRegisterPage } from "../pages/BusinessRegisterPage";
@@ -26,13 +27,14 @@ import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
 import { LogisticsProfilePage } from "../pages/LogisticsProfilePage";
 import { SuperadminProfilePage } from "../pages/SuperadminProfilePage";
+import { SettingsPage } from "../pages/SettingsPage";
 
 import { ProductDetailPage } from "../pages/ProductDetailPage";
 
 function AppLanding() {
   const { user } = useAuth();
   const role = String(user?.role || "");
-  if (role === "super_admin") return <Navigate to="/app/superadmin" replace />;
+  if (role === "super_admin" || role === "owner") return <Navigate to="/app/superadmin" replace />;
   if (role === "user") return <Navigate to="/app/customer" replace />;
   if (role === "logistics") return <Navigate to="/app/logistics" replace />;
   if (role === "seller") return <Navigate to="/app/seller" replace />;
@@ -55,30 +57,34 @@ export function App() {
         path="/app"
         element={
           <ProtectedRoute>
-            <AppShell />
+            <CartProvider>
+              <AppShell />
+            </CartProvider>
           </ProtectedRoute>
         }
       >
         <Route index element={<AppLanding />} />
-        <Route path="dashboard" element={<AdminDashboardPage />} />
-        <Route path="superadmin" element={<SuperadminDashboardPage />} />
-        <Route path="seller" element={<SellerDashboardPage />} />
-        <Route path="seller/profile" element={<SellerProfilePage />} />
-        <Route path="seller/deliveries" element={<SellerDeliveriesPage />} />
-        <Route path="customer" element={<CustomerDashboardPage />} />
-        <Route path="customer/profile" element={<ProfilePage />} />
-        <Route path="logistics" element={<LogisticsDashboardPage />} />
-        <Route path="logistics/profile" element={<LogisticsProfilePage />} />
+        <Route path="dashboard" element={<RoleRoute allowedRoles={["admin", "owner"]}><AdminDashboardPage /></RoleRoute>} />
+        <Route path="superadmin" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminDashboardPage /></RoleRoute>} />
+        <Route path="seller" element={<RoleRoute allowedRoles={["seller"]}><SellerDashboardPage /></RoleRoute>} />
+        <Route path="seller/profile" element={<RoleRoute allowedRoles={["seller"]}><SellerProfilePage /></RoleRoute>} />
+        <Route path="seller/deliveries" element={<RoleRoute allowedRoles={["seller"]}><SellerDeliveriesPage /></RoleRoute>} />
+        <Route path="customer" element={<RoleRoute allowedRoles={["user"]}><CustomerDashboardPage /></RoleRoute>} />
+        <Route path="customer/profile" element={<RoleRoute allowedRoles={["user"]}><ProfilePage /></RoleRoute>} />
+        <Route path="logistics" element={<RoleRoute allowedRoles={["logistics"]}><LogisticsDashboardPage /></RoleRoute>} />
+        <Route path="logistics/profile" element={<RoleRoute allowedRoles={["logistics"]}><LogisticsProfilePage /></RoleRoute>} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><CustomersPage /></RoleRoute>} />
         <Route path="product/:productId" element={<ProductDetailPage />} />
-        <Route path="providers" element={<ProvidersPage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="superadmin/profile" element={<SuperadminProfilePage />} />
-        <Route path="users" element={<UsersPage />} />
+        <Route path="providers" element={<RoleRoute allowedRoles={["seller", "admin", "super_admin", "owner"]}><ProvidersPage /></RoleRoute>} />
+        <Route path="payments" element={<RoleRoute allowedRoles={["user"]}><PaymentsPage /></RoleRoute>} />
+        <Route path="profile" element={<RoleRoute allowedRoles={["admin", "owner"]}><ProfilePage /></RoleRoute>} />
+        <Route path="superadmin/profile" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminProfilePage /></RoleRoute>} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="superadmin/settings" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SettingsPage /></RoleRoute>} />
+        <Route path="users" element={<RoleRoute allowedRoles={["admin", "super_admin", "owner"]}><UsersPage /></RoleRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

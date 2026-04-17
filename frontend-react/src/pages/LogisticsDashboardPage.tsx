@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
@@ -42,6 +42,7 @@ export function LogisticsDashboardPage() {
   const [profileDraft, setProfileDraft] = useState<LogisticsProfile | null>(null);
   const [passwordDraft, setPasswordDraft] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [deliveries, setDeliveries] = useState<LogisticsDelivery[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [editingProfile, setEditingProfile] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState("");
@@ -182,13 +183,23 @@ export function LogisticsDashboardPage() {
   }
 
   const metrics = profile?.metrics || {};
+  const deliverySummary = useMemo(() => {
+    const assigned = deliveries.filter((item) => item.status === "assigned").length;
+    const inTransit = deliveries.filter((item) => item.status === "picked_up" || item.status === "in_transit").length;
+    const completed = deliveries.filter((item) => item.status === "delivered").length;
+    return { assigned, inTransit, completed };
+  }, [deliveries]);
+  const visibleDeliveries = useMemo(() => {
+    if (statusFilter === "all") return deliveries;
+    return deliveries.filter((item) => item.status === statusFilter);
+  }, [deliveries, statusFilter]);
 
   return (
     <section className="panel-stack">
       <div className="panel">
         <p className="eyebrow">Logistics dashboard</p>
         <h1>Delivery partner workspace</h1>
-        <p className="muted">Track your rider status, delivery workload, account details, and password security from one place.</p>
+        <p className="muted">Only your assigned deliveries, rider status, account details, and delivery actions appear here.</p>
       </div>
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
@@ -196,7 +207,9 @@ export function LogisticsDashboardPage() {
         <article className="stat-card"><span className="stat-label">Role</span><strong>Delivery Agent</strong></article>
         <article className="stat-card"><span className="stat-label">Status</span><strong>{String(profile?.status || "-")}</strong></article>
         <article className="stat-card"><span className="stat-label">Availability</span><strong>{String(profile?.availability || "-")}</strong></article>
-        <article className="stat-card"><span className="stat-label">Deliveries</span><strong>{metrics.total_deliveries || 0}</strong></article>
+        <article className="stat-card"><span className="stat-label">Assigned to you</span><strong>{deliverySummary.assigned}</strong></article>
+        <article className="stat-card"><span className="stat-label">In transit</span><strong>{deliverySummary.inTransit}</strong></article>
+        <article className="stat-card"><span className="stat-label">Completed</span><strong>{deliverySummary.completed || metrics.total_deliveries || 0}</strong></article>
         <article className="stat-card"><span className="stat-label">Success rate</span><strong>{metrics.success_rate || 0}</strong></article>
       </div>
 
@@ -311,12 +324,31 @@ export function LogisticsDashboardPage() {
         <button className="secondary-button" onClick={() => updateAvailability("availability", "busy")} type="button">Busy</button>
       </div>
 
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>Your deliveries</h2>
+            <p className="muted">This list is limited to deliveries assigned to your account.</p>
+          </div>
+          <label>
+            Status
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">All</option>
+              <option value="assigned">Assigned</option>
+              <option value="picked_up">Picked up</option>
+              <option value="in_transit">In transit</option>
+              <option value="delivered">Delivered</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <div className="panel table-scroll">
         <table className="data-table">
           <thead><tr><th>Order</th><th>Pickup</th><th>Delivery</th><th>Status</th><th>Price</th><th>Actions</th></tr></thead>
           <tbody>
-            {!deliveries.length ? <tr><td colSpan={6}>No deliveries assigned.</td></tr> : null}
-            {deliveries.map((delivery) => (
+            {!visibleDeliveries.length ? <tr><td colSpan={6}>No deliveries match this filter.</td></tr> : null}
+            {visibleDeliveries.map((delivery) => (
               <tr key={delivery.id}>
                 <td>#{delivery.order_id || "-"}</td>
                 <td>{delivery.pickup_location}</td>

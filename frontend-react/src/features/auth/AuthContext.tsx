@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? "/business/me"
           : userType === "logistics"
             ? "/logistics/me"
+            : userType === "superadmin"
+              ? "/auth/me"
             : "/auth/me";
       const fallbackType = userType || "user";
       const fetched = await apiRequest<SessionUser>(endpoint);

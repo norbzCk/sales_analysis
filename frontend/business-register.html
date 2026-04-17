@@ -9,39 +9,42 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="public-page">
+<body class="public-page business-theme">
   <div class="register-container">
     <div class="register-card">
-      <h1 class="register-heading">🏪 Create Business Account</h1>
-      <p class="muted register-subtitle">Join Kariakoo's digital marketplace</p>
+      <div class="register-header-new">
+        <div class="register-icon-wrap">🏪</div>
+        <h1>Business Registration</h1>
+        <p>Join Kariakoo's digital marketplace</p>
+      </div>
       
       <div class="flash" id="flash"></div>
       
-      <form id="registerForm">
-        <div class="form-section">
-          <h3>👤 Owner Information</h3>
-          <div class="form-row">
-            <input id="ownerName" class="full-width" placeholder="Full Name *" required>
-            <input id="phone" type="tel" class="full-width" placeholder="Phone Number *" required pattern="[0-9]{10,}">
+      <form id="registerForm" class="form-grid-new">
+        <div class="form-section-new">
+          <h3 class="section-title">👤 Owner Information</h3>
+          <div class="form-row-new">
+            <input id="ownerName" placeholder="Full Name *" required>
+            <input id="phone" type="tel" placeholder="Phone Number *" required pattern="[0-9]{10,}">
           </div>
-          <div class="form-row">
-            <input id="email" type="email" class="full-width" placeholder="Email (optional)">
-            <input id="password" type="password" class="full-width" placeholder="Password *" required minlength="6">
+          <div class="form-row-new">
+            <input id="email" type="email" placeholder="Email (optional)">
+            <input id="password" type="password" placeholder="Password *" required minlength="6">
           </div>
         </div>
         
-        <div class="form-section">
-          <h3>🏢 Business Information</h3>
-          <div class="form-row">
-            <input id="businessName" class="full-width" placeholder="Business Name *" required>
-            <select id="businessType" class="full-width" required>
+        <div class="form-section-new">
+          <h3 class="section-title">🏢 Business Information</h3>
+          <div class="form-row-new">
+            <input id="businessName" placeholder="Business Name *" required>
+            <select id="businessType" required>
               <option value="">Business Type *</option>
               <option value="individual">Individual Trader</option>
               <option value="company">Registered Company</option>
             </select>
           </div>
-          <div class="form-row">
-            <select id="category" class="full-width">
+          <div class="form-row-new">
+            <select id="category">
               <option value="">Category (optional)</option>
               <option value="clothes">Clothes & Fashion</option>
               <option value="electronics">Electronics</option>
@@ -50,40 +53,17 @@
               <option value="retail">Retail</option>
               <option value="other">Other</option>
             </select>
-            <textarea id="description" class="full-width" placeholder="Business Description (optional)" rows="2"></textarea>
+            <input id="street" placeholder="Street (optional)">
           </div>
-        </div>
-        
-        <div class="form-section">
-          <h3>📍 Location (Kariakoo Area)</h3>
-          <div class="form-row">
-            <select id="region" class="full-width">
-              <option value="Dar es Salaam">Dar es Salaam</option>
-            </select>
-            <select id="area" class="full-width">
-              <option value="">Select Area</option>
-              <option value="Kariakoo">Kariakoo</option>
-              <option value="Ilala">Ilala</option>
-              <option value="Kinondoni">Kinondoni</option>
-              <option value="Ubungo">Ubungo</option>
-              <option value="Kigamboni">Kigamboni</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <input id="street" class="full-width" placeholder="Street (optional)">
-            <input id="shopNumber" class="full-width" placeholder="Shop Number/Block (optional)">
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <!-- Business account is always a seller -->
+          <textarea id="description" placeholder="Business Description (optional)" rows="2"></textarea>
         </div>
         
         <button class="btn btn-primary full-width register-submit" type="submit">Create Business Account</button>
       </form>
       
-      <p class="toggle-link">Already have a business account? <a href="login.html">Login here</a></p>
-      <p class="toggle-link register-toggle">Want to buy only? <a href="customer-register.html">Register as Customer</a></p>
+      <div class="register-footer-new">
+        <p>Already have an account? <a href="login.html" class="bold">Login here</a></p>
+      </div>
     </div>
   </div>
 

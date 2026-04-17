@@ -21,6 +21,7 @@ class Sale(Base):
     status_reason = Column(String, nullable=True)
     rating = Column(Integer, nullable=True)
     rated_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(Integer, nullable=True)
     delivery_address = Column(String, nullable=True)
     delivery_phone = Column(String, nullable=True)
@@ -124,6 +125,7 @@ class BusinessUser(Base):
     social_instagram = Column(String, nullable=True)
     social_whatsapp = Column(String, nullable=True)
     social_x = Column(String, nullable=True)
+    auto_confirm = Column(Boolean, nullable=False, default=False)
     verification_status = Column(String, nullable=False, default="unverified")  # unverified, pending, verified
     is_active = Column(Boolean, nullable=False, default=True)
     role = Column(String, nullable=False, default="seller")  # seller, buyer
@@ -202,9 +204,18 @@ class DeliveryOrder(Base):
     price = Column(Float, nullable=True)
     special_instructions = Column(String, nullable=True)
     verification_code = Column(String, nullable=True)  # OTP for delivery confirmation
+    pickup_lat = Column(Float, nullable=True)
+    pickup_lng = Column(Float, nullable=True)
+    destination_lat = Column(Float, nullable=True)
+    destination_lng = Column(Float, nullable=True)
+    current_lat = Column(Float, nullable=True)
+    current_lng = Column(Float, nullable=True)
+    estimated_distance_km = Column(Float, nullable=True)
+    last_location_name = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     picked_at = Column(DateTime(timezone=True), nullable=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
+    tracking_updated_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class Notification(Base):

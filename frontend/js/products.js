@@ -48,66 +48,119 @@ function showFlash(type, message) {
 }
 
 function cartKey() {
-  return currentUser ? `cart_count_${currentUser.id}` : "cart_count_guest";
+  return currentUser ? `cart_items_${currentUser.id}` : "cart_items_guest";
 }
 
-function readCartCount() {
-  return Number(localStorage.getItem(cartKey()) || 0);
+function getCart() {
+  try {
+    return JSON.parse(localStorage.getItem(cartKey()) || "[]");
+  } catch (e) {
+    return [];
+  }
 }
 
-function writeCartCount(value) {
-  localStorage.setItem(cartKey(), String(value));
-  cartCountBadge.textContent = `Cart: ${value}`;
+function saveCart(items) {
+  localStorage.setItem(cartKey(), JSON.stringify(items));
+  updateCartBadge();
+  renderCart();
 }
 
 function updateCartBadge() {
-  writeCartCount(readCartCount());
+  const items = getCart();
+  const count = items.reduce((sum, item) => sum + item.qty, 0);
+  const badge = document.getElementById("cartBadgeCount");
+  if (badge) badge.textContent = count;
 }
 
-function canManage() {
-  return currentUser && ["admin", "super_admin", "owner", "seller"].includes(currentUser.role);
-}
+function addToCart(productId) {
+  const product = allProducts.find(p => p.id == productId);
+  if (!product) return;
 
-function canOrder() {
-  return currentUser && currentUser.role === "user";
-}
-
-function stockLabel(stock) {
-  const units = Number(stock || 0);
-  if (units <= 0) return "Out of stock";
-  if (canManage()) {
-    if (units < 5) return `Only ${units} left`;
-    return `In stock: ${units}`;
+  const items = getCart();
+  const existing = items.find(i => i.id == productId);
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    items.push({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image_url: product.image_url,
+      qty: 1
+    });
   }
-  return "In stock";
+  saveCart(items);
+  showFlash("success", `Added ${product.name} to temporary orders.`);
+  document.getElementById("cartPopout").classList.add("show");
 }
 
-function productRating(product) {
-  return Number(product.rating_avg || 0);
+function removeFromCart(productId) {
+  const items = getCart().filter(i => i.id != productId);
+  saveCart(items);
 }
 
-function ratingCount(product) {
-  return Number(product.rating_count || 0);
+function renderCart() {
+  const list = document.getElementById("cartItemsList");
+  const totalDisplay = document.getElementById("cartTotalDisplay");
+  const items = getCart();
+  
+  if (!list || !totalDisplay) return;
+
+  if (items.length === 0) {
+    list.innerHTML = '<p class="muted" style="padding: 20px; text-align: center;">No temporary orders yet.</p>';
+    totalDisplay.textContent = "TZS 0";
+    return;
+  }
+
+  let total = 0;
+  list.innerHTML = items.map(item => {
+    total += item.price * item.qty;
+    return `
+      <div class="cart-item-row">
+        <img src="${resolveImageUrl(item.image_url)}" class="cart-item-img">
+        <div class="cart-item-info">
+          <h4>${escapeHtml(item.name)}</h4>
+          <p>${item.qty} x ${formatMoney(item.price)}</p>
+        </div>
+        <button class="btn btn-sm btn-secondary" onclick="removeFromCart(${item.id})">
+          <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+        </button>
+      </div>
+    `;
+  }).join("");
+
+  totalDisplay.textContent = formatMoney(total);
 }
 
-function renderStars(ratingValue) {
-  const rating = Number(ratingValue || 0);
-  const rounded = Math.round(rating);
-  const full = Math.max(0, Math.min(5, rounded));
-  const empty = 5 - full;
-  return `${"★".repeat(full)}${"✩".repeat(empty)}`;
-}
+async function checkoutCart() {
+  const items = getCart();
+  if (items.length === 0) return;
 
-function ratingLabel(product) {
-  const count = ratingCount(product);
-  if (count <= 0) return "No ratings yet";
-  return `${productRating(product).toFixed(1)} (${count})`;
-}
+  const btn = document.getElementById("checkoutBtn");
+  btn.disabled = true;
+  btn.textContent = "Processing...";
 
-function providerSummary(product) {
-  const provider = product.provider;
-  if (!provider || !provider.name) return "Independent seller";
-  return provider.verified ? `${provider.name} · Verified` : provider.name;
+  try {
+    for (const item of items) {
+      await apiFetch("/orders/", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: item.id,
+          quantity: item.qty,
+          order_date: new Date().toISOString().slice(0, 10),
+        }),
+      });
+    }
+    saveCart([]);
+    document.getElementById("cartPopout").classList.remove("show");
+    showFlash("success", "All orders placed successfully! Go to Orders page to track them.");
+    fetchProducts();
+  } catch (err) {
+    showFlash("error", "Checkout failed: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Make Order";
+  }
 }
 
 function card(product) {
@@ -140,8 +193,7 @@ function card(product) {
         <div class="product-actions" onclick="event.stopPropagation()">
           <button class="btn btn-secondary" onclick="viewProduct(${product.id})">Quick View</button>
           ${canManage() ? `<button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>` : ""}
-          ${canOrder() ? `<button class="btn btn-secondary" ${outOfStock ? "disabled" : ""} onclick="addToCart()">Add to Cart</button>` : ""}
-          ${canOrder() ? `<button class="btn btn-primary" ${outOfStock ? "disabled" : ""} onclick="orderProduct(${product.id})">Buy Now</button>` : ""}
+          ${canOrder() ? `<button class="btn btn-primary" ${outOfStock ? "disabled" : ""} onclick="addToCart(${product.id})">Add to Cart</button>` : ""}
         </div>
       </div>
     </article>
@@ -450,8 +502,55 @@ async function deleteProduct(id) {
 document.addEventListener("DOMContentLoaded", async () => {
   currentUser = await requireAuthPage();
   updateCartBadge();
+  renderCart();
   await loadProviders();
   fetchProducts();
+
+  // Cart UI
+  const cartTrigger = document.getElementById("cartTrigger");
+  const cartPopout = document.getElementById("cartPopout");
+  const closeCart = document.getElementById("closeCart");
+  const checkoutBtn = document.getElementById("checkoutBtn");
+
+  if (cartTrigger) {
+    if (currentUser?.role !== "user") {
+      cartTrigger.style.display = "none";
+    }
+    cartTrigger.addEventListener("click", () => cartPopout.classList.toggle("show"));
+  }
+  
+  closeCart?.addEventListener("click", () => cartPopout.classList.remove("show"));
+  checkoutBtn?.addEventListener("click", checkoutCart);
+
+  const aiSuggestBtn = document.getElementById("aiSuggestBtn");
+  aiSuggestBtn?.addEventListener("click", async () => {
+    const name = document.getElementById("name").value.trim();
+    const category = document.getElementById("category").value.trim();
+    if (!name) {
+      showFlash("error", "Enter a product name first.");
+      return;
+    }
+
+    try {
+      aiSuggestBtn.disabled = true;
+      aiSuggestBtn.innerHTML = '<span class="material-symbols-outlined">sync</span> Thinking...';
+      const data = await apiFetch("/products/ai-suggest", {
+        method: "POST",
+        body: JSON.stringify({ name, category }),
+      });
+
+      document.getElementById("description").value = data.description;
+      document.getElementById("price").value = data.suggested_price;
+      if (data.seo_keywords && data.seo_keywords.length > 0) {
+        showFlash("success", "AI Suggested: " + data.seo_keywords.join(", "));
+      }
+    } catch (err) {
+      showFlash("error", "AI Suggestion failed: " + err.message);
+    } finally {
+      aiSuggestBtn.disabled = false;
+      aiSuggestBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span> AI Suggest';
+    }
+  });
 
   searchInput?.addEventListener("input", renderProducts);
   sortSelect?.addEventListener("change", renderProducts);
@@ -462,5 +561,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 window.deleteProduct = deleteProduct;
 window.viewProduct = viewProduct;
-window.orderProduct = orderProduct;
 window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.checkoutCart = checkoutCart;

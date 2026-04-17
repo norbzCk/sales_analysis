@@ -72,7 +72,7 @@ export function hasSuperadminAccess(role?: string) {
 export function getPostLoginPath(user?: SessionUser | null) {
   const userType = getStoredUserType().toLowerCase();
   const role = normalizeRole(String(user?.role || ""));
-  if (userType === "superadmin" || role === "super_admin") return "/app/superadmin";
+  if (userType === "superadmin" || role === "super_admin" || role === "owner") return "/app/superadmin";
   if (userType === "logistics" || role === "logistics") return "/app/logistics";
   if (userType === "business" || role === "seller") return "/app/seller";
   if (hasAdminAccess(role)) return "/app/dashboard";

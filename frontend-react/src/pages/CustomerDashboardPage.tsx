@@ -734,20 +734,26 @@ export function CustomerDashboardPage() {
 
   const summary = useMemo(() => {
     const trackedOrders = snapshot.trackedOrders || [];
-    const activeOrders = trackedOrders.filter((order) => order.status !== "Delivered" && order.status !== "Cancelled").length;
-    const deliveredOrders = trackedOrders.filter((order) => order.status === "Delivered").length;
-    const spend = trackedOrders.reduce((sum, order) => sum + getOrderTotal(order), 0);
+    const activeOrders = orders.filter((order) => {
+      const s = String(order.status || "").toLowerCase();
+      return s !== "received" && s !== "delivered" && s !== "cancelled";
+    }).length;
+    const deliveredOrders = orders.filter((order) => {
+      const s = String(order.status || "").toLowerCase();
+      return s === "received" || s === "delivered";
+    }).length;
+    const spend = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
     const cartValue = (snapshot.cartItems || []).reduce((sum, item) => sum + Number(item.subtotal || item.unitPrice || 0), 0);
 
     return {
-      totalOrders: trackedOrders.length,
+      totalOrders: orders.length,
       activeOrders,
       deliveredOrders,
       spend,
       cartValue,
       unreadNotifications: notifications.filter((notification) => !notification.isRead).length,
     };
-  }, [notifications, snapshot.cartItems, snapshot.trackedOrders]);
+  }, [notifications, orders, snapshot.cartItems, snapshot.trackedOrders]);
 
   const currentOrder = useMemo(() => {
     const trackedOrders = snapshot.trackedOrders || [];
@@ -918,7 +924,7 @@ export function CustomerDashboardPage() {
               <p>
                 <strong>{getOrderProductName(currentOrder)}</strong> from {getOrderProviderName(currentOrder)}
               </p>
-              <div className="buyer-progress-bar" style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
+              <div className="buyer-progress-bar" style={{ height: '8px', background: 'var(--surface-soft)', borderRadius: '4px', overflow: 'hidden', margin: '10px 0' }}>
                 <div
                   className="buyer-progress-bar__fill"
                   style={{ width: `${currentOrder.progressPercent || getProgressPercent(currentOrder.status)}%`, height: '100%', background: 'var(--brand-blue)', transition: 'width 0.3s ease' }}

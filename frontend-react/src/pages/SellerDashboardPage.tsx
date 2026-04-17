@@ -291,11 +291,18 @@ export function SellerDashboardPage() {
   return (
     <section className="panel-stack seller-dashboard">
       <div className="panel seller-hero soft-lift" key={`hero-${refreshTick}`}>
-        <div className="seller-hero__copy">
-          <p className="eyebrow">Business workspace</p>
-          <h1>Business Overview</h1>
-          <p className="muted">Live totals and trends from your recorded sales.</p>
-        </div>
+          <div className="seller-hero__copy">
+            <p className="eyebrow">Business workspace</p>
+            <h1>Business Overview</h1>
+            <p className="muted">Live totals and trends from your recorded sales.</p>
+            {overview?.performance_badges?.length ? (
+              <div className="buyer-pill-row">
+                {overview.performance_badges.map((badge) => (
+                  <span key={badge.id} className="buyer-badge buyer-badge--good">{badge.label}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
         <div className="hero-actions">
           <select value={rangeDays} onChange={(event) => setRangeDays(Number(event.target.value))}>
             <option value={7}>Last 7 days</option>
@@ -551,6 +558,35 @@ export function SellerDashboardPage() {
                         <p className="muted alert-threshold">Threshold: {item.low_stock_threshold} units</p>
                       </div>
                       <span className="current-stock">{item.current_stock} left</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="panel seller-list-panel seller-inventory-panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Forecasted stock-out risk</h3>
+                    <p className="muted">Predictive view based on your recent sales velocity.</p>
+                  </div>
+                  <span className="alert-count">{overview.inventory_forecast?.length || 0} items</span>
+                </div>
+                <div className="stack-list">
+                  {!overview.inventory_forecast?.length ? <p className="muted">No forecast data yet.</p> : null}
+                  {overview.inventory_forecast?.slice(0, 5).map((item) => (
+                    <div key={item.product_id} className="list-card inventory-alert">
+                      <div className="alert-details">
+                        <strong className="product-name">{item.product_name}</strong>
+                        <p className="muted alert-threshold">
+                          {item.current_stock} in stock · {item.daily_burn_rate.toFixed(1)} per day · {item.days_left} days left
+                        </p>
+                      </div>
+                      <div className="stack-list">
+                        <span className={`buyer-badge${item.risk_level === "critical" ? " buyer-badge--danger" : item.risk_level === "watch" ? " buyer-badge--warn" : " buyer-badge--good"}`}>
+                          {item.risk_level || "healthy"}
+                        </span>
+                        <span className="current-stock">Restock {item.recommended_restock || 0}</span>
+                      </div>
                     </div>
                   ))}
                 </div>

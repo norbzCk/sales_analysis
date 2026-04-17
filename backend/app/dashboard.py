@@ -233,6 +233,8 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
             {"label": str(row["date"]), "value": float(row["revenue"])}
             for _, row in revenue_over_time.iterrows()
         ]
+        
+        from backend.analysis.sales_analysis import peak_sales_periods, customer_buying_patterns
         return {
             "cards": cards,
             "revenueByProduct": revenue_by_product_points,
@@ -252,6 +254,8 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
                 "revenueByProduct": _write_revenue_product_graph(revenue_by_product_points, user),
                 "revenueOverTime": _write_revenue_time_graph(revenue_over_time_points, user),
             },
+            "peakPeriods": peak_sales_periods(db),
+            "customerPatterns": customer_buying_patterns(db),
         }
 
     rows = []

@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -63,6 +64,12 @@
         <ul id="cdNotifications" class="notice-list"></ul>
       </section>
 
+      <section class="card" id="trackingMapCard" style="margin-top: 18px; display: none;">
+        <h2 class="section-title">📦 Real-Time Order Tracking</h2>
+        <div id="trackingMap" style="height: 350px; border-radius: 12px; border: 1px solid var(--border);"></div>
+        <p class="muted" style="margin-top: 8px; font-size: 0.85rem;">Live tracking for your active delivery in <b>Kariakoo</b> area.</p>
+      </section>
+
       <section class="card" style="margin-top: 18px;">
         <h2 class="section-title">Recent Orders</h2>
         <div class="table-wrap">
@@ -87,6 +94,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/session.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="js/customer-dashboard.js"></script>
 </body>
 </html>

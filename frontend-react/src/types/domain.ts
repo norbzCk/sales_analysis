@@ -22,6 +22,11 @@ export interface Product {
     area?: string | null;
     street?: string | null;
     verification_status?: string | null;
+    badges?: Array<{
+      id: string;
+      label: string;
+      icon?: string;
+    }>;
   } | null;
   rating_avg?: number;
   rating_count?: number;
@@ -81,6 +86,14 @@ export interface DashboardAnalytics {
   graphs?: {
     revenueByProduct?: string;
     revenueOverTime?: string;
+  };
+  peakPeriods?: {
+    day_of_week: Record<string, { orders: number; revenue: number }>;
+    hour_of_day: Record<string, { orders: number; revenue: number }>;
+  };
+  customerPatterns?: {
+    top_customers: Array<{ id: number; name: string; orders: number; total_spent: number }>;
+    repeat_purchase_rate_percent: number;
   };
 }
 
@@ -245,6 +258,11 @@ export interface BusinessProfile {
 
 export interface SellerDashboardOverview {
   business: BusinessProfile;
+  performance_badges?: Array<{
+    id: string;
+    label: string;
+    icon?: string;
+  }>;
   summary: {
     revenue_today: number;
     revenue_week: number;
@@ -275,6 +293,152 @@ export interface SellerDashboardOverview {
       current_stock: number;
       low_stock_threshold: number;
     }>;
+  };
+  inventory_forecast?: Array<{
+    product_id: number;
+    product_name: string;
+    current_stock: number;
+    daily_burn_rate: number;
+    days_left: number | string;
+    weekly_demand?: number;
+    recommended_restock?: number;
+    risk_level?: string;
+    is_critical?: boolean;
+  }>;
+}
+
+export interface SuperadminOverview {
+  total_businessmen: number;
+  active_businessmen: number;
+  total_customers: number;
+  active_customers: number;
+  total_logistics: number;
+  active_logistics: number;
+  total_products: number;
+  active_products: number;
+  total_orders: number;
+  completed_orders: number;
+  pending_orders: number;
+  in_transit_orders: number;
+  total_revenue: number;
+  average_order_value: number;
+  low_stock_products: number;
+  pending_business_verifications: number;
+  pending_logistics_verifications: number;
+  seller_leaderboard: Array<{
+    id: number;
+    business_name: string;
+    region?: string | null;
+    area?: string | null;
+    rating: number;
+    total_sales: number;
+    total_revenue: number;
+    badges?: Array<{ id: string; label: string; icon?: string }>;
+  }>;
+  category_performance: Array<{
+    category: string;
+    units: number;
+    revenue: number;
+  }>;
+  recent_orders: Array<{
+    id: number;
+    product?: string | null;
+    provider_name?: string | null;
+    status?: string | null;
+    quantity?: number;
+    revenue?: number;
+    date?: string | null;
+  }>;
+  inventory_watch: Array<{
+    product_id: number;
+    product_name: string;
+    stock: number;
+    seller_name: string;
+    seller_area?: string | null;
+  }>;
+  insights: Array<{
+    id: string;
+    title: string;
+    message: string;
+  }>;
+}
+
+export interface VerificationBusinessman {
+  id: number;
+  business_name: string;
+  owner_name: string;
+  phone?: string | null;
+  email?: string | null;
+  category?: string | null;
+  region?: string | null;
+  area?: string | null;
+  verification_status: string;
+  created_at?: string | null;
+}
+
+export interface VerificationLogistics {
+  id: number;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  vehicle_type?: string | null;
+  base_area?: string | null;
+  coverage_areas?: string | null;
+  verification_status: string;
+  created_at?: string | null;
+}
+
+export interface OrderTracking {
+  order_id?: number | null;
+  delivery_id: number;
+  status: string;
+  progress_percent: number;
+  eta_minutes: number;
+  distance_km: number;
+  last_updated_at?: string | null;
+  logistics_partner?: {
+    id?: number | null;
+    name?: string | null;
+    phone?: string | null;
+    vehicle_type?: string | null;
+  };
+  map: {
+    pickup: { label: string; lat: number; lng: number };
+    current: { label: string; lat: number; lng: number };
+    destination: { label: string; lat: number; lng: number };
+  };
+  checkpoints: Array<{
+    id: string;
+    label: string;
+    done: boolean;
+    location?: string | null;
+    timestamp?: string | null;
+  }>;
+}
+
+export interface CartOptimization {
+  recommendations: Array<{
+    id: string;
+    title: string;
+    seller_area: string;
+    seller_region: string;
+    item_count: number;
+    seller_names: string[];
+    estimated_delivery_fee: number;
+    separate_delivery_fee: number;
+    estimated_savings: number;
+    message: string;
+    items: Array<{
+      product_id: number;
+      name: string;
+      quantity: number;
+      seller_name: string;
+    }>;
+  }>;
+  summary: {
+    separate_delivery_fee: number;
+    optimized_delivery_fee: number;
+    estimated_savings: number;
   };
 }
 

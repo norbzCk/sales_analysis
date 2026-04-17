@@ -18,6 +18,7 @@ from backend.app.logistics import router as logistics_router
 from backend.app.notifications import router as notifications_router
 from backend.models import Base, User, BusinessMetrics, BusinessUser, LogisticsMetrics, LogisticsUser, Product, Provider
 from fastapi.staticfiles import StaticFiles
+from backend.app.marketplace_intelligence import build_superadmin_overview
 
 
 from backend.app.dashboard import dashboard_analytics, dashboard_stats, get_recent_sales, revenue_by_product, revenue_over_time
@@ -115,6 +116,86 @@ def ensure_schema_columns():
                 """
                 ALTER TABLE IF EXISTS sales
                 ADD COLUMN IF NOT EXISTS product_id INTEGER
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS pickup_lat DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS pickup_lng DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS destination_lat DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS destination_lng DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS current_lat DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS current_lng DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS estimated_distance_km DOUBLE PRECISION
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS last_location_name VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS tracking_updated_at TIMESTAMPTZ
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS sales
+                ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()
                 """
             )
         )
@@ -242,6 +323,14 @@ def ensure_schema_columns():
             )
         )
         
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS business_users
+                ADD COLUMN IF NOT EXISTS auto_confirm BOOLEAN DEFAULT FALSE
+                """
+            )
+        )
         conn.execute(
             text(
                 """
@@ -590,10 +679,19 @@ def superadmin_stats(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles("super_admin", "owner")),
 ):
+    return build_superadmin_overview(db)
+
+
+@app.get("/superadmin/me")
+def superadmin_me(
+    current: User = Depends(require_roles("super_admin", "owner")),
+):
     return {
-        "total_businessmen": db.query(BusinessUser).count(),
-        "total_customers": db.query(User).filter(User.role == "user").count(),
-        "total_logistics": db.query(LogisticsUser).count(),
+        "id": current.id,
+        "name": current.name,
+        "email": current.email,
+        "role": current.role,
+        "is_active": current.is_active,
     }
 
 
@@ -807,6 +905,106 @@ def superadmin_logistics(
     ]
 
 
+@app.get("/superadmin/verifications")
+def superadmin_verifications(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    sellers = (
+        db.query(BusinessUser)
+        .order_by(BusinessUser.verification_status.asc(), BusinessUser.created_at.desc(), BusinessUser.id.desc())
+        .all()
+    )
+    logistics_items = (
+        db.query(LogisticsUser)
+        .order_by(LogisticsUser.verification_status.asc(), LogisticsUser.created_at.desc(), LogisticsUser.id.desc())
+        .all()
+    )
+    return {
+        "businessmen": [
+            {
+                "id": item.id,
+                "business_name": item.business_name,
+                "owner_name": item.owner_name,
+                "phone": item.phone,
+                "email": item.email,
+                "category": item.category,
+                "region": item.region,
+                "area": item.area,
+                "verification_status": item.verification_status,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in sellers
+        ],
+        "logistics": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "phone": item.phone,
+                "email": item.email,
+                "vehicle_type": item.vehicle_type,
+                "base_area": item.base_area,
+                "coverage_areas": item.coverage_areas,
+                "verification_status": item.verification_status,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in logistics_items
+        ],
+    }
+
+
+@app.patch("/superadmin/businessmen/{business_id}/verification")
+def update_superadmin_business_verification(
+    business_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    item = db.query(BusinessUser).filter(BusinessUser.id == business_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Business account not found")
+
+    status = str(payload.get("status") or "").strip().lower()
+    if status not in {"verified", "pending", "rejected", "unverified"}:
+        raise HTTPException(status_code=400, detail="Invalid verification status")
+
+    item.verification_status = status
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "Business verification updated",
+        "id": item.id,
+        "verification_status": item.verification_status,
+    }
+
+
+@app.patch("/superadmin/logistics/{logistics_id}/verification")
+def update_superadmin_logistics_verification(
+    logistics_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles("super_admin", "owner")),
+):
+    item = db.query(LogisticsUser).filter(LogisticsUser.id == logistics_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Logistics account not found")
+
+    status = str(payload.get("status") or "").strip().lower()
+    if status not in {"verified", "pending", "rejected", "unverified"}:
+        raise HTTPException(status_code=400, detail="Invalid verification status")
+
+    item.verification_status = status
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {
+        "message": "Logistics verification updated",
+        "id": item.id,
+        "verification_status": item.verification_status,
+    }
+
+
 @app.post("/superadmin/logistics", status_code=201)
 def create_superadmin_logistics(
     payload: dict,
@@ -965,11 +1163,47 @@ def get_market_insights(
     db: Session = Depends(get_db),
     current: User = Depends(require_roles("admin", "super_admin", "owner")),
 ):
-    from backend.analysis.sales_analysis import market_insights, pricing_insights, demand_forecast
+    from backend.analysis.sales_analysis import market_insights, pricing_insights, demand_forecast, peak_sales_periods, customer_buying_patterns
     return {
         "market": market_insights(db),
         "pricing": pricing_insights(db),
-        "demand": demand_forecast(db)
+        "demand": demand_forecast(db),
+        "peak_periods": peak_sales_periods(db),
+        "customer_patterns": customer_buying_patterns(db)
     }
+
+@app.get("/dashboard/export-sales")
+def export_sales_report(
+    db: Session = Depends(get_db),
+    current: User = Depends(require_roles("admin", "super_admin", "owner")),
+):
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+    from backend.models import Sale
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Date", "Product", "Category", "Quantity", "Unit Price", "Total", "Status"])
+
+    sales = db.query(Sale).order_by(Sale.date.desc()).all()
+    for s in sales:
+        writer.writerow([
+            s.id,
+            s.date.isoformat() if s.date else "",
+            s.product,
+            s.category,
+            s.quantity,
+            s.unit_price,
+            (s.quantity or 0) * (s.unit_price or 0),
+            s.status
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sales_report.csv"}
+    )
 
     
