@@ -90,7 +90,7 @@ export function HomePage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [mode, setMode] = useState<"marketplace" | "ai">("marketplace");
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([
     {
@@ -99,6 +99,10 @@ export function HomePage() {
       text: "AI mode is ready. Describe the product you need, your budget, or the kind of seller you want.",
     },
   ]);
+
+  function toggleAi() {
+    setIsAiOpen((prev) => !prev);
+  }
   const [rfqDraft, setRfqDraft] = useState({
     company_name: "",
     contact_name: "",
@@ -191,26 +195,19 @@ export function HomePage() {
   const featuredItems = filteredItems.slice(0, 8);
 
   function activateMode(newMode: "marketplace" | "ai") {
-    setMode(newMode);
-    document.getElementById(newMode === "ai" ? "ai-mode" : "products")?.scrollIntoView({ behavior: "smooth" });
+    if (newMode === "ai") {
+      setIsAiOpen(true);
+    } else {
+      document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   async function handleSearch() {
-    if (mode === "ai") {
-      if (!search.trim()) {
-        setError("Type a question in the search bar to ask AI for product recommendations.");
-        return;
-      }
-      const reply = buildAssistantReply(search, allItems);
-      setAssistantMessages((prev) => [
-        ...prev,
-        { id: `user-${Date.now()}`, role: "user", text: search.trim() },
-        { id: `assistant-${Date.now() + 1}`, role: "assistant", text: reply },
-      ]);
-      setSearch("");
-      document.getElementById("ai-mode")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
+    if (!search.trim()) return;
+    
+    // In any mode, search bar on homepage works as products search, 
+    // but if it looks like a question, we could pop AI. 
+    // For now, let's keep it consistent: manual AI trigger via toggle.
 
     setError("");
     await fetchProducts(search, activeCategory);
@@ -267,7 +264,7 @@ export function HomePage() {
           <span>Welcome to SokoLink - Your B2B Marketplace</span>
           <div className="header-top-links">
             <a href="#request">Can&apos;t find a product?</a>
-            <a href="#ai-mode">AI Mode</a>
+            <button className="text-link" onClick={toggleAi}>AI Assistant</button>
           </div>
         </div>
         <div className="header-main">
@@ -280,12 +277,12 @@ export function HomePage() {
             <input
               type="text"
               className="search-input"
-              placeholder={mode === "ai" ? "Ask AI for the product or price range you need" : "Search products, categories, or suppliers"}
+              placeholder="Search products, categories, or suppliers"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             />
-            <button className="search-button" onClick={handleSearch}>{mode === "ai" ? "Ask AI" : "Search"}</button>
+            <button className="search-button" onClick={handleSearch}>Search</button>
           </div>
           <div className="header-actions">
             <Link to="/login" className="btn-login">Sign In</Link>
@@ -357,57 +354,6 @@ export function HomePage() {
               <p>{campaign.copy}</p>
             </article>
           ))}
-        </section>
-
-        <section className="ai-mode-section" id="ai-mode">
-          <div className="section-head">
-            <div>
-              <h2>AI shopping agent</h2>
-              <p className="muted">Switch between marketplace browsing and conversational discovery.</p>
-            </div>
-          </div>
-          <div className="ai-agent-grid">
-            <article className="ai-agent-panel">
-              <div className="buyer-pill-row">
-                <span className="buyer-badge buyer-badge--good">{mode === "ai" ? "AI mode active" : "Marketplace mode active"}</span>
-                <span className="buyer-pill">Ask for products</span>
-                <span className="buyer-pill">Get guided suggestions</span>
-              </div>
-              <div className="ai-agent-chat">
-                {assistantMessages.map((message) => (
-                  <div key={message.id} className={`ai-agent-bubble ai-agent-bubble--${message.role}`}>
-                    {message.text}
-                  </div>
-                ))}
-              </div>
-              <form className="ai-agent-form" onSubmit={handleAssistantSubmit}>
-                <input
-                  value={assistantInput}
-                  onChange={(event) => setAssistantInput(event.target.value)}
-                  placeholder="Ask for a product, price range, or type of seller"
-                />
-                <button className="search-button" type="submit">Ask AI</button>
-              </form>
-            </article>
-
-            <article className="ai-agent-panel">
-              <h3>Featured ad placements</h3>
-              <div className="ad-board">
-                <div className="ad-tile">
-                  <strong>Sponsored launch</strong>
-                  <p>Put new verified sellers in front of ready-to-buy customers.</p>
-                </div>
-                <div className="ad-tile">
-                  <strong>Route-aware bundles</strong>
-                  <p>Promote grouped local offers to reduce customer delivery cost.</p>
-                </div>
-                <div className="ad-tile">
-                  <strong>AI campaign targeting</strong>
-                  <p>Surface category campaigns based on what buyers search for most.</p>
-                </div>
-              </div>
-            </article>
-          </div>
         </section>
 
         <section className="products-section" id="products">

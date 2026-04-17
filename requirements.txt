@@ -8,3 +8,5 @@ psycopg2-binary
 numpy
 pandas
 matplotlib
+gunicorn
+python-dotenv

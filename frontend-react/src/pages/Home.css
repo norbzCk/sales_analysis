@@ -664,6 +664,12 @@
   transition: transform 200ms ease, box-shadow 200ms ease;
 }
 
+[data-theme="dark"] .promo-card {
+  background:
+    radial-gradient(circle at top right, rgba(251, 146, 60, 0.1), transparent 30%),
+    linear-gradient(180deg, var(--surface), var(--surface-soft));
+}
+
 .promo-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(15, 103, 181, 0.12);
@@ -719,12 +725,24 @@
 .ai-agent-bubble--assistant {
   background: #eef6ff;
   border: 1px solid rgba(15, 103, 181, 0.12);
+  color: #1a242f;
+}
+
+[data-theme="dark"] .ai-agent-bubble--assistant {
+  background: var(--surface-alt);
+  color: var(--text);
 }
 
 .ai-agent-bubble--user {
   justify-self: end;
   background: #fff4e8;
   border: 1px solid rgba(255, 122, 0, 0.16);
+  color: #1a242f;
+}
+
+[data-theme="dark"] .ai-agent-bubble--user {
+  background: var(--brand-orange-light);
+  color: var(--text);
 }
 
 .ai-agent-form {
@@ -737,6 +755,8 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .ad-board {
@@ -749,7 +769,7 @@
   border-radius: 14px;
   background:
     linear-gradient(140deg, rgba(15, 103, 181, 0.08), rgba(255, 122, 0, 0.1)),
-    #fff;
+    var(--surface);
   border: 1px solid rgba(15, 103, 181, 0.12);
 }
 

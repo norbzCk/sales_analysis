@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useTheme } from "../../features/auth/ThemeContext";
 import { Sidebar } from "../../components/Sidebar";
 import { env } from "../../config/env";
 
@@ -36,6 +37,7 @@ export function AppShell() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { effectiveTheme: theme, toggleTheme } = useTheme();
 
   const role = String(user?.role || "");
   const isSeller = role === "seller";
@@ -105,6 +107,14 @@ export function AppShell() {
             </p>
           </div>
           <div className="header-right">
+            <button 
+              className="header-icon-btn" 
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              style={{ fontSize: '1.4rem', border: 'none', cursor: 'pointer' }}
+            >
+              {theme === "light" ? "🌙" : "☀️"}
+            </button>
             <Link to={profilePath} className="header-user-profile">
               <div className="header-user-info">
                 <span className="header-user-name">{displayName}</span>

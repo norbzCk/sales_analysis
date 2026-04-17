@@ -6,8 +6,15 @@ services:
     startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: sales-db
+          connectionStringField: connectionString
       - key: APP_SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
         sync: false
+
+databases:
+  - name: sales-db
+    databaseName: sales_db
+    user: sales_user

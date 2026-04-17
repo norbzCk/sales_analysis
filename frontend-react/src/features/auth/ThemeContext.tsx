@@ -18,27 +18,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [effectiveTheme, setEffectiveTheme] = useState<"light" | "dark">("light");
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const applyTheme = useCallback((newTheme: "light" | "dark") => {
-    setIsTransitioning(true);
-    
-    // Add transition overlay
-    document.body.classList.add("theme-transitioning");
-    
-    // Apply theme after short delay for visual effect
-    requestAnimationFrame(() => {
-      setEffectiveTheme(newTheme);
-      document.documentElement.setAttribute("data-theme", newTheme);
-      document.body.classList.remove("light-theme", "dark-theme");
-      document.body.classList.add(`${newTheme}-theme`);
-      
-      // Remove transition class after animation
-      setTimeout(() => {
-        document.body.classList.remove("theme-transitioning");
-        setIsTransitioning(false);
-      }, 350);
-    });
+    setEffectiveTheme(newTheme);
+    document.documentElement.setAttribute("data-theme", newTheme);
+    document.body.classList.remove("light-theme", "dark-theme");
+    document.body.classList.add(`${newTheme}-theme`);
   }, []);
 
   useEffect(() => {

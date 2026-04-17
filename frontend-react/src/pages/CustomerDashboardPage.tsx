@@ -536,6 +536,7 @@ export function CustomerDashboardPage() {
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [expandedNotificationId, setExpandedNotificationId] = useState<string | null>(null);
   const [visibleAlertIds, setVisibleAlertIds] = useState<string[]>([]);
+  const [historyCleared, setHistoryCleared] = useState(false);
 
   useEffect(() => {
     if (user?.role === "user") {
@@ -981,11 +982,32 @@ export function CustomerDashboardPage() {
             <p className="eyebrow">Order history</p>
             <h2>Recent purchases and repeat actions</h2>
           </div>
+          {!historyCleared && snapshot.trackedOrders?.length ? (
+            <button 
+              type="button" 
+              className="secondary-button" 
+              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              onClick={() => setHistoryCleared(true)}
+            >
+              Clear History
+            </button>
+          ) : historyCleared ? (
+            <button 
+              type="button" 
+              className="secondary-button" 
+              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              onClick={() => setHistoryCleared(false)}
+            >
+              Show History
+            </button>
+          ) : null}
         </div>
         <div className="buyer-history-list">
-          {snapshot.trackedOrders?.length ? (
+          {historyCleared ? (
+            <p className="buyer-empty">Order history has been cleared. <button type="button" onClick={() => setHistoryCleared(false)} style={{ background: 'none', border: 'none', color: 'var(--brand-blue)', cursor: 'pointer', fontWeight: 600 }}>Show history</button> to view past orders.</p>
+          ) : snapshot.trackedOrders?.length ? (
             snapshot.trackedOrders.map((order) => (
-              <div key={order.id} className="buyer-history-item" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
+              <div key={order.id} className="buyer-history-item" style={{ padding: '20px', borderBottom: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <strong>#{order.orderNumber || order.id} · {getOrderProductName(order)}</strong>
