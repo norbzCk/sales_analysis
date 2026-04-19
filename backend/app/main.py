@@ -5,6 +5,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.auth import hash_password, require_roles, router as auth_router
+from backend.app.ai_assistant import router as ai_assistant_router
 from backend.app.notification_service import create_notification, resolve_subject
 from backend.database import engine, get_db
 from backend.app.products import router as products_router
@@ -672,6 +673,7 @@ app.include_router(business_router)
 app.include_router(logistics_router)
 app.include_router(notifications_router)
 app.include_router(auth_router)
+app.include_router(ai_assistant_router)
 
 
 @app.get("/superadmin/stats")

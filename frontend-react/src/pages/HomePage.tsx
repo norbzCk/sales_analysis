@@ -2,12 +2,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logoUrl from "../assets/sokolink-logo.png";
 import { useAuth } from "../features/auth/AuthContext";
+import { useAIAssistant } from "../features/ai/AIAssistantContext";
 import { useCart } from "../features/auth/CartContext";
 import { env } from "../config/env";
 import { getPostLoginPath } from "../features/auth/authStorage";
 import { apiRequest } from "../lib/http";
 import type { Product } from "../types/domain";
-import { AIAssistant } from "../components/AIAssistant";
 import "./Home.css";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80";
@@ -36,12 +36,6 @@ const CAMPAIGNS = [
   { title: "Bulk Buy Advantage", copy: "Send an RFQ when your needed product is not yet listed.", accent: "Buyer tool" },
 ];
 
-type AssistantMessage = {
-  id: string;
-  role: "assistant" | "user";
-  text: string;
-};
-
 type ProductSearchResponse = {
   items: Product[];
   total: number;
@@ -60,30 +54,9 @@ function resolveImageUrl(url?: string | null) {
   return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
 }
 
-function buildAssistantReply(prompt: string, products: Product[]) {
-  const query = prompt.trim().toLowerCase();
-  if (!query) {
-    return "Tell me the product, budget, or category you want and I’ll suggest a shopping direction.";
-  }
-
-  const matches = products.filter((item) =>
-    `${item.name || ""} ${item.category || ""} ${item.description || ""}`.toLowerCase().includes(query),
-  );
-  if (matches.length) {
-    const top = matches.slice(0, 3).map((item) => `${item.name} (${formatMoney(item.price)})`).join(", ");
-    return `I found matches you can open right away: ${top}. You can also compare sellers or add them to cart from the catalog below.`;
-  }
-
-  const categoryHint = products.find((item) => (item.category || "").toLowerCase().includes(query));
-  if (categoryHint?.category) {
-    return `I did not find an exact keyword match, but ${categoryHint.category} looks close. Try browsing that category or submit an RFQ so sellers can source it for you.`;
-  }
-
-  return "I could not find a direct match yet. Use the request form below to tell the marketplace what you need, and a seller can respond with a recommendation or quote.";
-}
-
 export function HomePage() {
   const { token, user, loading } = useAuth();
+  const { openAssistant } = useAIAssistant();
   const { addToCart, setIsOpen } = useCart();
   const navigate = useNavigate();
   const [allItems, setAllItems] = useState<Product[]>([]);
@@ -91,21 +64,6 @@ export function HomePage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAiOpen, setIsAiOpen] = useState(false);
-  const [assistantInput, setAssistantInput] = useState("");
-  const [assistantMessages, setAssistantMessages] = useState<AssistantMessage[]>([
-    {
-      id: "assistant-welcome",
-      role: "assistant",
-      text: "AI mode is ready. Describe the product you need, your budget, or the kind of seller you want.",
-    },
-  ]);
-
-  function toggleAi() {
-    setIsAiOpen((prev) => !prev);
-  }
-
-  const mode = isAiOpen ? "ai" : "marketplace";
   const [rfqDraft, setRfqDraft] = useState({
     company_name: "",
     contact_name: "",
@@ -199,7 +157,7 @@ export function HomePage() {
 
   function activateMode(newMode: "marketplace" | "ai") {
     if (newMode === "ai") {
-      setIsAiOpen(true);
+      openAssistant();
     } else {
       document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
     }
@@ -216,23 +174,6 @@ export function HomePage() {
     await fetchProducts(search, activeCategory);
     setHasSearched(true);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function handleAssistantSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const next = assistantInput.trim();
-    if (!next) return;
-    sendAssistantMessage(next);
-    setAssistantInput("");
-  }
-
-  function sendAssistantMessage(text: string) {
-    const reply = buildAssistantReply(text, allItems);
-    setAssistantMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: "user", text },
-      { id: `assistant-${Date.now() + 1}`, role: "assistant", text: reply },
-    ]);
   }
 
   async function submitRfq(event: FormEvent<HTMLFormElement>) {
@@ -271,7 +212,7 @@ export function HomePage() {
           <span>Welcome to SokoLink - Your B2B Marketplace</span>
           <div className="header-top-links">
             <a href="#request">Can&apos;t find a product?</a>
-            <button className="text-link" onClick={toggleAi}>AI Assistant</button>
+            <button className="text-link" onClick={openAssistant}>AI Assistant</button>
           </div>
         </div>
         <div className="header-main">
@@ -326,10 +267,10 @@ export function HomePage() {
                   <h2>{slide.title}</h2>
                   <p>{slide.description}</p>
                   <div className="hero-mode-toggle">
-                    <button className={mode === "marketplace" ? "btn-register" : "btn-login"} onClick={() => activateMode("marketplace")}>
+                    <button className="btn-register" onClick={() => activateMode("marketplace")}>
                       Marketplace mode
                     </button>
-                    <button className={mode === "ai" ? "btn-register" : "btn-login"} onClick={() => activateMode("ai")}>
+                    <button className="btn-login" onClick={() => activateMode("ai")}>
                       AI mode
                     </button>
                   </div>
@@ -487,13 +428,6 @@ export function HomePage() {
           <p>© 2026 SokoLink. All rights reserved. | Sourcing with Confidence.</p>
         </div>
       </footer>
-
-      <AIAssistant
-        isOpen={isAiOpen}
-        onToggle={toggleAi}
-        messages={assistantMessages}
-        onSendMessage={sendAssistantMessage}
-      />
     </div>
   );
 }

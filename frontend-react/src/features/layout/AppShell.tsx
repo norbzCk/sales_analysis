@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useAIAssistant } from "../ai/AIAssistantContext";
 import { useTheme } from "../../features/auth/ThemeContext";
 import { Sidebar } from "../../components/Sidebar";
 import { env } from "../../config/env";
@@ -35,6 +36,7 @@ function getInitials(name?: string) {
  */
 export function AppShell() {
   const { logout, user } = useAuth();
+  const { openAssistant } = useAIAssistant();
   const navigate = useNavigate();
   const location = useLocation();
   const { effectiveTheme: theme, toggleTheme } = useTheme();
@@ -107,6 +109,14 @@ export function AppShell() {
             </p>
           </div>
           <div className="header-right">
+            <button
+              className="header-icon-btn"
+              onClick={openAssistant}
+              title="Open AI assistant"
+              style={{ fontSize: "1.1rem", border: "none", cursor: "pointer" }}
+            >
+              Ask AI
+            </button>
             <button 
               className="header-icon-btn" 
               onClick={toggleTheme}

@@ -141,8 +141,18 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User | BusinessUser | LogisticsUser:
-    if not credentials or credentials.scheme.lower() != "bearer":
+    user = get_optional_current_user(credentials, db)
+    if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | BusinessUser | LogisticsUser | None:
+    if not credentials or credentials.scheme.lower() != "bearer":
+        return None
     payload = decode_token(credentials.credentials)
     if payload.get("user_type") == "superadmin" or (
         _normalize_role(payload.get("role")) == "super_admin" and str(payload.get("sub", "")) == "0"

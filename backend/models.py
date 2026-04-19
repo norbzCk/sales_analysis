@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -257,3 +257,27 @@ class PaymentTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     confirmed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AssistantConversation(Base):
+    __tablename__ = "assistant_conversations"
+
+    id = Column(String, primary_key=True, index=True)
+    subject_type = Column(String, nullable=False, default="guest", index=True)
+    subject_id = Column(Integer, nullable=True, index=True)
+    current_path = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), index=True)
+
+
+class AssistantConversationMessage(Base):
+    __tablename__ = "assistant_conversation_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(String, ForeignKey("assistant_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(String, nullable=False)
+    text = Column(Text, nullable=False)
+    source = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
