@@ -7,6 +7,7 @@ import { env } from "../config/env";
 import { getPostLoginPath } from "../features/auth/authStorage";
 import { apiRequest } from "../lib/http";
 import type { Product } from "../types/domain";
+import { AIAssistant } from "../components/AIAssistant";
 import "./Home.css";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80";
@@ -103,6 +104,8 @@ export function HomePage() {
   function toggleAi() {
     setIsAiOpen((prev) => !prev);
   }
+
+  const mode = isAiOpen ? "ai" : "marketplace";
   const [rfqDraft, setRfqDraft] = useState({
     company_name: "",
     contact_name: "",
@@ -219,13 +222,17 @@ export function HomePage() {
     event.preventDefault();
     const next = assistantInput.trim();
     if (!next) return;
-    const reply = buildAssistantReply(next, allItems);
+    sendAssistantMessage(next);
+    setAssistantInput("");
+  }
+
+  function sendAssistantMessage(text: string) {
+    const reply = buildAssistantReply(text, allItems);
     setAssistantMessages((prev) => [
       ...prev,
-      { id: `user-${Date.now()}`, role: "user", text: next },
+      { id: `user-${Date.now()}`, role: "user", text },
       { id: `assistant-${Date.now() + 1}`, role: "assistant", text: reply },
     ]);
-    setAssistantInput("");
   }
 
   async function submitRfq(event: FormEvent<HTMLFormElement>) {
@@ -480,6 +487,13 @@ export function HomePage() {
           <p>© 2026 SokoLink. All rights reserved. | Sourcing with Confidence.</p>
         </div>
       </footer>
+
+      <AIAssistant
+        isOpen={isAiOpen}
+        onToggle={toggleAi}
+        messages={assistantMessages}
+        onSendMessage={sendAssistantMessage}
+      />
     </div>
   );
 }
