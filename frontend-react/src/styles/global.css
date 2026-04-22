@@ -1919,6 +1919,20 @@ button {
   box-shadow: 0 20px 38px rgba(16, 24, 40, 0.12);
 }
 
+.stat-card .stat-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.stat-card p.muted {
+  color: var(--text-light);
+}
+
 .metric-premium {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 255, 0.98)),
@@ -1926,6 +1940,30 @@ button {
   border-color: rgba(15, 103, 181, 0.22);
   position: relative;
   overflow: hidden;
+}
+
+[data-theme="dark"] .metric-premium,
+.dark-theme .metric-premium {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(15, 103, 181, 0.16)),
+    linear-gradient(120deg, rgba(96, 165, 250, 0.18), rgba(251, 146, 60, 0.12));
+  border-color: rgba(96, 165, 250, 0.25);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] .metric-premium strong,
+.dark-theme .metric-premium strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .metric-premium .stat-label,
+.dark-theme .metric-premium .stat-label {
+  color: var(--brand-blue-strong);
+}
+
+[data-theme="dark"] .metric-premium p.muted,
+.dark-theme .metric-premium p.muted {
+  color: var(--text-muted);
 }
 
 .metric-premium::before {

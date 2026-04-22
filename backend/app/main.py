@@ -28,6 +28,11 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
 
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
 def _cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS")
     if not raw:

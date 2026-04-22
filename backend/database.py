@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+
 def get_database_url():
     db_user = os.getenv("DB_USER", "postgres")
     db_pass = os.getenv("DB_PASSWORD", "postgres123")
@@ -14,10 +15,29 @@ def get_database_url():
     password = quote_plus(db_pass)
     return f"postgresql://{db_user}:{password}@{db_host}:{db_port}/{db_name}"
 
-DATABASE_URL = os.getenv("DATABASE_URL") or get_database_url()
 
-engine = create_engine(DATABASE_URL)
+def resolve_database_url() -> str:
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        if database_url.startswith("postgres://"):
+            return "postgresql://" + database_url[len("postgres://") :]
+        return database_url
+
+    render_env = os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL")
+    if render_env:
+        raise RuntimeError(
+            "DATABASE_URL is not set. On Render, connect the web service to a "
+            "Render PostgreSQL database or define DATABASE_URL manually."
+        )
+
+    return get_database_url()
+
+
+DATABASE_URL = resolve_database_url()
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     db = SessionLocal()
