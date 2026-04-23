@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.auth import hash_password, require_roles, router as auth_router
@@ -27,6 +28,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+frontend_dist_dir = Path(__file__).resolve().parents[2] / "frontend-react" / "dist"
+frontend_assets_dir = frontend_dist_dir / "assets"
+
 
 @app.get("/healthz")
 def healthz():
@@ -42,7 +46,7 @@ def _cors_origins() -> list[str]:
 
 @app.on_event("startup")
 def ensure_schema_columns():
-    # Keep old DBs compatible with current models when migrations are missing.
+
     Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
         conn.execute(
@@ -594,10 +598,10 @@ def seed_marketplace_demo_data(db: Session) -> None:
         db.add(BusinessMetrics(business_id=model.id))
         sellers.append(model)
 
-    provider = db.query(Provider).filter(Provider.name == "SokoLnk Demo Supplier").first()
+    provider = db.query(Provider).filter(Provider.name == "SokoLink Demo Supplier").first()
     if not provider:
         provider = Provider(
-            name="SokoLnk Demo Supplier",
+            name="SokoLink Demo Supplier",
             location="Dar es Salaam",
             email="supplier@sokolink.local",
             phone="+255700100010",
@@ -656,6 +660,8 @@ def seed_marketplace_demo_data(db: Session) -> None:
 uploads_dir = Path(__file__).resolve().parents[1] / "uploads"
 uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+if frontend_assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=frontend_assets_dir), name="frontend-assets")
 
 
 app.add_middleware(
@@ -1213,4 +1219,26 @@ def export_sales_report(
         headers={"Content-Disposition": "attachment; filename=sales_report.csv"}
     )
 
-    
+
+@app.get("/", include_in_schema=False)
+def serve_frontend_root():
+    if frontend_dist_dir.exists():
+        return FileResponse(frontend_dist_dir / "index.html")
+    raise HTTPException(status_code=404, detail="Frontend build not found")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend_app(full_path: str):
+    if not frontend_dist_dir.exists():
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+
+    requested_path = (frontend_dist_dir / full_path).resolve()
+    try:
+        requested_path.relative_to(frontend_dist_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    if requested_path.is_file():
+        return FileResponse(requested_path)
+
+    return FileResponse(frontend_dist_dir / "index.html")

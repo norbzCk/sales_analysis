@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales Frontend</title>
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('theme') || 'system';
+          let effectiveTheme = theme;
+          if (theme === 'system') {
+            effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', effectiveTheme);
+          document.body.classList.add(effectiveTheme + '-theme');
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-CIGwh1Yz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C9Zb98mz.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+  </html>

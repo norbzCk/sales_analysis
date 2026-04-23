@@ -14,10 +14,6 @@ function resolveDefaultApiBase() {
     return "https://sales-analysis-api.onrender.com";
   }
 
-  if (protocol === "https:") {
-    return "https://sales-analysis-api.onrender.com";
-  }
-
   return origin.replace(/\/+$/, "");
 }
 
