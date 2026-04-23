@@ -125,23 +125,23 @@ export function AppShell() {
             >
               {theme === "light" ? "🌙" : "☀️"}
             </button>
-            <Link to={profilePath} className="header-user-profile">
-              <div className="header-user-info">
-                <span className="header-user-name">{displayName}</span>
-                <span className="header-user-role">{roleLabel}</span>
-              </div>
-              {profilePhotoUrl ? (
-                <img 
-                  src={resolveImageUrl(profilePhotoUrl)} 
-                  alt={displayName} 
-                  className="header-user-avatar" 
-                />
-              ) : (
-                <div className="header-user-avatar placeholder">
-                  {getInitials(displayName)}
-                </div>
-              )}
-            </Link>
+<Link to={profilePath} className="header-user-profile">
+               <div className="header-user-info">
+                 <span className="header-user-name">{displayName}</span>
+                 <span className="header-user-role">{roleLabel}</span>
+               </div>
+               {profilePhotoUrl ? (
+                 <img 
+                   src={resolveImageUrl(profilePhotoUrl)} 
+                   alt={displayName} 
+                   className="user-avatar" 
+                 />
+               ) : (
+                 <div className="user-avatar placeholder">
+                   {getInitials(displayName)}
+                 </div>
+               )}
+             </Link>
           </div>
         </header>
 
