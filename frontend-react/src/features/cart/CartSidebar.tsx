@@ -121,7 +121,7 @@ export function CartSidebar() {
               <span className="cart-total-amount">{formatMoney(cartTotal)}</span>
             </div>
             <button className="btn-make-order" onClick={handleMakeOrder}>
-              Open Order Center
+              Add Delivery Details
             </button>
             <button className="btn-clear-cart" onClick={clearCart}>
               Clear Cart

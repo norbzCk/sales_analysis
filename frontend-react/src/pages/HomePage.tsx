@@ -344,7 +344,7 @@ export function HomePage() {
                     </div>
                   ) : null}
                   <button
-                    className="btn-add-cart"
+                    className="btn-add-cart product-card-action"
                     onClick={(e) => {
                       e.stopPropagation();
                       addToCart({

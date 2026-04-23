@@ -291,6 +291,11 @@ export function OrdersPage() {
       delivery_notes: String(form.get("delivery_notes") || "").trim(),
     };
 
+    if (payload.delivery_method !== "Pickup" && !payload.delivery_address) {
+      setError("Enter a real delivery address before saving the order.");
+      return;
+    }
+
     setDraftOrders((prev) => [...prev, payload]);
     setFlash("Order added to temporary list. Confirm when ready.");
     event.currentTarget.reset();
@@ -314,10 +319,10 @@ export function OrdersPage() {
       quantity: item.qty,
       unit_price: item.price,
       order_date: today,
-      delivery_address: user?.address || "",
+      delivery_address: "",
       delivery_phone: user?.phone || "",
       delivery_method: "Standard",
-      delivery_notes: item.seller_area ? `Optimize around ${item.seller_area}` : "",
+      delivery_notes: "",
     }));
     setDraftOrders((prev) => [...prev, ...imported]);
     clearCart();
@@ -337,6 +342,10 @@ export function OrdersPage() {
 
     for (const item of draftOrders) {
       try {
+        if (item.delivery_method !== "Pickup" && !item.delivery_address.trim()) {
+          failures.push(`${item.product_name}: delivery address is required`);
+          continue;
+        }
         await apiRequest("/orders/", {
           method: "POST",
           body: {
@@ -660,10 +669,10 @@ export function OrdersPage() {
                 ))}
               </select>
             </label>
-            <label>Quantity<input name="quantity" type="number" min="1" required /></label>
+            <label>Quantity<input name="quantity" type="number" min="1" defaultValue={params.get("quantity") || "1"} required /></label>
             <label>Order date<input name="order_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-            <label>Delivery address<input name="delivery_address" defaultValue={user?.address || ""} /></label>
-            <label>Delivery phone<input name="delivery_phone" defaultValue={user?.phone || ""} /></label>
+            <label>Delivery address<input name="delivery_address" placeholder="Enter the actual delivery address" /></label>
+            <label>Delivery phone<input name="delivery_phone" defaultValue={user?.phone || ""} placeholder="Phone for delivery contact" /></label>
             <label>
               Delivery method
               <select name="delivery_method" defaultValue="Standard">
@@ -672,7 +681,7 @@ export function OrdersPage() {
                 <option value="Pickup">Pickup</option>
               </select>
             </label>
-            <label>Notes<input name="delivery_notes" /></label>
+            <label>Notes<input name="delivery_notes" placeholder="Optional delivery instructions" /></label>
             <button className="primary-button" type="submit">Save temporarily</button>
           </form>
 

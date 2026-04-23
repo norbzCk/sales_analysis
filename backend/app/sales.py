@@ -298,10 +298,12 @@ def create_order(
     if (product.stock or 0) < quantity:
         raise HTTPException(status_code=400, detail="Insufficient stock for this product")
 
-    delivery_address = (payload.get("delivery_address") or current.address or "").strip() or None
+    delivery_address = (payload.get("delivery_address") or "").strip() or None
     delivery_phone = (payload.get("delivery_phone") or current.phone or "").strip() or None
     delivery_notes = (payload.get("delivery_notes") or "").strip() or None
     delivery_method = _normalized_delivery_method(payload.get("delivery_method"))
+    if delivery_method != "Pickup" and not delivery_address:
+        raise HTTPException(status_code=400, detail="Delivery address is required unless you select Pickup")
     seller = None
     if getattr(product, "seller_id", None):
         seller = db.query(BusinessUser).filter(BusinessUser.id == product.seller_id).first()

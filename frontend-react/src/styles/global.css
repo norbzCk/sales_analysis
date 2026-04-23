@@ -286,3 +286,103 @@
     border-radius: 20px;
   }
 }
+
+.product-card-action {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.buyer-dashboard-live .buyer-hero,
+.buyer-dashboard-live .buyer-card {
+  background: var(--surface, #ffffff);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.customer-link-list {
+  display: grid;
+  gap: 12px;
+}
+
+.customer-link-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(248, 250, 252, 0.9);
+  text-decoration: none;
+  color: inherit;
+}
+
+.customer-link-card strong {
+  color: #0f172a;
+}
+
+.customer-link-card span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.customer-order-list {
+  display: grid;
+  gap: 14px;
+}
+
+.customer-order-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.9fr);
+  gap: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.customer-order-actions {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  justify-items: stretch;
+}
+
+.customer-danger-button {
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .buyer-dashboard-live .buyer-hero,
+[data-theme="dark"] .buyer-dashboard-live .buyer-card {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(100, 116, 139, 0.28);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.3);
+}
+
+[data-theme="dark"] .customer-link-card,
+[data-theme="dark"] .customer-order-item {
+  background: rgba(15, 23, 42, 0.54);
+  border-color: rgba(100, 116, 139, 0.28);
+}
+
+[data-theme="dark"] .customer-link-card strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .customer-link-card span {
+  color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+  .product-card-action {
+    padding: 12px;
+    font-size: 0.88rem;
+  }
+
+  .customer-order-item {
+    grid-template-columns: 1fr;
+  }
+}

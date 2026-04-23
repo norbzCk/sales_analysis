@@ -64,24 +64,7 @@ export function ProductDetailPage() {
     }
 
     setSubmitting(true);
-    try {
-      const payload = {
-        product_id: product?.id,
-        quantity: quantity,
-        delivery_address: "Primary delivery address",
-        delivery_phone: "0700 000 000",
-        delivery_method: "Standard",
-        order_date: new Date().toISOString()
-      };
-      
-      await apiRequest("/orders/", { method: "POST", body: payload });
-      alert("Order placed successfully! Please proceed to payments once confirmed.");
-      navigate("/app/orders");
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to place order");
-    } finally {
-      setSubmitting(false);
-    }
+    navigate(`/app/orders?product=${product?.id || productId}&quantity=${quantity}`);
   }
 
   function handleImageMouseMove(e: MouseEvent<HTMLImageElement>) {
@@ -155,11 +138,11 @@ export function ProductDetailPage() {
             disabled={submitting || !product.stock || product.stock <= 0}
             onClick={handleOrder}
           >
-            {submitting ? "Placing Order..." : "Confirm & Place Order"}
+            {submitting ? "Opening checkout..." : "Continue to Delivery Details"}
           </button>
 
           <button 
-            className="secondary-button" 
+            className="secondary-button product-card-action" 
             style={{ width: '100%', height: '48px', marginTop: '8px' }}
             disabled={!product.stock || product.stock <= 0}
             onClick={() => {
@@ -180,7 +163,7 @@ export function ProductDetailPage() {
           </button>
           
           <p className="muted" style={{ textAlign: 'center', fontSize: '0.85rem' }}>
-            Payments are required once the seller confirms your order.
+            Enter delivery details before the order is created. Payment happens only when you choose to pay.
           </p>
         </div>
       </div>

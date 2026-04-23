@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { useCart } from "../features/auth/CartContext";
 import { env } from "../config/env";
@@ -83,6 +83,7 @@ export function ProductsPage() {
   const { user } = useAuth();
   const { addToCart, setIsOpen } = useCart();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [businessmen, setBusinessmen] = useState<BusinessmanOption[]>([]);
@@ -90,8 +91,8 @@ export function ProductsPage() {
   const [flash, setFlash] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [category, setCategory] = useState(searchParams.get("category") || "all");
   const [sort, setSort] = useState("featured");
   const [draft, setDraft] = useState<ProductDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -116,6 +117,11 @@ export function ProductsPage() {
   useEffect(() => {
     void load();
   }, [sellerMode]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("q") || searchParams.get("seller") || "");
+    setCategory(searchParams.get("category") || "all");
+  }, [searchParams]);
 
   async function load() {
     setLoading(true);
@@ -162,7 +168,12 @@ export function ProductsPage() {
       data = data.filter((item) => item.category === category);
     }
     if (search.trim()) {
-      data = data.filter((item) => item.name?.toLowerCase().includes(search.toLowerCase()));
+      const keyword = search.toLowerCase();
+      data = data.filter((item) =>
+        `${item.name || ""} ${item.category || ""} ${item.seller_name || ""} ${item.seller?.business_name || ""}`
+          .toLowerCase()
+          .includes(keyword),
+      );
     }
     if (sort === "price_low") data.sort((a, b) => (a.price || 0) - (b.price || 0));
     if (sort === "price_high") data.sort((a, b) => (b.price || 0) - (a.price || 0));
@@ -526,8 +537,7 @@ export function ProductsPage() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {user?.role === "user" && (
                     <button 
-                      className="primary-button" 
-                      style={{ padding: '8px 16px', fontSize: '0.85rem', minWidth: '140px' }}
+                      className="primary-button product-card-action" 
                       disabled={!(product.stock && product.stock > 0)}
                       onClick={(e) => { 
                         e.stopPropagation(); 

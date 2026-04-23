@@ -89,52 +89,38 @@ export function PaymentsPage() {
       {error ? <p className="alert error">{error}</p> : null}
       {flash ? <p className="alert success">{flash}</p> : null}
 
-      <div className="two-column-grid">
-        <div className="panel stack-list">
-          <h2>Payment methods</h2>
-          {methods.map((method) => (
-            <div key={method.id} className="list-item"> {/* Changed from list-card to list-item */}
-              <div>
-                <strong>{method.name}</strong>
-                <p>{method.instructions || ""}</p>
-              </div>
-              <span>{method.enabled ? "Enabled" : "Disabled"}</span>
-            </div>
-          ))}
+      <form className="panel form-grid payment-form" onSubmit={handleSubmit}>
+        <h2>Initiate payment</h2>
+        <p className="muted">Choose an order, then select the payment method you want to use for that transaction.</p>
+        <label>
+          Order
+          <select name="order_id" defaultValue={preselectedOrderId} required>
+            <option value="">Select order</option>
+            {orders.map((order) => (
+              <option key={order.id} value={order.id}>#{order.id} {order.product} - {formatMoney(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0))}</option>
+            ))}
+          </select>
+        </label>
+        <label>Amount<input name="amount" type="number" min="0" step="0.01" defaultValue={preselectedAmount} required /></label>
+        <label>
+          Method
+          <select name="payment_method" required>
+            <option value="">Select method</option>
+            {methods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
+          </select>
+        </label>
+        <label>Phone number<input name="phone_number" /></label>
+        <div className="payment-actions">
+          <button className="btn btn-primary payment-btn" type="submit">Pay Now</button>
         </div>
-
-        <form className="panel form-grid payment-form" onSubmit={handleSubmit}>
-          <h2>Initiate payment</h2>
-          <label>
-            Order
-            <select name="order_id" defaultValue={preselectedOrderId} required>
-              <option value="">Select order</option>
-              {orders.map((order) => (
-                <option key={order.id} value={order.id}>#{order.id} {order.product} - {formatMoney(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0))}</option>
-              ))}
-            </select>
-          </label>
-          <label>Amount<input name="amount" type="number" min="0" step="0.01" defaultValue={preselectedAmount} required /></label>
-          <label>
-            Method
-            <select name="payment_method" required>
-              <option value="">Select method</option>
-              {methods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
-            </select>
-          </label>
-          <label>Phone number<input name="phone_number" /></label>
-          <div className="payment-actions">
-            <button className="btn btn-primary payment-btn" type="submit">Pay Now</button>
+        {result ? (
+          <div className="payment-result success">
+            <strong>{result.transaction_id}</strong>
+            <p>{result.message}</p>
+            <p>{formatMoney(result.amount)}</p>
           </div>
-          {result ? (
-            <div className="payment-result success">
-              <strong>{result.transaction_id}</strong>
-              <p>{result.message}</p>
-              <p>{formatMoney(result.amount)}</p>
-            </div>
-          ) : null}
-        </form>
-      </div>
+        ) : null}
+      </form>
 
       <div className="panel table-scroll">
         <div className="panel-header"> {/* Added panel-header for consistency */}
