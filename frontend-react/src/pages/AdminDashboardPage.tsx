@@ -221,7 +221,7 @@ export function AdminDashboardPage() {
                         <strong>{item.label}</strong>
                         <span>{formatMoney(item.value)}</span>
                       </div>
-                      <div className="admin-product-bar__track">
+  clean u                     <div className="admin-product-bar__track">
                         <div
                           className="admin-product-bar__fill"
                           style={{ width: `${Math.max(10, Math.round((Number(item.value || 0) / maxProductRevenue) * 100))}%` }}

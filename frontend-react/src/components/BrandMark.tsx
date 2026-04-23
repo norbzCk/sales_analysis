@@ -9,7 +9,7 @@ export function BrandMark({ to = "/", subtitle = "Smart marketplace operations" 
       </div>
       <div className="brand-mark-copy">
         <span className="brand-mark-title">SokoLnk</span>
-        <span className="brand-mark-subtitle">{subtitle}</span>
+        {subtitle ? <span className="brand-mark-subtitle">{subtitle}</span> : null}
       </div>
     </Link>
   );

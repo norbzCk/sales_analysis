@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AuthScene } from "../components/AuthScene";
+import { BrandMark } from "../components/BrandMark";
 import { useAuth } from "../features/auth/AuthContext";
 import { getPostLoginPath } from "../features/auth/authStorage";
 
@@ -33,66 +33,58 @@ export function LoginPage() {
   }
 
   return (
-    <AuthScene
-      eyebrow="Welcome back"
-      title="Sign in to your marketplace workspace."
-      description="Access buyer, seller, delivery, or admin workflows through the same backend-powered account system."
-      bullets={[
-        "Browse products and verified suppliers",
-        "Track orders, deliveries, and payment activity",
-        "Switch between buyer, seller, delivery, and admin flows cleanly",
-      ]}
-      links={[
-        { to: "/register/customer", label: "Register as Customer" },
-        { to: "/register/business", label: "Register as Business" },
-        { to: "/register/logistics", label: "Register as Logistics" },
-        { to: "/superadmin", label: "Superadmin Login" },
-      ]}
-    >
-      <div className="auth-card-header">
-        <div>
-          <p className="eyebrow">Account access</p>
-          <h2>Sign in</h2>
+    <div className="login-page-simple">
+      <div className="login-card-simple">
+        <BrandMark subtitle="" />
+
+        <div className="auth-card-header login-card-header-simple">
+          <div>
+            <p className="eyebrow">Account access</p>
+            <h1>Sign in</h1>
+            <p className="login-card-subtitle">Use your phone number or email to continue.</p>
+          </div>
+        </div>
+
+        {error ? <p className="alert error">{error}</p> : null}
+
+        <form className="form-grid auth-form-grid" onSubmit={handleLogin}>
+          <label>
+            Phone or email
+            <input name="identifier" placeholder="0700 000 000 or name@email.com" required />
+          </label>
+          <label>
+            Password
+            <div className="password-input-wrapper">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </label>
+          <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+
+        <div className="login-links-simple">
+          <Link to="/forgot-password">Forgot password?</Link>
+          <Link to="/register/customer">Create customer account</Link>
+          <Link to="/register/business">Create business account</Link>
+          <Link to="/register/logistics">Create logistics account</Link>
+          <Link to="/superadmin">Superadmin login</Link>
+          <Link to="/">Back to homepage</Link>
         </div>
       </div>
-
-      {error ? <p className="alert error">{error}</p> : null}
-
-      <form className="form-grid auth-form-grid" onSubmit={handleLogin}>
-        <label>
-          Phone or email
-          <input name="identifier" placeholder="0700 000 000 or name@email.com" required />
-        </label>
-        <label>
-          Password
-          <div className="password-input-wrapper">
-            <input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              required
-            />
-            <button
-              type="button"
-              className="password-toggle-button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? "👁️" : "👁️‍🗨️"}
-            </button>
-          </div>
-        </label>
-        <button className="primary-button auth-submit" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
-
-      <p className="auth-helper-text">
-        Forgot your password? <Link to="/forgot-password">Reset it here</Link>.
-      </p>
-      <div style={{ textAlign: 'center', marginTop: '20px' }}>
-        <Link to="/" style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 600 }}>← Back to Homepage</Link>
-      </div>
-    </AuthScene>
+    </div>
   );
 }
