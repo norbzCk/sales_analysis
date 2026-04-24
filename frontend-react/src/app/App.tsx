@@ -22,11 +22,12 @@ import { ProvidersPage } from "../pages/ProvidersPage";
 import { SellerDashboardPage } from "../pages/SellerDashboardPage";
 import { SellerDeliveriesPage } from "../pages/SellerDeliveriesPage";
 import { SellerProfilePage } from "../pages/SellerProfilePage";
-import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
+// import { SuperadminDashboardPage } from "../pages/SuperadminDashboardPage";
 import { SuperadminLoginPage } from "../pages/SuperadminLoginPage";
 import { UsersPage } from "../pages/UsersPage";
 import { LogisticsProfilePage } from "../pages/LogisticsProfilePage";
 import { SuperadminProfilePage } from "../pages/SuperadminProfilePage";
+import { SuperadminSettingsPage } from "../pages/SuperadminSettingsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 import { ProductDetailPage } from "../pages/ProductDetailPage";
@@ -65,7 +66,7 @@ export function App() {
       >
         <Route index element={<AppLanding />} />
         <Route path="dashboard" element={<RoleRoute allowedRoles={["admin", "owner"]}><AdminDashboardPage /></RoleRoute>} />
-        <Route path="superadmin" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminDashboardPage /></RoleRoute>} />
+        {/* <Route path="superadmin" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminDashboardPage /></RoleRoute>} /> */}
         <Route path="seller" element={<RoleRoute allowedRoles={["seller"]}><SellerDashboardPage /></RoleRoute>} />
         <Route path="seller/profile" element={<RoleRoute allowedRoles={["seller"]}><SellerProfilePage /></RoleRoute>} />
         <Route path="seller/deliveries" element={<RoleRoute allowedRoles={["seller"]}><SellerDeliveriesPage /></RoleRoute>} />
@@ -83,7 +84,7 @@ export function App() {
         <Route path="profile" element={<RoleRoute allowedRoles={["admin", "owner"]}><ProfilePage /></RoleRoute>} />
         <Route path="superadmin/profile" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminProfilePage /></RoleRoute>} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="superadmin/settings" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SettingsPage /></RoleRoute>} />
+        <Route path="superadmin/settings" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><SuperadminSettingsPage /></RoleRoute>} />
         <Route path="users" element={<RoleRoute allowedRoles={["admin", "super_admin", "owner"]}><UsersPage /></RoleRoute>} />
       </Route>
 

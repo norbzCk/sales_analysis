@@ -4,6 +4,15 @@ import { useAuth } from "../features/auth/AuthContext";
 import { useCart } from "../features/auth/CartContext";
 import { apiRequest } from "../lib/http";
 import type { LogisticsDelivery, Order, OrderTracking, Product } from "../types/domain";
+import { Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const TRACKING_STEPS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"];
 const STATUS_OPTIONS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received", "Cancelled"];
@@ -196,6 +205,67 @@ export function OrdersPage() {
       setSelectedId(visibleOrders[0].id);
     }
   }, [selectedId, visibleOrders]);
+
+  // Calculate order status distribution for pie chart
+  const orderStatusData = useMemo(() => {
+    const statusCounts = STATUS_OPTIONS.reduce((acc, status) => {
+      acc[status] = 0;
+      return acc;
+    }, {} as Record<string, number>);
+
+    orders.forEach((order) => {
+      const status = normalizedStatus(order.status);
+      if (statusCounts.hasOwnProperty(status)) {
+        statusCounts[status]++;
+      }
+    });
+
+    const labels = Object.keys(statusCounts);
+    const data = Object.values(statusCounts);
+    const colors = [
+      '#ef4444', // red - cancelled
+      '#f97316', // orange - pending
+      '#eab308', // yellow - confirmed
+      '#22c55e', // green - packed
+      '#3b82f6', // blue - ready for shipping
+      '#8b5cf6', // purple - shipped
+      '#06b6d4', // cyan - received
+    ];
+
+    return {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors.slice(0, labels.length),
+        borderColor: colors.slice(0, labels.length).map(color => color.replace('0.8', '1')),
+        borderWidth: 2,
+      }],
+    };
+  }, [orders]);
+
+  const pieChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            return `${label}: ${value} orders (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -654,140 +724,214 @@ export function OrdersPage() {
         <article className="stat-card"><span className="stat-label">Delivered</span><strong>{orderSummary.received}</strong></article>
       </div>
 
+      {/* Orders Status Pie Chart */}
+      <div className="panel">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+          <div>
+            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Orders by Status</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Distribution of orders across different fulfillment stages</p>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <Pie data={orderStatusData} options={pieChartOptions} />
+          </div>
+        </div>
+      </div>
+
       {user?.role === "user" ? (
         <div className="two-column-grid">
-          <form className="panel form-grid" onSubmit={handleCreate}>
-            <h2>Add order to temporary list</h2>
-            <label>
-              Product
-              <select name="product_id" defaultValue={params.get("product") || ""} required>
-                <option value="">Select product</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} - {formatMoney(product.price)} ({product.seller_name || product.seller?.business_name || "seller"})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>Quantity<input name="quantity" type="number" min="1" defaultValue={params.get("quantity") || "1"} required /></label>
-            <label>Order date<input name="order_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-            <label>Delivery address<input name="delivery_address" placeholder="Enter the actual delivery address" /></label>
-            <label>Delivery phone<input name="delivery_phone" defaultValue={user?.phone || ""} placeholder="Phone for delivery contact" /></label>
-            <label>
-              Delivery method
-              <select name="delivery_method" defaultValue="Standard">
-                <option value="Standard">Standard</option>
-                <option value="Express">Express</option>
-                <option value="Pickup">Pickup</option>
-              </select>
-            </label>
-            <label>Notes<input name="delivery_notes" placeholder="Optional delivery instructions" /></label>
-            <button className="primary-button" type="submit">Save temporarily</button>
+          <form className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4" onSubmit={handleCreate}>
+            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-4">Add order to temporary list</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Product</span>
+                <select name="product_id" defaultValue={params.get("product") || ""} className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" required>
+                  <option value="">Select product</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - {formatMoney(product.price)} ({product.seller_name || product.seller?.business_name || "seller"})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Quantity</span>
+                <input name="quantity" type="number" min="1" defaultValue={params.get("quantity") || "1"} className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" required />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Order date</span>
+                <input name="order_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Delivery method</span>
+                <select name="delivery_method" defaultValue="Standard" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white">
+                  <option value="Standard">Standard</option>
+                  <option value="Express">Express</option>
+                  <option value="Pickup">Pickup</option>
+                </select>
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Delivery address</span>
+                <input name="delivery_address" placeholder="Enter the actual delivery address" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Delivery phone</span>
+                <input name="delivery_phone" defaultValue={user?.phone || ""} placeholder="Phone for delivery contact" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+              </label>
+              <label className="block md:col-span-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</span>
+                <input name="delivery_notes" placeholder="Optional delivery instructions" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+              </label>
+            </div>
+            <button className="w-full px-6 py-3 bg-brand text-white rounded-lg hover:bg-brand-strong transition font-medium" type="submit">Save temporarily</button>
           </form>
 
-          <article className="panel stack-list">
-            <div className="panel-header">
-              <h2>Temporary order list</h2>
-              <div className="hero-actions">
-                <span>{draftOrders.length} item(s)</span>
-                <button className="secondary-button" type="button" onClick={importCartToDrafts}>
+          <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+              <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Temporary order list</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{draftOrders.length} item(s)</span>
+                <button className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" type="button" onClick={importCartToDrafts}>
                   Import cart ({cart.length})
                 </button>
               </div>
             </div>
-            {!draftOrders.length ? <p className="muted">No temporary orders yet.</p> : null}
-            {draftOrders.map((item) => (
-              <div key={item.id} className="list-card">
-                <div>
-                  <strong>{item.product_name}</strong>
-                  <p className="muted">{item.seller_name}</p>
-                  <p className="muted">Qty {item.quantity} · {item.delivery_method}</p>
+            {!draftOrders.length ? <p className="text-sm text-slate-500 dark:text-slate-400">No temporary orders yet.</p> : null}
+            <div className="space-y-3">
+              {draftOrders.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <div>
+                    <strong className="text-slate-900 dark:text-white">{item.product_name}</strong>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{item.seller_name}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Qty {item.quantity} · {item.delivery_method}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <strong className="text-slate-900 dark:text-white">{formatMoney(item.unit_price * item.quantity)}</strong>
+                    <button className="px-3 py-1.5 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium" type="button" onClick={() => removeDraftItem(item.id)}>
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <div className="stack-list">
-                  <strong>{formatMoney(item.unit_price * item.quantity)}</strong>
-                  <button className="secondary-button" type="button" onClick={() => removeDraftItem(item.id)}>
-                    Remove
+              ))}
+            </div>
+            {draftOrders.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Units: {draftSummary.units}</span>
+                <div className="flex items-center gap-3">
+                  <strong className="text-lg text-slate-900 dark:text-white">Total: {formatMoney(draftSummary.total)}</strong>
+                  <button className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-brand-strong transition font-medium" type="button" onClick={() => void confirmDraftOrders()} disabled={!draftOrders.length}>
+                    Confirm order(s)
                   </button>
                 </div>
               </div>
-            ))}
-            <div className="buyer-kpi">
-              <span className="muted">Units: {draftSummary.units}</span>
-              <strong>Total: {formatMoney(draftSummary.total)}</strong>
-            </div>
-            <button className="primary-button" type="button" onClick={() => void confirmDraftOrders()} disabled={!draftOrders.length}>
-              Confirm order(s)
-            </button>
+            )}
           </article>
         </div>
       ) : null}
 
-      <div className="panel filter-grid">
-        <label>Search<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search orders" /></label>
-        <label>
-          Status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">All statuses</option>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </label>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Search</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search orders" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 shadow-sm focus:border-brand focus:ring-brand bg-white dark:bg-slate-700 text-slate-900 dark:text-white">
+              <option value="all">All statuses</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
+            <div className="text-sm text-slate-500 dark:text-slate-400">
+              {visibleOrders.length} orders matching current filters
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="two-column-grid">
-        <div className="panel">
-          <div className="panel-header">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
             <div>
-              <h2>Order list</h2>
-              <p className="muted">{visibleOrders.length} orders matching current filters.</p>
+              <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Order list</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{visibleOrders.length} orders matching current filters.</p>
             </div>
-            <span className="badge">{visibleOrders.length}</span>
+            <span className="px-3 py-1 bg-brand/10 text-brand rounded-full text-sm font-medium">{visibleOrders.length}</span>
           </div>
-          <div className="stack-list">
-            {loading ? <p className="muted">Loading orders...</p> : null}
-            {!loading && !visibleOrders.length ? <p className="muted">No orders found.</p> : null}
+          <div className="space-y-2">
+            {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading orders...</p> : null}
+            {!loading && !visibleOrders.length ? <p className="text-sm text-slate-500 dark:text-slate-400">No orders found.</p> : null}
             {visibleOrders.map((order) => (
               <button
                 key={order.id}
-                className={`order-list-item${selectedOrder?.id === order.id ? " active" : ""}`}
+                className={`w-full text-left p-4 rounded-lg border transition-all ${
+                  selectedOrder?.id === order.id
+                    ? "border-brand bg-brand/5 shadow-sm"
+                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
+                }`}
                 onClick={() => setSelectedId(order.id)}
                 type="button"
               >
-                <div>
-                  <strong>#{order.id} {order.product || "Order"}</strong>
-                  <p className="muted">{order.provider_name || "Customer order"}</p>
-                  <p className="muted">{formatOrderDate(order.order_date || (order as any).created_at || null)}</p>
-                </div>
-                <div>
-                  <span className={`status-pill ${statusVariant(order.status || undefined)}`}>{normalizedStatus(order.status)}</span>
-                  <strong>{formatMoney(order.total || (Number(order.unit_price || 0) * Number(order.quantity || 0)))}</strong>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <strong className="text-slate-900 dark:text-white">#{order.id} {order.product || "Order"}</strong>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{order.provider_name || "Customer order"}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{formatOrderDate(order.order_date || (order as any).created_at || null)}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      statusVariant(order.status || undefined) === "ok"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                        : statusVariant(order.status || undefined) === "warn"
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                    }`}>
+                      {normalizedStatus(order.status)}
+                    </span>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{formatMoney(order.total || (Number(order.unit_price || 0) * Number(order.quantity || 0)))}</p>
+                  </div>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="panel">
-          {!selectedOrder ? <p className="muted">Select an order to inspect it.</p> : (
-            <div className="stack-list">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          {!selectedOrder ? <p className="text-sm text-slate-500 dark:text-slate-400">Select an order to inspect it.</p> : (
+            <div className="space-y-6">
               <div>
-                <p className="eyebrow">Order details</p>
-                <h2>#{selectedOrder.id} {selectedOrder.product || "-"}</h2>
-                <p className="muted">{selectedOrder.category || "General"} · {selectedOrder.provider_name || "Provider unavailable"}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Order details</p>
+                <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">#{selectedOrder.id} {selectedOrder.product || "-"}</h2>
+                <p className="text-slate-500 dark:text-slate-400">{selectedOrder.category || "General"} · {selectedOrder.provider_name || "Provider unavailable"}</p>
               </div>
-              <div className="two-up">
-                <span>Quantity: {selectedOrder.quantity || 0}</span>
-                <span>Total: {formatMoney(selectedOrder.total || (Number(selectedOrder.unit_price || 0) * Number(selectedOrder.quantity || 0)))}</span>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Quantity</span>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedOrder.quantity || 0}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Total</span>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{formatMoney(selectedOrder.total || (Number(selectedOrder.unit_price || 0) * Number(selectedOrder.quantity || 0)))}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Delivery</span>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedOrder.delivery_method || "Standard"}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Status</span>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white">{normalizedStatus(selectedOrder.status)}</p>
+                </div>
               </div>
-              <div className="two-up">
-                <span>Delivery: {selectedOrder.delivery_method || "Standard"}</span>
-                <span>Status: {normalizedStatus(selectedOrder.status)}</span>
+              <div className="space-y-2">
+                <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Address:</strong> {selectedOrder.delivery_address || "No address"}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Phone:</strong> {selectedOrder.delivery_phone || "-"}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Customer:</strong> {selectedOrder.created_by || "-"}</p>
+                {selectedOrder.status_reason ? <p className="text-sm text-slate-500 dark:text-slate-400"><strong>Reason:</strong> {selectedOrder.status_reason}</p> : null}
               </div>
-              <p className="muted">Address: {selectedOrder.delivery_address || "No address"}</p>
-              <p className="muted">Phone: {selectedOrder.delivery_phone || "-"}</p>
-              <p className="muted">Customer: {selectedOrder.created_by || "-"}</p>
-              {selectedOrder.status_reason ? <p className="muted">Reason: {selectedOrder.status_reason}</p> : null}
 
               <div className="tracking-steps-react">
                 {TRACKING_STEPS.map((step) => (

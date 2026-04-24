@@ -13,7 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from backend.database import get_db
+from backend.database import SessionLocal, get_db
 from backend.app.notification_service import build_login_email, build_password_reset_email, create_notification, resolve_subject
 from backend.models import User, BusinessUser, LogisticsUser
 
@@ -147,17 +147,15 @@ def get_current_user(
     return user
 
 
-def get_optional_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User | BusinessUser | LogisticsUser | None:
-    if not credentials or credentials.scheme.lower() != "bearer":
-        return None
-    payload = decode_token(credentials.credentials)
+def _resolve_user_from_payload(
+    db: Session,
+    payload: dict,
+) -> User | BusinessUser | LogisticsUser:
     if payload.get("user_type") == "superadmin" or (
         _normalize_role(payload.get("role")) == "super_admin" and str(payload.get("sub", "")) == "0"
     ):
         return _build_superadmin_user()
+
     user_type = payload.get("user_type")
     if user_type == "business":
         user_id = payload.get("user_id") or payload.get("sub")
@@ -167,12 +165,11 @@ def get_optional_current_user(
                 business = db.query(BusinessUser).filter(BusinessUser.id == int(user_id)).first()
             except (TypeError, ValueError):
                 business = None
-        if not business:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not business.is_active:
+        if not business or not business.is_active:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         business.role = _normalize_role(business.role)
         return business
+
     if user_type == "logistics":
         user_id = payload.get("user_id") or payload.get("sub")
         logistics = None
@@ -181,18 +178,40 @@ def get_optional_current_user(
                 logistics = db.query(LogisticsUser).filter(LogisticsUser.id == int(user_id)).first()
             except (TypeError, ValueError):
                 logistics = None
-        if not logistics:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not logistics.is_active:
+        if not logistics or not logistics.is_active:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         logistics.role = "logistics"
         return logistics
+
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token payload")
     user = _get_user_by_id(db, int(user_id))
     user.role = _normalize_role(user.role)
     return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | BusinessUser | LogisticsUser | None:
+    if not credentials or credentials.scheme.lower() != "bearer":
+        return None
+    payload = decode_token(credentials.credentials)
+    return _resolve_user_from_payload(db, payload)
+
+
+def get_user_from_token(token: str) -> User | BusinessUser | LogisticsUser | None:
+    if not token:
+        return None
+    db = SessionLocal()
+    try:
+        payload = decode_token(token)
+        return _resolve_user_from_payload(db, payload)
+    except HTTPException:
+        return None
+    finally:
+        db.close()
 
 
 def require_roles(*allowed: str):

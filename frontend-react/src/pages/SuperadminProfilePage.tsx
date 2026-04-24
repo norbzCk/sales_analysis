@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 
 interface SuperadminUser {
   id: number;
@@ -45,32 +46,47 @@ export function SuperadminProfilePage() {
   }
 
   if (!profile) {
-    return <section className="panel"><p>No profile data available.</p></section>;
+    return (
+      <div className="app-page">
+        <EmptyState title="No profile data available" description="Your superadmin identity will appear here once the account data is available." />
+      </div>
+    );
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Superadmin</p>
-            <h1>Profile Settings</h1>
-          </div>
-        </div>
-      </div>
+    <div className="app-page superadmin-page">
+      <PageIntro
+        eyebrow="Superadmin Profile"
+        title="Platform identity and privilege view"
+        description="A cleaner profile view for high-privilege users, with account identity, role clarity, and a more confident administrative presentation."
+      />
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+      <StatCards
+        items={[
+          { id: "id", label: "Account ID", value: profile.id, note: "System identifier" },
+          { id: "role", label: "Access role", value: profile.role || "super_admin", note: "Highest platform scope" },
+          { id: "contact", label: "Primary contact", value: profile.email || "-", note: "Email used for access" },
+        ]}
+      />
 
-      <article className="panel stack-list">
-        <div className="panel-header">
-          <h2>Account Details</h2>
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
+
+      <SectionCard title="Account details" description="Read-only superadmin identity information used across governance and audit workflows.">
+        <div className="entity-grid">
+          <article className="entity-card">
+            <div className="entity-card__title">
+              <h3>{profile.name || "Super Admin"}</h3>
+              <p className="muted">Primary administrator</p>
+            </div>
+            <div className="entity-card__meta">
+              <span className="meta-pill">ID: {profile.id}</span>
+              <span className="meta-pill">Role: {profile.role || "super_admin"}</span>
+              <span className="meta-pill">{profile.email || "No email on file"}</span>
+            </div>
+          </article>
         </div>
-        <div className="list-card"><strong>ID</strong><span>{profile.id}</span></div>
-        <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
-        <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
-        <div className="list-card"><strong>Role</strong><span>{profile.role || "super_admin"}</span></div>
-      </article>
-    </section>
+      </SectionCard>
+    </div>
   );
 }

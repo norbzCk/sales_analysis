@@ -155,45 +155,49 @@ export function SellerDeliveriesPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <p className="eyebrow">Seller deliveries</p>
-        <h1>Delivery coordination and customer communication</h1>
-        <p className="muted">
+    <div className="space-y-6 animate-soft-enter">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand mb-2">Seller deliveries</p>
+        <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Delivery coordination and customer communication</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">
           Track assigned deliveries, update destination instructions, and keep customer order conversations visible from one page.
         </p>
       </div>
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+      {error ? <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</div> : null}
+      {flash ? <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{flash}</div> : null}
 
-      <div className="seller-classic-stats-grid">
-        <article className="stat-card seller-classic-stat-card">
-          <span className="stat-label">Total deliveries</span>
-          <strong>{summary.total}</strong>
-          <p className="muted">All time</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total deliveries</span>
+          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{summary.total}</strong>
+          <p className="text-sm text-slate-500 dark:text-slate-400">All time</p>
         </article>
-        <article className="stat-card seller-classic-stat-card">
-          <span className="stat-label">Ongoing</span>
-          <strong>{summary.ongoing}</strong>
-          <p className="muted">In progress</p>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Ongoing</span>
+          <strong className="text-2xl font-display font-black text-brand">{summary.ongoing}</strong>
+          <p className="text-sm text-slate-500 dark:text-slate-400">In progress</p>
         </article>
-        <article className="stat-card seller-classic-stat-card">
-          <span className="stat-label">Delivered</span>
-          <strong>{summary.completed}</strong>
-          <p className="muted">Successful</p>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Delivered</span>
+          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{summary.completed}</strong>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Successful</p>
         </article>
-        <article className="stat-card seller-classic-stat-card">
-          <span className="stat-label">Cancelled</span>
-          <strong>{summary.cancelled}</strong>
-          <p className="muted">Total failed</p>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Cancelled</span>
+          <strong className="text-2xl font-display font-black text-red-600">{summary.cancelled}</strong>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total failed</p>
         </article>
       </div>
 
-      <div className="panel filter-grid">
-        <label>
-          Delivery status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Delivery status</span>
+          <select
+            className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
             <option value="all">All statuses</option>
             <option value="assigned">Assigned</option>
             <option value="picked_up">Picked up</option>
@@ -204,48 +208,53 @@ export function SellerDeliveriesPage() {
         </label>
       </div>
 
-      <div className="delivery-card-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {loading ? (
-          <article className="panel">
-            <p className="muted">Loading deliveries...</p>
+          <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <p className="text-slate-500 dark:text-slate-400">Loading deliveries...</p>
           </article>
         ) : null}
         {!loading && !visibleDeliveries.length ? (
-          <article className="panel">
-            <p className="muted">No deliveries found.</p>
+          <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <p className="text-slate-500 dark:text-slate-400">No deliveries found.</p>
           </article>
         ) : null}
         {visibleDeliveries.map((delivery) => (
-          <article key={delivery.id} className="delivery-card panel">
-            <div className="delivery-card-header">
+          <article key={delivery.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 flex justify-between items-start border-b border-slate-100 dark:border-slate-700">
               <div>
-                <strong>Order #{delivery.order_id || "-"}</strong>
-                <p className="muted">{delivery.delivery_address || delivery.pickup_location || "Delivery route"}</p>
+                <strong className="text-slate-900 dark:text-white">Order #{delivery.order_id || "-"}</strong>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{delivery.delivery_address || delivery.pickup_location || "Delivery route"}</p>
               </div>
-              <span className={`status-pill ${deliveryStatusClass(delivery.status)}`}>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                deliveryStatusClass(delivery.status) === "ok" ? "bg-green-100 text-green-800" :
+                deliveryStatusClass(delivery.status) === "warn" ? "bg-yellow-100 text-yellow-800" :
+                "bg-red-100 text-red-800"
+              }`}>
                 {deliveryStatusLabel(delivery.status)}
               </span>
             </div>
 
-            <div className="delivery-card-row">
+            <div className="p-6 grid grid-cols-3 gap-4 border-b border-slate-100 dark:border-slate-700">
               <div>
-                <p className="muted">Pickup</p>
-                <strong>{delivery.pickup_location || "Not specified"}</strong>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pickup</p>
+                <strong className="text-sm text-slate-900 dark:text-white">{delivery.pickup_location || "Not specified"}</strong>
               </div>
               <div>
-                <p className="muted">Destination</p>
-                <strong>{destinations[delivery.id] || delivery.delivery_location || "Not specified"}</strong>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Destination</p>
+                <strong className="text-sm text-slate-900 dark:text-white">{destinations[delivery.id] || delivery.delivery_location || "Not specified"}</strong>
               </div>
               <div>
-                <p className="muted">Price</p>
-                <strong>{money(delivery.price)}</strong>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Price</p>
+                <strong className="text-sm text-slate-900 dark:text-white">{money(delivery.price)}</strong>
               </div>
             </div>
 
-            <div className="form-grid">
-              <label>
-                Logistics partner
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Logistics partner</span>
                 <select
+                  className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand"
                   value={selectedLogistics[delivery.id] || ""}
                   onChange={(event) =>
                     setSelectedLogistics((prev) => ({ ...prev, [delivery.id]: event.target.value }))
@@ -260,9 +269,10 @@ export function SellerDeliveriesPage() {
                 </select>
               </label>
 
-              <label>
-                Delivery destination
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Delivery destination</span>
                 <input
+                  className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand"
                   value={destinations[delivery.id] || ""}
                   onChange={(event) =>
                     setDestinations((prev) => ({ ...prev, [delivery.id]: event.target.value }))
@@ -271,10 +281,11 @@ export function SellerDeliveriesPage() {
                 />
               </label>
 
-              <label className="full-width">
-                Special instructions
+              <label className="block md:col-span-2 space-y-2">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Special instructions</span>
                 <textarea
                   rows={3}
+                  className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand"
                   value={instructions[delivery.id] || ""}
                   onChange={(event) =>
                     setInstructions((prev) => ({ ...prev, [delivery.id]: event.target.value }))
@@ -284,11 +295,11 @@ export function SellerDeliveriesPage() {
               </label>
             </div>
 
-            <div className="delivery-card-actions">
-              <button className="secondary-button" type="button" onClick={() => saveInstructions(delivery.id)}>
+            <div className="p-6 flex gap-3 border-t border-slate-100 dark:border-slate-700">
+              <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => saveInstructions(delivery.id)}>
                 Save updates
               </button>
-              <button className="secondary-button" type="button" onClick={() => reassignDelivery(delivery)}>
+              <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => reassignDelivery(delivery)}>
                 Reassign delivery
               </button>
             </div>
@@ -296,45 +307,45 @@ export function SellerDeliveriesPage() {
         ))}
       </div>
 
-      <div className="two-column-grid">
-        <article className="panel">
-          <div className="panel-header">
-            <h2>Communication feed</h2>
-            <span>{communication.length}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Communication feed</h2>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{communication.length}</span>
           </div>
-          <div className="stack-list">
-            {!communication.length ? <p className="muted">No order conversations yet.</p> : null}
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            {!communication.length ? <p className="p-6 text-slate-500 dark:text-slate-400">No order conversations yet.</p> : null}
             {communication.map((thread) => (
-              <div key={thread.thread_id} className="list-card">
+              <div key={thread.thread_id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <div>
-                  <strong>{thread.subject || `Order #${thread.order_id || "-"}`}</strong>
-                  <p className="muted">{thread.latest_message || "No message yet."}</p>
+                  <strong className="text-sm font-medium text-slate-900 dark:text-white">{thread.subject || `Order #${thread.order_id || "-"}`}</strong>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{thread.latest_message || "No message yet."}</p>
                 </div>
-                <span>{thread.delivery_address || "-"}</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">{thread.delivery_address || "-"}</span>
               </div>
             ))}
           </div>
         </article>
 
-        <article className="panel">
-          <div className="panel-header">
-            <h2>Business notifications</h2>
-            <span>{notifications.length}</span>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Business notifications</h2>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{notifications.length}</span>
           </div>
-          <div className="stack-list">
-            {!notifications.length ? <p className="muted">No notifications yet.</p> : null}
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            {!notifications.length ? <p className="p-6 text-slate-500 dark:text-slate-400">No notifications yet.</p> : null}
             {notifications.map((item, index) => (
-              <div key={`${item.type}-${index}`} className="list-card">
+              <div key={`${item.type}-${index}`} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <div>
-                  <strong>{item.title}</strong>
-                  <p className="muted">{item.message}</p>
+                  <strong className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</strong>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{item.message}</p>
                 </div>
-                <span>{item.type}</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">{item.type}</span>
               </div>
             ))}
           </div>
         </article>
       </div>
-    </section>
+    </div>
   );
 }

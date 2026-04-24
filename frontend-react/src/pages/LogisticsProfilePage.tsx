@@ -162,161 +162,159 @@ export function LogisticsProfilePage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <div className="panel-header">
+    <div className="space-y-6 animate-soft-enter">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <p className="eyebrow">Logistics profile</p>
-            <h1>Delivery account information</h1>
-            <p className="muted">View and edit your logistics details.</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand mb-2">Logistics profile</p>
+            <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Delivery account information</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">View and edit your logistics details.</p>
           </div>
           {!editing ? (
-            <button className="secondary-button" type="button" onClick={() => setEditing(true)}>
+            <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => setEditing(true)}>
               Edit profile
             </button>
           ) : null}
         </div>
       </div>
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+      {error ? <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</div> : null}
+      {flash ? <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{flash}</div> : null}
 
       {!editing ? (
-        <article className="panel stack-list">
-          <div className="panel-header">
-            <h2>Account details</h2>
-            <span className="role-chip">{profile.verification_status || "unverified"}</span>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Account details</h2>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              profile.verification_status === "verified" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+            }`}>
+              {profile.verification_status || "unverified"}
+            </span>
           </div>
-          {profile.profile_photo ? (
-            <img
-              src={resolveImageUrl(profile.profile_photo)}
-              alt={profile.name || "Logistics profile"}
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : (
-            <div className="muted">No profile photo</div>
-          )}
-          <div className="list-card"><strong>Name</strong><span>{profile.name || "-"}</span></div>
-          <div className="list-card"><strong>Email</strong><span>{profile.email || "-"}</span></div>
-          <div className="list-card"><strong>Phone</strong><span>{profile.phone || "-"}</span></div>
-          <div className="list-card"><strong>Account type</strong><span>{profile.account_type || "-"}</span></div>
-          <div className="list-card"><strong>Vehicle type</strong><span>{profile.vehicle_type || "-"}</span></div>
-          <div className="list-card"><strong>Plate number</strong><span>{profile.plate_number || "-"}</span></div>
-          <div className="list-card"><strong>License number</strong><span>{profile.license_number || "-"}</span></div>
-          <div className="list-card"><strong>Base area</strong><span>{profile.base_area || "-"}</span></div>
-          <div className="list-card"><strong>Coverage areas</strong><span>{profile.coverage_areas || "-"}</span></div>
-          <div className="hero-actions">
-            <button className="secondary-button" type="button" onClick={requestVerification}>
-              Request verification ({profile.verification_status || "unverified"})
-            </button>
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            {profile.profile_photo ? (
+              <div className="p-6">
+                <img
+                  src={resolveImageUrl(profile.profile_photo)}
+                  alt={profile.name || "Logistics profile"}
+                  className="w-32 h-32 rounded-full object-cover"
+                />
+              </div>
+            ) : null}
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Name</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.name || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.email || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.phone || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Account type</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.account_type || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Vehicle type</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.vehicle_type || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Plate number</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.plate_number || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">License number</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.license_number || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Base area</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.base_area || "-"}</span>
+            </div>
+            <div className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors flex justify-between">
+              <strong className="text-sm font-medium text-slate-700 dark:text-slate-300">Coverage areas</strong>
+              <span className="text-sm text-slate-900 dark:text-white">{profile.coverage_areas || "-"}</span>
+            </div>
+            <div className="p-6 flex gap-3">
+              <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={requestVerification}>
+                Request verification ({profile.verification_status || "unverified"})
+              </button>
+            </div>
           </div>
         </article>
       ) : (
-        <form className="panel form-grid auth-form-two-col" onSubmit={handleSubmit}>
-          <label>Name<input value={profile.name} onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))} required /></label>
-          <label>Email<input type="email" value={profile.email || ""} onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))} /></label>
-          <label>Phone<input value={profile.phone} onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))} required /></label>
-          <label>Account type<input value={profile.account_type} onChange={(e) => setProfile((prev) => ({ ...prev, account_type: e.target.value }))} required /></label>
-          <label>Vehicle type<input value={profile.vehicle_type || ""} onChange={(e) => setProfile((prev) => ({ ...prev, vehicle_type: e.target.value }))} /></label>
-          <label>Plate number<input value={profile.plate_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, plate_number: e.target.value }))} /></label>
-          <label>License number<input value={profile.license_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, license_number: e.target.value }))} /></label>
-          <label>Base area<input value={profile.base_area || ""} onChange={(e) => setProfile((prev) => ({ ...prev, base_area: e.target.value }))} /></label>
-          <label>Coverage areas (comma separated)<input value={profile.coverage_areas || ""} onChange={(e) => setProfile((prev) => ({ ...prev, coverage_areas: e.target.value }))} /></label>
-
-          <label>
-            Upload profile photo (optional)
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
-          </label>
-          <label>
-            Profile photo URL (optional)
-            <input value={profile.profile_photo || ""} onChange={(e) => setProfile((prev) => ({ ...prev, profile_photo: e.target.value }))} />
-          </label>
-          {profile.profile_photo ? (
-            <img
-              src={resolveImageUrl(profile.profile_photo)}
-              alt="Profile preview"
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : null}
-
-          <div className="full-width">
-            <p className="eyebrow">Security (optional)</p>
+        <form className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-4" onSubmit={handleSubmit}>
+          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Edit profile</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Name</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.name} onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))} required />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</span>
+              <input type="email" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.email || ""} onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.phone} onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Account type</span>
+              <select className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.account_type} onChange={(e) => setProfile((prev) => ({ ...prev, account_type: e.target.value }))}>
+                <option value="individual">Individual trader</option>
+                <option value="company">Registered company</option>
+              </select>
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Vehicle type</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.vehicle_type || ""} onChange={(e) => setProfile((prev) => ({ ...prev, vehicle_type: e.target.value }))} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Plate number</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.plate_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, plate_number: e.target.value }))} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">License number</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.license_number || ""} onChange={(e) => setProfile((prev) => ({ ...prev, license_number: e.target.value }))} />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Base area</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.base_area || ""} onChange={(e) => setProfile((prev) => ({ ...prev, base_area: e.target.value }))} />
+            </label>
+            <label className="block md:col-span-2 space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Coverage areas (comma separated)</span>
+              <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" value={profile.coverage_areas || ""} onChange={(e) => setProfile((prev) => ({ ...prev, coverage_areas: e.target.value }))} />
+            </label>
+            <label className="block md:col-span-2 space-y-2">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload profile photo (optional)</span>
+              <input type="file" accept="image/*" className="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-brand/90" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+            </label>
+            {profile.profile_photo ? (
+              <div className="md:col-span-2">
+                <img
+                  src={resolveImageUrl(profile.profile_photo)}
+                  alt="Profile preview"
+                  className="w-32 h-32 rounded-full object-cover"
+                />
+              </div>
+            ) : null}
           </div>
-          <label>
-            Current password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.current ? "text" : "password"}
-                value={passwordDraft.current_password}
-                onChange={(e) => setPasswordDraft((prev) => ({ ...prev, current_password: e.target.value }))}
-              />
-              <button
-                type="button"
-                className="password-toggle-button"
-                onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
-                aria-label={showPassword.current ? "Hide password" : "Show password"}
-              >
-                {showPassword.current ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
-          </label>
-          <label>
-            New password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.new ? "text" : "password"}
-                minLength={8}
-                value={passwordDraft.new_password}
-                onChange={(e) => setPasswordDraft((prev) => ({ ...prev, new_password: e.target.value }))}
-              />
-              <button
-                type="button"
-                className="password-toggle-button"
-                onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
-                aria-label={showPassword.new ? "Hide password" : "Show password"}
-              >
-                {showPassword.new ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
-          </label>
-          <label>
-            Confirm new password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.confirm ? "text" : "password"}
-                minLength={8}
-                value={passwordDraft.confirm_password}
-                onChange={(e) => setPasswordDraft((prev) => ({ ...prev, confirm_password: e.target.value }))}
-              />
-              <button
-                type="button"
-                className="password-toggle-button"
-                onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
-                aria-label={showPassword.confirm ? "Hide password" : "Show password"}
-              >
-                {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
-          </label>
-
-          <div className="hero-actions">
-            <button className="primary-button" type="submit" disabled={uploadingPhoto || passwordUpdating}>
+          <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button className="px-6 py-3 bg-brand text-white rounded-xl hover:bg-brand/90 transition-all font-medium text-sm shadow-lg" type="submit" disabled={uploadingPhoto || passwordUpdating}>
               {uploadingPhoto || passwordUpdating ? "Saving..." : "Save profile"}
             </button>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => {
-                setEditing(false);
-                setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
-                void load(); // reload original data
-              }}
-            >
+            <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => {
+              setEditing(false);
+              setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
+              void load(); // reload original data
+            }}>
               Cancel
             </button>
           </div>
         </form>
       )}
-    </section>
+    </div>
   );
 }

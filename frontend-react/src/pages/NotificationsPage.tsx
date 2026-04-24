@@ -128,54 +128,66 @@ export function NotificationsPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <div className="panel-header">
+    <div className="space-y-6 animate-soft-enter">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <p className="eyebrow">Notifications</p>
-            <h1>Alerts, emails, and account activity</h1>
-            <p className="muted">Track login alerts, payment updates, delivery events, and order activity in one inbox.</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand mb-2">Notifications</p>
+            <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Alerts, emails, and account activity</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">Track login alerts, payment updates, delivery events, and order activity in one inbox.</p>
           </div>
-          <button className="secondary-button" type="button" onClick={markAllRead} disabled={!unreadCount}>
+          <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={markAllRead} disabled={!unreadCount}>
             Mark all read
           </button>
         </div>
       </div>
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+      {error ? <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</div> : null}
+      {flash ? <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{flash}</div> : null}
 
-      <div className="stat-grid">
-        <article className="stat-card"><span className="stat-label">Total</span><strong>{loading ? "..." : notifications.length}</strong></article>
-        <article className="stat-card"><span className="stat-label">Unread</span><strong>{loading ? "..." : unreadCount}</strong></article>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total</span>
+          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{loading ? "..." : notifications.length}</strong>
+        </article>
+        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Unread</span>
+          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{loading ? "..." : unreadCount}</strong>
+        </article>
       </div>
 
-      <div className="panel stack-list">
-        {loading ? <p className="muted">Loading notifications...</p> : null}
-        {!loading && !notifications.length ? <p className="muted">No notifications yet.</p> : null}
-        {notifications.map((item) => (
-          <article key={item.id} className="list-card notification-card">
-            <div className="stack-list">
-              <div className="panel-header">
-                <strong>{item.title}</strong>
-                <span className={`status-pill ${severityClass(item.severity)}`}>{item.is_read ? "Read" : "New"}</span>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        {loading ? <p className="p-6 text-slate-500 dark:text-slate-400">Loading notifications...</p> : null}
+        {!loading && !notifications.length ? <p className="p-6 text-slate-500 dark:text-slate-400">No notifications yet.</p> : null}
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+          {notifications.map((item) => (
+            <div key={item.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
+                <strong className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</strong>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  severityClass(item.severity) === "ok" ? "bg-green-100 text-green-800" :
+                  severityClass(item.severity) === "warn" ? "bg-yellow-100 text-yellow-800" :
+                  "bg-red-100 text-red-800"
+                }`}>
+                  {item.is_read ? "Read" : "New"}
+                </span>
               </div>
-              <p className="muted">{item.message}</p>
-              <div className="inline-link-row">
-                <span className="muted">{formatDateTime(item.created_at)}</span>
-                <span className="muted">{item.type || "system"}</span>
-                {item.email_status ? <span className="muted">Email: {item.email_status}</span> : null}
-                {item.action_href ? <Link to={item.action_href}>Open related page</Link> : null}
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">{item.message}</p>
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                <span>{formatDateTime(item.created_at)}</span>
+                <span>{item.type || "system"}</span>
+                {item.email_status ? <span>Email: {item.email_status}</span> : null}
+                {item.action_href ? <Link to={item.action_href} className="text-brand hover:underline">Open related page</Link> : null}
               </div>
+              {!item.is_read ? (
+                <button className="mt-3 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => void markRead(item.id)}>
+                  Mark read
+                </button>
+              ) : null}
             </div>
-            {!item.is_read ? (
-              <button className="secondary-button" type="button" onClick={() => void markRead(item.id)}>
-                Mark read
-              </button>
-            ) : null}
-          </article>
-        ))}
+          ))}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

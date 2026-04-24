@@ -1,12 +1,9 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { BrandMark } from "./BrandMark";
 import { env } from "../config/env";
 import { useState, useEffect } from "react";
 
-/**
- * Helper to resolve a possibly relative image URL.
- */
 function resolveImageUrl(url?: string | null) {
   const raw = String(url || "").trim();
   if (!raw) return "";
@@ -15,9 +12,6 @@ function resolveImageUrl(url?: string | null) {
   return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
 }
 
-/**
- * Returns the initials of a name (e.g. "John Doe" => "JD").
- */
 function getInitials(name?: string) {
   const text = String(name || "User").trim();
   return text
@@ -28,56 +22,15 @@ function getInitials(name?: string) {
     .join("");
 }
 
-/**
- * Sidebar component displayed on every authenticated page.
- * Shows the user's profile photo (or initials) and navigation links.
- * The width can be styled via the `sidebar` CSS class.
- */
 export function Sidebar() {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
-  // Close mobile menu on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
-  // Close mobile menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const sidebar = document.querySelector('.sidebar');
-      const toggle = document.querySelector('.mobile-menu-toggle');
-      if (isMobileMenuOpen && sidebar && toggle && 
-          !sidebar.contains(event.target as Node) && 
-          !toggle.contains(event.target as Node)) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    if (isMobileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMobileMenuOpen]);
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  // Determine a display name for the avatar placeholder
-  const displayName =
-    user?.name ||
-    user?.business_name ||
-    user?.owner_name ||
-    user?.email ||
-    "User";
-
-  const profilePhotoUrl = user?.profile_photo;
-
-  // Build role‑specific profile link
   const role = String(user?.role || "");
   const profilePath =
     role === "seller"
@@ -89,145 +42,132 @@ export function Sidebar() {
           : role === "super_admin" || role === "owner"
             ? "/app/superadmin/profile"
             : "/app/profile";
-  const settingsPath = "/app/settings";
-
   const isSeller = role === "seller";
-  const isLogistics = role === "logistics";
   const isCustomer = role === "user";
+  const isLogistics = role === "logistics";
   const isSuperadmin = role === "super_admin" || role === "owner";
   const isAdmin = role === "admin";
+  const settingsPath = isSuperadmin ? "/app/superadmin/settings" : "/app/settings";
+
+  const NavItem = ({ to, children, end = false }: { to: string, children: React.ReactNode, end?: boolean }) => (
+    <NavLink 
+      to={to} 
+      end={end}
+      className={({ isActive }) => 
+        `relative flex items-center px-4 py-3 rounded-xl font-semibold transition-all duration-200
+         text-white/90 hover:bg-white/10 hover:text-white
+         ${isActive ? 'bg-white/15 text-white' : ''}`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span className="relative z-10">{children}</span>
+          {isActive && (
+            <span className="absolute left-0 w-1 h-1/2 bg-accent rounded-full transition-all duration-300" />
+          )}
+        </>
+      )}
+    </NavLink>
+  );
 
   return (
     <>
       {/* Mobile menu toggle */}
       <button 
-        className="mobile-menu-toggle" 
-        onClick={toggleMobileMenu}
+        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-brand text-white md:hidden shadow-lg active:scale-95 transition-transform" 
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         type="button"
         aria-label="Toggle navigation menu"
-      />
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+        </svg>
+      </button>
 
       {/* Mobile overlay */}
-      <div className={`sidebar-overlay ${isMobileMenuOpen ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity" 
+          onClick={() => setIsMobileMenuOpen(false)} 
+        />
+      )}
 
-      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
+      <aside className={`
+        fixed md:sticky top-0 left-0 h-screen w-72
+        bg-brand-strong text-white p-6 flex flex-col z-40 transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         {/* Top branding */}
-        <header className="sidebar-header">
+        <header className="mb-10 px-2">
           <BrandMark />
         </header>
 
         {/* Navigation links */}
-        <nav className="sidebar-nav">
-          {isSuperadmin ? (
-            <NavLink to="/app/superadmin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-              Dashboard
-            </NavLink>
-          ) : null}
-          {isAdmin ? (
-            <NavLink to="/app/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-              Dashboard
-            </NavLink>
-          ) : null}
-          {isSeller ? (
+        <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
+          {isSuperadmin && <NavItem to="/app/superadmin" end>Dashboard</NavItem>}
+          {isAdmin && <NavItem to="/app/dashboard" end>Dashboard</NavItem>}
+          
+          {isSeller && (
             <>
-              <NavLink to="/app/seller" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Dashboard
-              </NavLink>
-              <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Products
-              </NavLink>
-              <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Orders
-              </NavLink>
-              <NavLink to="/app/providers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Providers
-              </NavLink>
-              <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Notifications
-              </NavLink>
-              <NavLink to="/app/seller/deliveries" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Deliveries
-              </NavLink>
+              <NavItem to="/app/seller" end>Dashboard</NavItem>
+              <NavItem to="/app/products">Products</NavItem>
+              <NavItem to="/app/orders">Orders</NavItem>
+              <NavItem to="/app/providers">Providers</NavItem>
+              <NavItem to="/app/notifications">Notifications</NavItem>
+              <NavItem to="/app/seller/deliveries">Deliveries</NavItem>
             </>
-          ) : null}
-          {isCustomer ? (
+          )}
+
+          {isCustomer && (
             <>
-              <NavLink to="/app/customer" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Dashboard
-              </NavLink>
-              <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Products
-              </NavLink>
-              <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Orders
-              </NavLink>
-              <NavLink to="/app/payments" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Payments
-              </NavLink>
-              <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Notifications
-              </NavLink>
+              <NavItem to="/app/customer" end>Dashboard</NavItem>
+              <NavItem to="/app/products">Products</NavItem>
+              <NavItem to="/app/orders">Orders</NavItem>
+              <NavItem to="/app/payments">Payments</NavItem>
+              <NavItem to="/app/notifications">Notifications</NavItem>
             </>
-          ) : null}
-          {isLogistics ? (
+          )}
+
+          {isLogistics && (
             <>
-              <NavLink to="/app/logistics" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Dashboard
-              </NavLink>
-              <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Notifications
-              </NavLink>
+              <NavItem to="/app/logistics" end>Dashboard</NavItem>
+              <NavItem to="/app/notifications">Notifications</NavItem>
             </>
-          ) : null}
-          {(isAdmin || isSuperadmin) ? (
+          )}
+
+          {(isAdmin || isSuperadmin) && (
             <>
-              {!isSuperadmin ? (
+              {!isSuperadmin && (
                 <>
-                  <NavLink to="/app/products" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Products
-                  </NavLink>
-                  <NavLink to="/app/orders" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Orders
-                  </NavLink>
-                  <NavLink to="/app/providers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Providers
-                  </NavLink>
-                  <NavLink to="/app/users" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Users
-                  </NavLink>
+                  <NavItem to="/app/products">Products</NavItem>
+                  <NavItem to="/app/orders">Orders</NavItem>
+                  <NavItem to="/app/providers">Providers</NavItem>
+                  <NavItem to="/app/users">Users</NavItem>
                 </>
-              ) : null}
-              {isSuperadmin ? (
+              )}
+              {isSuperadmin && (
                 <>
-                  <NavLink to="/app/customers" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Customers
-                  </NavLink>
-                  <NavLink to="/app/users" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                    Users
-                  </NavLink>
+                  <NavItem to="/app/customers">Customers</NavItem>
+                  <NavItem to="/app/users">Users</NavItem>
                 </>
-              ) : null}
-              <NavLink to="/app/notifications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-                Notifications
-              </NavLink>
+              )}
+              <NavItem to="/app/notifications">Notifications</NavItem>
             </>
-          ) : null}
-          <NavLink to={profilePath} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
-            Profile
-          </NavLink>
-          <NavLink to={settingsPath} className={({ isActive }) => `nav-link settings-link ${isActive ? 'active' : ''}`} end>
-            Settings
-          </NavLink>
+          )}
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="mt-auto pt-6 flex flex-col gap-1">
+          <NavItem to={profilePath}>Profile</NavItem>
+          <NavItem to={settingsPath}>Settings</NavItem>
           <button
             type="button"
-            className="nav-link logout-button"
-            onClick={() => {
-              logout();
-            }}
+            className="flex items-center px-4 py-3 rounded-xl font-semibold transition-all duration-200 mt-2 hover:bg-white/10"
+            onClick={logout}
           >
             Sign Out
           </button>
-        </nav>
+        </div>
       </aside>
     </>
   );

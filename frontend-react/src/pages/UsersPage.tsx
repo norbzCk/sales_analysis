@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 import type { AdminUser } from "../types/domain";
 
 export function UsersPage() {
@@ -54,39 +55,67 @@ export function UsersPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel"><p className="eyebrow">Users</p><h1>User management</h1></div>
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
-      <form className="panel form-grid" onSubmit={handleSubmit}>
-        <label>Name<input name="name" required /></label>
-        <label>Email<input name="email" type="email" required /></label>
-        <label>Password<input name="password" type="password" minLength={8} required /></label>
-        <label>
-          Role
-          <select name="role" defaultValue="user">
-            {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
-          </select>
-        </label>
-        <button className="primary-button" type="submit">Create user</button>
-      </form>
-      <div className="panel table-scroll">
-        <table className="data-table">
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
-          <tbody>
-            {!users.length ? <tr><td colSpan={5}>No users found.</td></tr> : null}
+    <div className="app-page">
+      <PageIntro
+        eyebrow="Users"
+        title="User management"
+        description="Give operators a cleaner control surface with consistent cards, readable role labels, and a calm empty state for brand-new systems."
+      />
+
+      <StatCards
+        items={[
+          { id: "all", label: "Total users", value: users.length, note: users.length ? "Platform accounts in the system" : "No internal users created yet" },
+          { id: "active", label: "Active accounts", value: users.filter((entry) => entry.is_active).length, note: "Currently enabled accounts" },
+          { id: "admins", label: "Admin roles", value: users.filter((entry) => ["admin", "super_admin", "owner"].includes(entry.role)).length, note: "Operational access holders" },
+        ]}
+      />
+
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
+
+      <SectionCard title="Create user" description="Use the same modern form treatment here so the settings area feels part of the same product.">
+        <form className="theme-form theme-form--two-col" onSubmit={handleSubmit}>
+          <label className="theme-field">Name<input className="theme-input" name="name" required /></label>
+          <label className="theme-field">Email<input className="theme-input" name="email" type="email" required /></label>
+          <label className="theme-field">Password<input className="theme-input" name="password" type="password" minLength={8} required /></label>
+          <label className="theme-field">
+            Role
+            <select className="theme-select" name="role" defaultValue="user">
+              {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+          </label>
+          <div className="button-row">
+            <button className="theme-button" type="submit">Create user</button>
+          </div>
+        </form>
+      </SectionCard>
+
+      <SectionCard title="Team directory" description="Cards replace basic rows so status, role, and identity remain readable in both light and dark themes.">
+        {!users.length ? (
+          <EmptyState
+            title="No users found"
+            description="Fresh deployments should look intentional too. This space stays clean and unfilled until the first admin or team member is added."
+          />
+        ) : (
+          <div className="entity-grid">
             {users.map((entry) => (
-              <tr key={entry.id}>
-                <td>{entry.id}</td>
-                <td>{entry.name}</td>
-                <td>{entry.email}</td>
-                <td>{entry.role}</td>
-                <td>{entry.is_active ? "Active" : "Disabled"}</td>
-              </tr>
+              <article key={entry.id} className="entity-card">
+                <div className="entity-card__top">
+                  <div className="entity-card__title">
+                    <h3>{entry.name}</h3>
+                    <p className="muted">{entry.email}</p>
+                  </div>
+                  <span className="meta-pill">{entry.is_active ? "Active" : "Disabled"}</span>
+                </div>
+                <div className="entity-card__meta">
+                  <span className="meta-pill">Role: {entry.role}</span>
+                  <span className="meta-pill">ID: {entry.id}</span>
+                </div>
+              </article>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }

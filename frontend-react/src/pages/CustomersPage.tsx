@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 import type { Customer } from "../types/domain";
 
 export function CustomersPage() {
@@ -48,33 +49,62 @@ export function CustomersPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel"><p className="eyebrow">Customers</p><h1>Customer records</h1></div>
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
-      <form className="panel form-grid" onSubmit={handleSubmit}>
-        <label>Name<input name="name" required /></label>
-        <label>Email<input name="email" type="email" /></label>
-        <label>Phone<input name="phone" /></label>
-        <label>Location<input name="location" /></label>
-        <button className="primary-button" type="submit">Save customer</button>
-      </form>
-      <div className="panel table-scroll">
-        <table className="data-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Location</th></tr></thead>
-          <tbody>
-            {!customers.length ? <tr><td colSpan={4}>No customers yet.</td></tr> : null}
+    <div className="app-page">
+      <PageIntro
+        eyebrow="Customers"
+        title="Customer records"
+        description="Keep the public marketplace approachable for first-time buyers by maintaining a clean, searchable customer directory with clear empty states."
+      />
+
+      <StatCards
+        items={[
+          { id: "all", label: "Total customers", value: customers.length, note: customers.length ? "Accounts already registered" : "Fresh marketplace, no records yet" },
+          { id: "contactable", label: "Reachable contacts", value: customers.filter((item) => item.email || item.phone).length, note: "Profiles with email or phone" },
+          { id: "locations", label: "Known locations", value: customers.filter((item) => item.location).length, note: "Customer locations captured" },
+        ]}
+      />
+
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
+
+      <SectionCard title="Add customer" description="Create a new customer profile with the same polished form treatment used across the app.">
+        <form className="theme-form theme-form--two-col" onSubmit={handleSubmit}>
+          <label className="theme-field">Name<input className="theme-input" name="name" required /></label>
+          <label className="theme-field">Email<input className="theme-input" name="email" type="email" /></label>
+          <label className="theme-field">Phone<input className="theme-input" name="phone" /></label>
+          <label className="theme-field">Location<input className="theme-input" name="location" /></label>
+          <div className="button-row">
+            <button className="theme-button" type="submit">Save customer</button>
+          </div>
+        </form>
+      </SectionCard>
+
+      <SectionCard title="Customer directory" description="Cards keep the directory readable on both desktop and mobile instead of falling back to uneven rows.">
+        {!customers.length ? (
+          <EmptyState
+            title="No customers yet"
+            description="New users should land in a calm, unfilled experience. Customer stats stay empty until the first records are created."
+          />
+        ) : (
+          <div className="entity-grid">
             {customers.map((customer) => (
-              <tr key={customer.id}>
-                <td>{customer.name}</td>
-                <td>{customer.email || "-"}</td>
-                <td>{customer.phone || "-"}</td>
-                <td>{customer.location || "-"}</td>
-              </tr>
+              <article key={customer.id} className="entity-card">
+                <div className="entity-card__top">
+                  <div className="entity-card__title">
+                    <h3>{customer.name}</h3>
+                    <p className="muted">Customer #{customer.id}</p>
+                  </div>
+                  <span className="meta-pill">{customer.location || "Location pending"}</span>
+                </div>
+                <div className="entity-card__meta">
+                  <span className="meta-pill">{customer.email || "No email yet"}</span>
+                  <span className="meta-pill">{customer.phone || "No phone yet"}</span>
+                </div>
+              </article>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+          </div>
+        )}
+      </SectionCard>
+    </div>
   );
 }

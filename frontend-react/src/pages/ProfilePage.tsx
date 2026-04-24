@@ -2,7 +2,6 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
-import { Modal } from "../components/Modal"; // This import should now resolve
 
 interface ProfileState {
   name: string;
@@ -155,246 +154,336 @@ export function ProfilePage() {
   }
 
   if (user?.role !== "user") {
-    return <section className="panel"><h1>Profile</h1><p className="muted">The legacy profile screen is only available for customer accounts.</p></section>;
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile</h1>
+            <p className="text-gray-600">The legacy profile screen is only available for customer accounts.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Profile & Settings</p>
-            <h1>Manage your account</h1>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Profile & Settings</p>
+              <h1 className="text-3xl font-bold text-gray-900">Manage your account</h1>
+            </div>
           </div>
         </div>
-      </div>
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">{error}</div>}
+        {flash && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">{flash}</div>}
 
-      <div className="profile-page-grid">
-        <div className="profile-info-section">
-          <article className="panel profile-header-card">
-            {profile.profile_photo ? (
-              <img
-                src={resolveImageUrl(profile.profile_photo)}
-                alt={profile.name || "Profile"}
-                className="profile-avatar"
-              />
-            ) : (
-              <div className="profile-avatar-placeholder">
-                <span>{getInitials(profile.name || "User")}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-4 mb-6">
+                {profile.profile_photo ? (
+                  <img
+                    src={resolveImageUrl(profile.profile_photo)}
+                    alt={profile.name || "Profile"}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
+                    <span className="text-teal-600 font-semibold text-lg">{getInitials(profile.name || "User")}</span>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-gray-900">{profile.name || "User"}</h2>
+                  <p className="text-gray-600">{user?.email}</p>
+                  <button
+                    className="mt-3 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
+                    onClick={() => setShowPhotoModal(true)}
+                  >
+                    Change Photo
+                  </button>
+                </div>
               </div>
-            )}
-            <div>
-              <h2>{profile.name || "User"}</h2>
-              <p className="muted">{user?.email}</p>
-              <button
-                className="secondary-button"
-                style={{ marginTop: "12px", padding: "8px 16px" }}
-                onClick={() => setShowPhotoModal(true)}
-              >
-                Change Photo
-              </button>
-            </div>
-          </article>
 
-          <form className="panel form-grid" onSubmit={handleProfileSubmit}>
-            <h2 className="section-title">Personal Details</h2>
-            <label>
-              Full Name
-              <input
-                value={profile.name}
-                onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              Email
-              <input value={profile.email} readOnly disabled style={{ background: "var(--surface-soft)" }} />
-            </label>
-            <div className="profile-details-grid">
-              <label>
-                Phone
-                <input
-                  value={profile.phone}
-                  onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))}
-                />
-              </label>
-              <label>
-                Address
-                <input
-                  value={profile.address}
-                  onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))}
-                />
-              </label>
             </div>
-            <div className="form-actions" style={{ marginTop: "12px" }}>
-              <button className="primary-button" type="submit" disabled={uploadingPhoto}>
-                {uploadingPhoto ? "Processing..." : "Update Profile"}
-              </button>
+
+            <form className="space-y-6" onSubmit={handleProfileSubmit}>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Personal Details</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input
+                      value={profile.name}
+                      onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      value={profile.email}
+                      readOnly
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        value={profile.phone}
+                        onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                      <input
+                        value={profile.address}
+                        onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <button
+                    className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="submit"
+                    disabled={uploadingPhoto}
+                  >
+                    {uploadingPhoto ? "Processing..." : "Update Profile"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <form className="space-y-6" onSubmit={handlePasswordSubmit}>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Change Password</h2>
+                  <p className="text-gray-600 text-sm mb-4">Keep your account secure with a strong password.</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword.current ? "text" : "password"}
+                          value={passwordDraft.current_password}
+                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+                          required
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
+                        >
+                          <span className="text-gray-400">{showPassword.current ? "👁️" : "👁️‍🗨️"}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword.new ? "text" : "password"}
+                          minLength={8}
+                          value={passwordDraft.new_password}
+                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+                          required
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
+                        >
+                          <span className="text-gray-400">{showPassword.new ? "👁️" : "👁️‍🗨️"}</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword.confirm ? "text" : "password"}
+                          minLength={8}
+                          value={passwordDraft.confirm_password}
+                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+                          required
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                        >
+                          <span className="text-gray-400">{showPassword.confirm ? "👁️" : "👁️‍🗨️"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                      type="submit"
+                      disabled={passwordUpdating}
+                    >
+                      {passwordUpdating ? "Updating..." : "Update Password"}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
-
-        <div className="security-section">
-          <form className="panel form-grid" onSubmit={handlePasswordSubmit}>
-            <h2 className="section-title">Change Password</h2>
-            <p className="muted" style={{ marginBottom: "16px" }}>
-              Keep your account secure with a strong password.
-            </p>
-            <label>
-              Current password
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword.current ? "text" : "password"}
-                  value={passwordDraft.current_password}
-                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
-                  required
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
-                >
-                  {showPassword.current ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-            </label>
-            <label>
-              New password
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword.new ? "text" : "password"}
-                  minLength={8}
-                  value={passwordDraft.new_password}
-                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
-                  required
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
-                >
-                  {showPassword.new ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-            </label>
-            <label>
-              Confirm new password
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword.confirm ? "text" : "password"}
-                  minLength={8}
-                  value={passwordDraft.confirm_password}
-                  onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
-                  required
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
-                >
-                  {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
-                </button>
-              </div>
-            </label>
-            <div className="form-actions" style={{ marginTop: "12px" }}>
-              <button className="primary-button" type="submit" disabled={passwordUpdating}>
-                {passwordUpdating ? "Updating..." : "Update Password"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
 
       {/* Change Photo Modal */}
-      <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo">
-        <form onSubmit={(e) => e.preventDefault()} className="form-grid">
-          <label>
-            Upload new photo
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
-          </label>
-          <label>
-            Or enter photo URL
-            <input
-              value={profile.profile_photo}
-              onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
-              placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
-            />
-          </label>
-          {profile.profile_photo ? (
-            <img
-              src={resolveImageUrl(profile.profile_photo)}
-              alt="Profile preview"
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover" }}
-            />
-          ) : null}
-          <div className="hero-actions">
-            <button className="primary-button" onClick={() => setShowPhotoModal(false)} disabled={uploadingPhoto}>
-              {uploadingPhoto ? "Uploading..." : "Close"}
-            </button>
+      {showPhotoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Change Profile Photo</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Upload new photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Or enter photo URL</label>
+                <input
+                  value={profile.profile_photo}
+                  onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
+                  placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              {profile.profile_photo && (
+                <div className="flex justify-center">
+                  <img
+                    src={resolveImageUrl(profile.profile_photo)}
+                    alt="Profile preview"
+                    className="w-24 h-24 rounded-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex justify-end pt-4 border-t border-gray-200">
+                <button
+                  className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setShowPhotoModal(false)}
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto ? "Uploading..." : "Close"}
+                </button>
+              </div>
+            </div>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
 
       {/* Change Password Modal */}
-      <Modal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} title="Change Password">
-        <form onSubmit={handlePasswordSubmit} className="form-grid">
-          <label>
-            Current password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.current ? "text" : "password"}
-                value={passwordDraft.current_password}
-                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
-                required
-              />
-              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, current: !prev.current}))}>
-                {showPassword.current ? "👁️" : "👁️‍🗨️"}
-              </button>
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
             </div>
-          </label>
-          <label>
-            New password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.new ? "text" : "password"}
-                minLength={8}
-                value={passwordDraft.new_password}
-                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
-                required
-              />
-              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, new: !prev.new}))}>
-                {showPassword.new ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
-          </label>
-          <label>
-            Confirm new password
-            <div className="password-input-wrapper">
-              <input
-                type={showPassword.confirm ? "text" : "password"}
-                minLength={8}
-                value={passwordDraft.confirm_password}
-                onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
-                required
-              />
-              <button type="button" className="password-toggle-button" onClick={() => setShowPassword(prev => ({...prev, confirm: !prev.confirm}))}>
-                {showPassword.confirm ? "👁️" : "👁️‍🗨️"}
-              </button>
-            </div>
-          </label>
-          <div className="hero-actions">
-            <button className="primary-button" type="submit" disabled={passwordUpdating}>
-              {passwordUpdating ? "Updating..." : "Update Password"}
-            </button>
-            <button className="secondary-button" type="button" onClick={() => setShowPasswordModal(false)}>
-              Cancel
-            </button>
+            <form className="p-6 space-y-4" onSubmit={handlePasswordSubmit}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword.current ? "text" : "password"}
+                    value={passwordDraft.current_password}
+                    onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(prev => ({...prev, current: !prev.current}))}
+                  >
+                    <span className="text-gray-400">{showPassword.current ? "👁️" : "👁️‍🗨️"}</span>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword.new ? "text" : "password"}
+                    minLength={8}
+                    value={passwordDraft.new_password}
+                    onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(prev => ({...prev, new: !prev.new}))}
+                  >
+                    <span className="text-gray-400">{showPassword.new ? "👁️" : "👁️‍🗨️"}</span>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword.confirm ? "text" : "password"}
+                    minLength={8}
+                    value={passwordDraft.confirm_password}
+                    onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(prev => ({...prev, confirm: !prev.confirm}))}
+                  >
+                    <span className="text-gray-400">{showPassword.confirm ? "👁️" : "👁️‍🗨️"}</span>
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <button
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit"
+                  disabled={passwordUpdating}
+                >
+                  {passwordUpdating ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </Modal>
-    </section>
+        </div>
+      )}
+    </div>
+    </div>
   );
 }

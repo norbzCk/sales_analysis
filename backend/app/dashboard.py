@@ -90,11 +90,14 @@ def _write_revenue_product_graph(points: list[dict[str, Any]], user) -> str | No
     labels = [str(point["label"]) for point in points] or ["No data"]
     values = [float(point["value"]) for point in points] or [0.0]
 
-    fig, ax = plt.subplots(figsize=(9.2, 4.8))
-    bars = ax.barh(labels, values, color="#22c55e", edgecolor="#15803d", linewidth=1.1)
+    fig, ax = plt.subplots(figsize=(10.2, 5.4))
+    positions = list(range(len(values)))
+    bars = ax.bar(positions, values, color="#22c55e", edgecolor="#15803d", linewidth=1.1, width=0.62)
     ax.set_title("Revenue per product", fontsize=16, fontweight="bold", loc="left")
-    ax.set_xlabel("Revenue (TZS)")
-    ax.grid(axis="x", color="#d1fae5", linewidth=1)
+    ax.set_ylabel("Revenue (TZS)")
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels, rotation=18, ha="right")
+    ax.grid(axis="y", color="#d1fae5", linewidth=1)
     ax.set_facecolor("#f7fff8")
     fig.patch.set_facecolor("#ffffff")
     for spine in ["top", "right"]:
@@ -103,7 +106,7 @@ def _write_revenue_product_graph(points: list[dict[str, Any]], user) -> str | No
     ax.spines["bottom"].set_color("#86efac")
     ax.tick_params(axis="x", labelsize=9, colors="#166534")
     ax.tick_params(axis="y", labelsize=9, colors="#166534")
-    ax.bar_label(bars, labels=[f"TZS {value:,.0f}" for value in values], padding=6, fontsize=8, color="#166534")
+    ax.bar_label(bars, labels=[f"TZS {value:,.0f}" for value in values], padding=4, fontsize=8, color="#166534")
     fig.tight_layout()
     fig.savefig(output_path, format="svg", bbox_inches="tight")
     plt.close(fig)
@@ -118,6 +121,7 @@ def _sales_records_for_user(db, user):
         Sale.category,
         Sale.quantity,
         Sale.unit_price,
+        Sale.status,
     ).order_by(Sale.date.asc(), Sale.id.asc()).all()
     return [
         {
@@ -127,6 +131,7 @@ def _sales_records_for_user(db, user):
             "category": row[3] or "Uncategorized",
             "quantity": int(row[4] or 0),
             "unit_price": float(row[5] or 0),
+            "status": row[6] or "Pending",
         }
         for row in rows
     ]
@@ -153,6 +158,11 @@ def _empty_dashboard_analytics():
             "revenueByProduct": None,
             "revenueOverTime": None,
         },
+        "orderStatusBreakdown": {
+            "Pending": 0,
+            "Completed": 0,
+            "Cancelled": 0,
+        },
     }
 
 
@@ -170,6 +180,7 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
         frame["revenue"] = np.round(frame["quantity"] * frame["unit_price"], 2)
         frame["category"] = frame["category"].fillna("Uncategorized")
         frame["product"] = frame["product"].fillna("Unspecified product")
+        frame["status"] = frame["status"].fillna("Pending")
 
         revenue_by_product = (
             frame.groupby("product", dropna=False)["revenue"]
@@ -211,6 +222,15 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
         average_order_value = float(total_revenue / total_orders) if total_orders else 0.0
         avg_units_per_order = float(total_units / total_orders) if total_orders else 0.0
         active_categories = int(frame["category"].nunique())
+        status_counts = {"Pending": 0, "Completed": 0, "Cancelled": 0}
+        for raw_status in frame["status"].astype(str).tolist():
+            normalized = raw_status.strip().lower()
+            if normalized in {"received", "delivered"}:
+                status_counts["Completed"] += 1
+            elif normalized in {"cancelled", "canceled"}:
+                status_counts["Cancelled"] += 1
+            else:
+                status_counts["Pending"] += 1
 
         cards = [
             {"id": "total_revenue", "label": "Total revenue", "display": f"TZS {total_revenue:,.0f}", "value": total_revenue, "kind": "money", "subtitle": "All recorded revenue"},
@@ -254,6 +274,7 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
                 "revenueByProduct": _write_revenue_product_graph(revenue_by_product_points, user),
                 "revenueOverTime": _write_revenue_time_graph(revenue_over_time_points, user),
             },
+            "orderStatusBreakdown": status_counts,
             "peakPeriods": peak_sales_periods(db),
             "customerPatterns": customer_buying_patterns(db),
         }
@@ -288,6 +309,15 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
     avg_units_per_order = total_units / total_orders if total_orders else 0.0
     best_day_revenue = max(by_date.values()) if by_date else 0.0
     recent_revenue = sum(value for _, value in revenue_over_time[-7:])
+    status_counts = {"Pending": 0, "Completed": 0, "Cancelled": 0}
+    for row in rows:
+        normalized = str(row.get("status") or "Pending").strip().lower()
+        if normalized in {"received", "delivered"}:
+            status_counts["Completed"] += 1
+        elif normalized in {"cancelled", "canceled"}:
+            status_counts["Cancelled"] += 1
+        else:
+            status_counts["Pending"] += 1
 
     revenue_by_product_points = [{"label": label, "value": value} for label, value in revenue_by_product]
     revenue_over_time_points = [{"label": label, "value": value} for label, value in revenue_over_time]
@@ -311,6 +341,7 @@ def dashboard_analytics(db, user) -> dict[str, Any]:
             "revenueByProduct": _write_revenue_product_graph(revenue_by_product_points, user),
             "revenueOverTime": _write_revenue_time_graph(revenue_over_time_points, user),
         },
+        "orderStatusBreakdown": status_counts,
     }
 
 

@@ -27,82 +27,79 @@ export function AIAssistant({ isOpen, isReplying = false, onToggle, messages, on
 
   return (
     <>
-      {/* Overlay when open */}
       {isOpen && (
-        <div
-          className="ai-overlay"
-          onClick={onToggle}
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center" onClick={onToggle}>
+          <div className="bg-white dark:bg-slate-800 w-full md:w-[480px] md:rounded-2xl shadow-2xl flex flex-col max-h-[80vh] md:max-h-[600px]" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-xl">🤖</div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 dark:text-white">AI Command Desk</h3>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isReplying ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+                      {isReplying ? "Thinking" : "Live"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Products, sellers, orders, and the next best move.</p>
+                </div>
+              </div>
+              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" onClick={onToggle} aria-label="Close assistant">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3" aria-live="polite">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs flex-shrink-0">
+                    {message.role === "assistant" ? "🤖" : "You"}
+                  </div>
+                  <div className={`flex-1 rounded-2xl px-4 py-3 ${
+                    message.role === "assistant"
+                      ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white"
+                      : "bg-brand text-white"
+                  }`}>
+                    {message.text}
+                  </div>
+                </div>
+              ))}
+              {isReplying ? (
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs">🤖</div>
+                  <div className="flex-1 rounded-2xl px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white">
+                    Thinking through the best reply for you...
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <form className="p-4 border-t border-slate-200 dark:border-slate-700" onSubmit={handleSubmit}>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask for help, a reply draft, or the next step..."
+                  disabled={isReplying}
+                  className="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 rounded-xl outline-none transition-all text-sm text-slate-900 dark:text-white placeholder:text-slate-400"
+                />
+                <button type="submit" disabled={isReplying} className="px-6 py-3 bg-brand text-white rounded-xl hover:bg-brand/90 transition-colors font-medium text-sm disabled:opacity-50">
+                  {isReplying ? "..." : "Send"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
-      {/* AI Assistant Panel */}
-      <div className={`ai-assistant ${isOpen ? 'open' : ''}`}>
-        <div className="ai-assistant-backdrop" aria-hidden="true" />
-
-        {/* Header */}
-        <div className="ai-header">
-          <div className="ai-header-content">
-            <div className="ai-icon">🤖</div>
-            <div className="ai-header-copy">
-              <div className="ai-header-topline">
-                <h3>AI Command Desk</h3>
-                <span className={`ai-status-pill ${isReplying ? "busy" : "live"}`}>
-                  {isReplying ? "Thinking" : "Live"}
-                </span>
-              </div>
-              <p>Products, sellers, orders, and the next best move</p>
-            </div>
-          </div>
-          <button className="ai-close" onClick={onToggle} aria-label="Close assistant">
-            ×
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className="ai-messages">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`ai-message ${message.role === 'user' ? 'user' : 'assistant'}`}
-            >
-              <div className="ai-message-content">
-                {message.text}
-              </div>
-            </div>
-          ))}
-          {isReplying ? (
-            <div className="ai-message assistant">
-              <div className="ai-message-content">Thinking through the best reply for you...</div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Input Form */}
-        <form className="ai-input-form" onSubmit={handleSubmit}>
-          <div className="ai-input-shell">
-            <div className="ai-input-accent" aria-hidden="true" />
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask for help, a reply draft, or the next step..."
-            className="ai-input"
-            disabled={isReplying}
-          />
-          </div>
-          <button type="submit" className="ai-send-btn" disabled={isReplying}>
-            {isReplying ? "..." : "Send"}
-          </button>
-        </form>
-      </div>
-
-      {/* Toggle Button */}
       <button
-        className="ai-toggle-btn"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-brand text-white rounded-full shadow-2xl hover:bg-brand/90 transition-all hover:scale-110 flex items-center justify-center text-2xl z-40"
         onClick={onToggle}
         aria-label="Toggle AI Assistant"
       >
-        {isOpen ? '×' : '🤖'}
+        {isOpen ? "×" : "🤖"}
       </button>
     </>
   );

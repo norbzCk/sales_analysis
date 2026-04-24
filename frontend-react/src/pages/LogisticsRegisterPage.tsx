@@ -53,7 +53,7 @@ export function LogisticsRegisterPage() {
     <AuthScene
       eyebrow="Logistics onboarding"
       title="Join the delivery network for SokoLnk orders."
-      description="Register a rider or delivery company profile, manage availability, and move through delivery statuses from a dedicated dashboard."
+      description="Register a rider or delivery company, manage live availability, and update order statuses seamlessly."
       bullets={[
         "Go online and manage availability in real time",
         "Track assigned deliveries and update statuses",
@@ -61,62 +61,64 @@ export function LogisticsRegisterPage() {
       ]}
       links={[
         { to: "/login", label: "Back to sign in" },
-        { to: "/register/business", label: "Open a seller account" },
+        { to: "/register/customer", label: "Join as customer" },
       ]}
     >
-      <div className="auth-card-header">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
         <div>
-          <p className="eyebrow">Delivery partner</p>
-          <h2>Logistics registration</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand mb-2">Logistics partner</p>
+          <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Logistics registration</h2>
         </div>
       </div>
-      <form className="form-grid auth-form-grid auth-form-two-col" onSubmit={handleSubmit}>
-        {error ? <p className="alert error">{error}</p> : null}
-        {success ? <p className="alert success">{success}</p> : null}
-        <label>
-          Full name
-          <input name="name" required />
+
+      {error ? <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</div> : null}
+      {success ? <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{success}</div> : null}
+
+      <form className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6" onSubmit={handleSubmit}>
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Full name</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="name" required />
         </label>
-        <label>
-          Phone
-          <input name="phone" required />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="phone" required />
         </label>
-        <label>
-          Email
-          <input name="email" type="email" />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</span>
+          <input type="email" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="email" required />
         </label>
-        <label>
-          Password
-          <input name="password" type="password" required />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Password</span>
+          <input type="password" className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="password" required minLength={8} />
         </label>
-        <label>
-          Account type
-          <select name="account_type" defaultValue="individual">
-            <option value="individual">Individual</option>
-            <option value="company">Company</option>
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Account type</span>
+          <select className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="account_type" defaultValue="individual">
+            <option value="individual">Individual rider</option>
+            <option value="company">Registered company</option>
           </select>
         </label>
-        <label>
-          Vehicle type
-          <input name="vehicle_type" required />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Vehicle type</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="vehicle_type" placeholder="E.g. Motorcycle, Van, Truck" />
         </label>
-        <label>
-          Plate number
-          <input name="plate_number" />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Plate number</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="plate_number" />
         </label>
-        <label>
-          License number
-          <input name="license_number" />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">License number</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="license_number" />
         </label>
-        <label>
-          Base area
-          <input name="base_area" />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Base area</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="base_area" placeholder="E.g. Kariakoo, Sinza" />
         </label>
-        <label>
-          Coverage areas
-          <input name="coverage_areas" />
+        <label className="block md:col-span-2 space-y-2">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Coverage areas</span>
+          <input className="mt-1 block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-brand focus:ring-1 focus:ring-brand" name="coverage_areas" placeholder="Comma separated, e.g. Sinza, Magomeni" />
         </label>
-        <button className="primary-button" disabled={isSubmitting} type="submit">
+        <button className="md:col-span-2 px-6 py-3 bg-brand text-white rounded-xl hover:bg-brand/90 transition-all font-medium text-sm shadow-lg" disabled={isSubmitting} type="submit">
           {isSubmitting ? "Submitting..." : "Register logistics"}
         </button>
       </form>

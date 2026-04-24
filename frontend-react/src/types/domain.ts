@@ -83,6 +83,7 @@ export interface DashboardAnalytics {
   revenueByProduct: DashboardChartPoint[];
   revenueOverTime: DashboardChartPoint[];
   recentSales: DashboardRecentSale[];
+  orderStatusBreakdown?: Record<string, number>;
   graphs?: {
     revenueByProduct?: string;
     revenueOverTime?: string;
@@ -215,6 +216,12 @@ export interface LogisticsDelivery {
   price?: number | null;
   special_instructions?: string | null;
   verification_code?: string | null;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  destination_lat?: number | null;
+  destination_lng?: number | null;
+  current_lat?: number | null;
+  current_lng?: number | null;
   created_at?: string | null;
   picked_at?: string | null;
   delivered_at?: string | null;

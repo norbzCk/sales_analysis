@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
+import { InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 
 export function SuperadminSettingsPage() {
   const { user } = useAuth();
@@ -27,21 +28,30 @@ export function SuperadminSettingsPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <p className="eyebrow">Superadmin settings</p>
-        <h1>Privilege controls and operating rules</h1>
-        <p className="muted">These settings are about platform oversight, verification policy, and administrative guardrails.</p>
-      </div>
+    <div className="app-page superadmin-page">
+      <PageIntro
+        eyebrow="Superadmin Settings"
+        title="Privilege controls and operating rules"
+        description="Manage platform oversight, verification policy, and high-privilege guardrails from one modern governance workspace."
+      />
 
-      {flash ? <p className="alert success">{flash}</p> : null}
+      <StatCards
+        items={[
+          { id: "scope", label: "Privilege scope", value: "Full", note: "Platform-wide authority" },
+          { id: "seller", label: "Seller approval", value: autoApproveSellers ? "Auto" : "Manual", note: "Current verification posture" },
+          { id: "logistics", label: "Logistics approval", value: autoApproveLogistics ? "Auto" : "Manual", note: "Current rider onboarding mode" },
+          { id: "risk", label: "Risk review", value: securityLock ? "Strict" : "Relaxed", note: "Manual control for sensitive cases" },
+        ]}
+      />
+
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
 
       <div className="buyer-section-grid">
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
+        <SectionCard title="Privilege profile" description="A compact summary of what this superadmin account is expected to control.">
+          <div className="superadmin-identity">
             <div>
-              <p className="eyebrow">Privilege profile</p>
-              <h2>{user?.name || "Super Admin"}</h2>
+              <p className="eyebrow">Current operator</p>
+              <h3>{user?.name || "Super Admin"}</h3>
             </div>
             <span className="role-chip">{user?.role || "super_admin"}</span>
           </div>
@@ -52,46 +62,53 @@ export function SuperadminSettingsPage() {
               </div>
             ))}
           </div>
-        </article>
+        </SectionCard>
 
-        <article className="panel buyer-card">
-          <div className="buyer-card__header">
-            <div>
-              <p className="eyebrow">Verification policy</p>
-              <h2>Approval guardrails</h2>
-            </div>
+        <SectionCard title="Verification policy" description="Control how much human review is required before accounts become active.">
+          <div className="superadmin-toggle-grid">
+            <label className="checkbox-row superadmin-toggle">
+              <input type="checkbox" checked={autoApproveSellers} onChange={(event) => setAutoApproveSellers(event.target.checked)} />
+              <span>Auto-approve sellers after review batch</span>
+            </label>
+            <label className="checkbox-row superadmin-toggle">
+              <input type="checkbox" checked={autoApproveLogistics} onChange={(event) => setAutoApproveLogistics(event.target.checked)} />
+              <span>Auto-approve logistics after review batch</span>
+            </label>
+            <label className="checkbox-row superadmin-toggle">
+              <input type="checkbox" checked={securityLock} onChange={(event) => setSecurityLock(event.target.checked)} />
+              <span>Require manual review for high-risk accounts</span>
+            </label>
           </div>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={autoApproveSellers} onChange={(event) => setAutoApproveSellers(event.target.checked)} />
-            Auto-approve sellers after review batch
-          </label>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={autoApproveLogistics} onChange={(event) => setAutoApproveLogistics(event.target.checked)} />
-            Auto-approve logistics after review batch
-          </label>
-          <label className="checkbox-row">
-            <input type="checkbox" checked={securityLock} onChange={(event) => setSecurityLock(event.target.checked)} />
-            Require manual human review for high-risk accounts
-          </label>
-          <button className="primary-button" type="button" onClick={savePreferences}>
-            Save settings
-          </button>
-        </article>
+          <div className="button-row">
+            <button className="theme-button" type="button" onClick={savePreferences}>
+              Save settings
+            </button>
+          </div>
+        </SectionCard>
       </div>
 
-      <article className="panel buyer-card">
-        <div className="buyer-card__header">
-          <div>
-            <p className="eyebrow">Platform governance</p>
-            <h2>Recommended operating posture</h2>
-          </div>
+      <SectionCard title="Platform governance" description="Recommended operating posture to keep trust, growth, and security balanced.">
+        <div className="entity-grid">
+          <article className="entity-card">
+            <div className="entity-card__title">
+              <h3>Verification reviews</h3>
+              <p className="muted">Prioritize pending sellers and riders before enabling growth campaigns.</p>
+            </div>
+          </article>
+          <article className="entity-card">
+            <div className="entity-card__title">
+              <h3>Revenue oversight</h3>
+              <p className="muted">Keep monitoring focused on revenue, fulfillment pace, inventory pressure, and trust signals.</p>
+            </div>
+          </article>
+          <article className="entity-card">
+            <div className="entity-card__title">
+              <h3>Security</h3>
+              <p className="muted">High-privilege actions should remain explicit, visible, and manually reviewed.</p>
+            </div>
+          </article>
         </div>
-        <div className="stack-list">
-          <div className="list-card"><strong>Verification reviews</strong><span>Prioritize pending sellers and riders before enabling marketplace growth campaigns.</span></div>
-          <div className="list-card"><strong>Revenue oversight</strong><span>Keep the dashboard focused on platform revenue, fulfillment pace, inventory pressure, and trust signals.</span></div>
-          <div className="list-card"><strong>Security</strong><span>High-privilege actions should remain explicit and manually reviewed.</span></div>
-        </div>
-      </article>
-    </section>
+      </SectionCard>
+    </div>
   );
 }

@@ -72,242 +72,232 @@ export function SettingsPage() {
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel">
-        <p className="eyebrow">Settings</p>
-        <h1>Preferences & Controls</h1>
-        <p className="muted">Manage your account, notifications, and preferences.</p>
+    <section className="p-4 md:p-8 space-y-8 animate-soft-enter">
+      <div className="space-y-1">
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-brand">Preferences</span>
+        <h1 className="text-4xl font-display font-black text-slate-900 dark:text-white tracking-tight">Settings</h1>
+        <p className="text-slate-500 dark:text-slate-400 font-medium">Manage your account, notifications, and preferences.</p>
       </div>
-
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
-
+      
+      {error ? <p className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</p> : null}
+      {flash ? <p className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{flash}</p> : null}
+      
       {/* Theme Section */}
-      <div className="panel">
-        <h2>Appearance</h2>
-        <p className="muted">Choose your preferred theme.</p>
-        <div style={{ display: "flex", gap: "16px", marginTop: "20px", flexWrap: "wrap" }}>
+      <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+        <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Appearance</h2>
+        <p className="text-slate-500 dark:text-slate-400">Choose your preferred theme.</p>
+        <div className="flex gap-4 flex-wrap mt-4">
           {(["light", "dark", "system"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTheme(t)}
-              style={{
-                padding: "12px 20px",
-                borderRadius: "8px",
-                border: theme === t ? "2px solid var(--brand-blue)" : "2px solid #ddd",
-                background: theme === t ? "var(--brand-blue)" : "white",
-                color: theme === t ? "white" : "var(--text-color)",
-                cursor: "pointer",
-                fontWeight: theme === t ? "700" : "500",
-                textTransform: "capitalize",
-              }}
+              className={`px-6 py-3 rounded-xl border-2 font-bold transition-all capitalize
+                ${theme === t 
+                  ? 'border-brand bg-brand text-white' 
+                  : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-brand/50'
+                }`}
             >
               {t === "light" && "☀️"} {t === "dark" && "🌙"} {t === "system" && "⚙️"} {t}
             </button>
           ))}
         </div>
-        <p className="muted" style={{ marginTop: "12px" }}>
-          Current theme: <strong>{effectiveTheme}</strong>
+        <p className="text-slate-400 dark:text-slate-500 text-sm mt-2">
+          Current theme: <strong className="text-slate-900 dark:text-white">{effectiveTheme}</strong>
         </p>
       </div>
 
-      <form className="panel form-grid" onSubmit={saveSettings} style={{ gap: "20px" }}>
+      <form className="space-y-8" onSubmit={saveSettings}>
         {/* Notification Settings */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <h2>Notifications</h2>
-          <p className="muted">Manage how and when you receive updates.</p>
+        <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+          <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Notifications</h2>
+          <p className="text-slate-500 dark:text-slate-400">Manage how and when you receive updates.</p>
+        
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifications.email_orders}
+              onChange={(e) => setNotifications((prev) => ({ ...prev, email_orders: e.target.checked }))}
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
+            />
+            <span className="text-slate-700 dark:text-slate-300">Email me about orders and deliveries</span>
+          </label>
+        
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifications.email_promotions}
+              onChange={(e) => setNotifications((prev) => ({ ...prev, email_promotions: e.target.checked }))}
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
+            />
+            <span className="text-slate-700 dark:text-slate-300">Email me about promotions and deals</span>
+          </label>
+        
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifications.email_updates}
+              onChange={(e) => setNotifications((prev) => ({ ...prev, email_updates: e.target.checked }))}
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
+            />
+            <span className="text-slate-700 dark:text-slate-300">Email me about platform updates</span>
+          </label>
+        
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifications.sms_enabled}
+              onChange={(e) => setNotifications((prev) => ({ ...prev, sms_enabled: e.target.checked }))}
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
+            />
+            <span className="text-slate-700 dark:text-slate-300">Send me important alerts via SMS</span>
+          </label>
         </div>
-
-        <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={notifications.email_orders}
-            onChange={(e) => setNotifications((prev) => ({ ...prev, email_orders: e.target.checked }))}
-          />
-          <span>Email me about orders and deliveries</span>
-        </label>
-
-        <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={notifications.email_promotions}
-            onChange={(e) => setNotifications((prev) => ({ ...prev, email_promotions: e.target.checked }))}
-          />
-          <span>Email me about promotions and deals</span>
-        </label>
-
-        <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={notifications.email_updates}
-            onChange={(e) => setNotifications((prev) => ({ ...prev, email_updates: e.target.checked }))}
-          />
-          <span>Email me about platform updates</span>
-        </label>
-
-        <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={notifications.sms_enabled}
-            onChange={(e) => setNotifications((prev) => ({ ...prev, sms_enabled: e.target.checked }))}
-          />
-          <span>Send me important alerts via SMS</span>
-        </label>
 
         {/* Account Security */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <h2>Account Security</h2>
-          <p className="muted">Protect and control your account access.</p>
+        <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+          <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Account Security</h2>
+          <p className="text-slate-500 dark:text-slate-400">Protect and control your account access.</p>
+        
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={account.two_factor_enabled}
+              onChange={(e) => setAccount((prev) => ({ ...prev, two_factor_enabled: e.target.checked }))}
+              className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
+            />
+            <span className="text-slate-700 dark:text-slate-300">Enable two-factor authentication</span>
+          </label>
+        
+          <label className="block space-y-2">
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Session Timeout (minutes)</span>
+            <input
+              type="number"
+              min="5"
+              max="480"
+              value={account.session_timeout}
+              onChange={(e) => setAccount((prev) => ({ ...prev, session_timeout: Number(e.target.value) }))}
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
+            />
+          </label>
         </div>
-
-        <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={account.two_factor_enabled}
-            onChange={(e) => setAccount((prev) => ({ ...prev, two_factor_enabled: e.target.checked }))}
-          />
-          <span>Enable two-factor authentication</span>
-        </label>
-
-        <label>
-          Session Timeout (minutes)
-          <input
-            type="number"
-            min="5"
-            max="480"
-            value={account.session_timeout}
-            onChange={(e) => setAccount((prev) => ({ ...prev, session_timeout: Number(e.target.value) }))}
-          />
-        </label>
 
         {/* Role-Specific Settings */}
         {isSeller && (
-          <>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <h2>Seller Dashboard</h2>
-              <p className="muted">Customize your seller experience.</p>
-            </div>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={notifications.email_orders}
-                onChange={(e) => setNotifications((prev) => ({ ...prev, email_orders: e.target.checked }))}
-              />
-              <span>Notify me of new orders immediately</span>
+          <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+            <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Seller Dashboard</h2>
+            <p className="text-slate-500 dark:text-slate-400">Customize your seller experience.</p>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Notify me of new orders immediately</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Show inventory forecasting alerts</span>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Show inventory forecasting alerts</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Display competitor price alerts</span>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Display competitor price alerts</span>
             </label>
-          </>
+          </div>
         )}
-
+      
         {isLogistics && (
-          <>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <h2>Logistics Tracking</h2>
-              <p className="muted">Configure delivery and route preferences.</p>
-            </div>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Show real-time route optimization</span>
+          <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+            <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Logistics Tracking</h2>
+            <p className="text-slate-500 dark:text-slate-400">Configure delivery and route preferences.</p>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Show real-time route optimization</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={notifications.sms_enabled}
                 onChange={(e) => setNotifications((prev) => ({ ...prev, sms_enabled: e.target.checked }))}
+                className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
               />
-              <span>SMS alerts for delivery status changes</span>
+              <span className="text-slate-700 dark:text-slate-300">SMS alerts for delivery status changes</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Track vehicle performance metrics</span>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Track vehicle performance metrics</span>
             </label>
-          </>
+          </div>
         )}
-
+      
         {isCustomer && (
-          <>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <h2>Shopping Preferences</h2>
-              <p className="muted">Personalize your buying experience.</p>
-            </div>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Show recommended products</span>
+          <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+            <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Shopping Preferences</h2>
+            <p className="text-slate-500 dark:text-slate-400">Personalize your buying experience.</p>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Show recommended products</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={notifications.email_promotions}
                 onChange={(e) => setNotifications((prev) => ({ ...prev, email_promotions: e.target.checked }))}
+                className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
               />
-              <span>Notify me about product restocks in my saved searches</span>
+              <span className="text-slate-700 dark:text-slate-300">Notify me about product restocks in my saved searches</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Save favorite sellers and products</span>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Save favorite sellers and products</span>
             </label>
-          </>
+          </div>
         )}
-
+      
         {isAdmin && (
-          <>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <h2>Admin Dashboard</h2>
-              <p className="muted">Configure administrative oversight.</p>
-            </div>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Show platform health metrics</span>
+          <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4">
+            <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Admin Dashboard</h2>
+            <p className="text-slate-500 dark:text-slate-400">Configure administrative oversight.</p>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Show platform health metrics</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={notifications.email_updates}
                 onChange={(e) => setNotifications((prev) => ({ ...prev, email_updates: e.target.checked }))}
+                className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand"
               />
-              <span>Notify me of system alerts and issues</span>
+              <span className="text-slate-700 dark:text-slate-300">Notify me of system alerts and issues</span>
             </label>
-
-            <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
-              <input type="checkbox" defaultChecked />
-              <span>Enable detailed audit logging</span>
+          
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" defaultChecked className="w-5 h-5 rounded border-2 border-slate-300 dark:border-slate-600 text-brand focus:ring-brand" />
+              <span className="text-slate-700 dark:text-slate-300">Enable detailed audit logging</span>
             </label>
-          </>
+          </div>
         )}
 
-        <div style={{ gridColumn: "1 / -1" }}>
-          <button className="primary-button" type="submit">
+        <div>
+          <button className="btn-primary !py-4 !px-8" type="submit">
             Save Settings
           </button>
         </div>
       </form>
-
-      <div className="panel" style={{ background: "var(--surface-alt)" }}>
-        <h3>Data & Privacy</h3>
-        <p className="muted">Your data is encrypted and secure. Review our privacy policy for more details.</p>
-        <div style={{ marginTop: "16px", display: "flex", gap: "12px" }}>
-          <button className="secondary-button">Download My Data</button>
-          <button className="secondary-button" style={{ color: "var(--danger)" }}>
-            Delete Account
-          </button>
+      
+      <div className="glass-card dark:bg-slate-800/50 p-8 space-y-4" style={{ background: "var(--surface-alt)" }}>
+        <h3 className="text-xl font-display font-bold text-slate-900 dark:text-white">Data & Privacy</h3>
+        <p className="text-slate-500 dark:text-slate-400">Your data is encrypted and secure. Review our privacy policy for more details.</p>
+        <div className="flex gap-4 mt-4">
+          <button className="btn-secondary">Download My Data</button>
+          <button className="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all">Delete Account</button>
         </div>
       </div>
     </section>

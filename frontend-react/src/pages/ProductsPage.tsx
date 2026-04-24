@@ -335,54 +335,58 @@ export function ProductsPage() {
   }
 
   return (
-    <div className="panel-stack">
+    <div className="space-y-6">
       {inventory ? (
-        <div className="stat-grid">
-          <article className="stat-card">
-            <span className="stat-label">Total Inventory</span>
-            <strong>{inventory.total_products}</strong>
-            <p className="muted">Across all categories</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <article className="bg-white rounded-lg shadow p-6">
+            <span className="text-sm text-gray-500">Total Inventory</span>
+            <strong className="block text-2xl font-bold text-gray-900">{inventory.total_products}</strong>
+            <p className="text-sm text-gray-500 mt-1">Across all categories</p>
           </article>
-          <article className="stat-card">
-            <span className="stat-label">Low Stock</span>
-            <strong style={{ color: 'var(--brand-orange-strong)' }}>{inventory.low_stock_count}</strong>
-            <p className="muted">Needs attention</p>
+          <article className="bg-white rounded-lg shadow p-6">
+            <span className="text-sm text-gray-500">Low Stock</span>
+            <strong className="block text-2xl font-bold text-orange-600">{inventory.low_stock_count}</strong>
+            <p className="text-sm text-gray-500 mt-1">Needs attention</p>
           </article>
-          <article className="stat-card">
-            <span className="stat-label">Out of Stock</span>
-            <strong style={{ color: 'var(--danger)' }}>{inventory.out_of_stock_count}</strong>
-            <p className="muted">Currently unavailable</p>
+          <article className="bg-white rounded-lg shadow p-6">
+            <span className="text-sm text-gray-500">Out of Stock</span>
+            <strong className="block text-2xl font-bold text-red-600">{inventory.out_of_stock_count}</strong>
+            <p className="text-sm text-gray-500 mt-1">Currently unavailable</p>
           </article>
-          <article className="stat-card">
-            <span className="stat-label">Total Value</span>
-            <strong>{formatMoney(inventory.total_value)}</strong>
-            <p className="muted">Estimated worth</p>
+          <article className="bg-white rounded-lg shadow p-6">
+            <span className="text-sm text-gray-500">Total Value</span>
+            <strong className="block text-2xl font-bold text-gray-900">{formatMoney(inventory.total_value)}</strong>
+            <p className="text-sm text-gray-500 mt-1">Estimated worth</p>
           </article>
         </div>
       ) : null}
 
       {sellerMode && forecast.length ? (
-        <div className="panel">
-          <div className="panel-header">
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
             <div>
-              <h2>Smart inventory forecasting</h2>
-              <p className="muted">Projected stock-out risk based on the last 30 days of sales.</p>
+              <h2 className="text-xl font-bold text-gray-900">Smart inventory forecasting</h2>
+              <p className="text-sm text-gray-500 mt-1">Projected stock-out risk based on the last 30 days of sales.</p>
             </div>
           </div>
-          <div className="stack-list">
+          <div className="divide-y divide-gray-200">
             {forecast.slice(0, 4).map((item) => (
-              <div key={item.product_id} className="list-card inventory-forecast-card">
+              <div key={item.product_id} className="p-6 flex items-center justify-between">
                 <div>
-                  <strong>{item.product_name}</strong>
-                  <p className="muted">
+                  <strong className="text-gray-900">{item.product_name}</strong>
+                  <p className="text-sm text-gray-500 mt-1">
                     {item.current_stock} in stock · {item.daily_burn_rate.toFixed(1)} / day · approx. {item.days_left} days left
                   </p>
                 </div>
-                <div className="stack-list">
-                  <span className={`buyer-badge${item.risk_level === "critical" ? " buyer-badge--danger" : item.risk_level === "watch" ? " buyer-badge--warn" : " buyer-badge--good"}`}>
+                <div className="flex items-center gap-4">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    item.risk_level === "critical" ? "bg-red-100 text-red-800" :
+                    item.risk_level === "watch" ? "bg-yellow-100 text-yellow-800" :
+                    "bg-green-100 text-green-800"
+                  }`}>
                     {item.risk_level || "healthy"}
                   </span>
-                  <span className="muted">Restock {item.recommended_restock || 0}</span>
+                  <span className="text-sm text-gray-500">Restock {item.recommended_restock || 0}</span>
                 </div>
               </div>
             ))}
@@ -390,112 +394,140 @@ export function ProductsPage() {
         </div>
       ) : null}
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+      {error ? <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</p> : null}
+      {flash ? <p className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">{flash}</p> : null}
 
       {canManage(user?.role) ? (
-        <form className="panel form-grid auth-form-two-col" onSubmit={handleCreateOrUpdate}>
-          <div className="full-width">
-            <h2>{editingId ? `Update Product #${editingId}` : "List New Product"}</h2>
-            <p className="muted">Provide the details for your marketplace listing.</p>
+        <form className="bg-white rounded-lg shadow p-6 space-y-4" onSubmit={handleCreateOrUpdate}>
+          <div className="col-span-full">
+            <h2 className="text-xl font-bold text-gray-900">{editingId ? `Update Product #${editingId}` : "List New Product"}</h2>
+            <p className="text-sm text-gray-500 mt-1">Provide the details for your marketplace listing.</p>
           </div>
 
-          <div className="full-width ai-insight-toolbar">
-            <button className="secondary-button" type="button" onClick={() => void generateInsight()} disabled={generatingInsight}>
+          <div className="col-span-full flex items-center gap-4">
+            <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" type="button" onClick={() => void generateInsight()} disabled={generatingInsight}>
               {generatingInsight ? "Generating..." : "Generate AI listing insight"}
             </button>
-            <span className="muted">Creates an SEO-friendly description and a price suggestion from marketplace activity.</span>
+            <span className="text-sm text-gray-500">Creates an SEO-friendly description and a price suggestion from marketplace activity.</span>
           </div>
-          
-          <label>Product Name<input value={draft.name} onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))} required /></label>
-          <label>Category<input value={draft.category} onChange={(e) => setDraft(prev => ({ ...prev, category: e.target.value }))} required /></label>
-          
-          {adminMode ? (
-            <label>
-              Assign to Seller
-              <select value={draft.seller_id} onChange={(e) => setDraft(prev => ({ ...prev, seller_id: e.target.value }))}>
-                <option value="">Select Seller</option>
-                {businessmen.map(s => <option key={s.id} value={s.id}>{s.business_name}</option>)}
-              </select>
-            </label>
-          ) : null}
-          
-          <label>Price (TZS)<input type="number" value={draft.price} onChange={(e) => setDraft(prev => ({ ...prev, price: e.target.value }))} required /></label>
-          <label>Initial Stock<input type="number" value={draft.stock} onChange={(e) => setDraft(prev => ({ ...prev, stock: e.target.value }))} required /></label>
-          
-          {!sellerMode ? (
-            <label>
-              Provider (Optional)
-              <select value={draft.provider_id} onChange={(e) => setDraft(prev => ({ ...prev, provider_id: e.target.value }))}>
-                <option value="">Select Provider</option>
-                {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </label>
-          ) : null}
 
-          <label className="full-width">Detailed Description<textarea value={draft.description} onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))} required /></label>
-          
-          <label className="full-width">
-            Product Image
-            <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
-              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingImage} />
-              <input type="text" placeholder="Or enter Image URL" value={draft.image_url} onChange={(e) => setDraft(prev => ({ ...prev, image_url: e.target.value }))} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Product Name</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.name} onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Category</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.category} onChange={(e) => setDraft(prev => ({ ...prev, category: e.target.value }))} required />
+            </label>
+
+            {adminMode ? (
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Assign to Seller</span>
+                <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.seller_id} onChange={(e) => setDraft(prev => ({ ...prev, seller_id: e.target.value }))}>
+                  <option value="">Select Seller</option>
+                  {businessmen.map(s => <option key={s.id} value={s.id}>{s.business_name}</option>)}
+                </select>
+              </label>
+            ) : null}
+
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Price (TZS)</span>
+              <input type="number" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.price} onChange={(e) => setDraft(prev => ({ ...prev, price: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Initial Stock</span>
+              <input type="number" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.stock} onChange={(e) => setDraft(prev => ({ ...prev, stock: e.target.value }))} required />
+            </label>
+
+            {!sellerMode ? (
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Provider (Optional)</span>
+                <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.provider_id} onChange={(e) => setDraft(prev => ({ ...prev, provider_id: e.target.value }))}>
+                  <option value="">Select Provider</option>
+                  {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+            ) : null}
+          </div>
+
+          <label className="block col-span-full">
+            <span className="text-sm font-medium text-gray-700">Detailed Description</span>
+            <textarea className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.description} onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))} required />
+          </label>
+
+          <label className="block col-span-full">
+            <span className="text-sm font-medium text-gray-700">Product Image</span>
+            <div className="flex gap-4 mt-1">
+              <input type="file" accept="image/*" className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleImageUpload} disabled={uploadingImage} />
+              <input type="text" placeholder="Or enter Image URL" className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.image_url} onChange={(e) => setDraft(prev => ({ ...prev, image_url: e.target.value }))} />
             </div>
           </label>
 
           {draft.image_url && (
-            <div className="full-width">
-              <img src={resolveImageUrl(draft.image_url)} alt="Preview" style={{ width: '120px', height: '120px', borderRadius: '12px', objectFit: 'cover' }} />
+            <div className="col-span-full">
+              <img src={resolveImageUrl(draft.image_url)} alt="Preview" className="w-32 h-32 rounded-lg object-cover" />
             </div>
           )}
 
           {insight ? (
-            <div className="full-width panel ai-insight-card">
-              <div className="panel-header">
+            <div className="col-span-full bg-blue-50 rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3>AI-powered product insight</h3>
-                  <p className="muted">{insight.trend_summary || "Marketplace-based pricing guidance"}</p>
+                  <h3 className="text-lg font-bold text-gray-900">AI-powered product insight</h3>
+                  <p className="text-sm text-gray-500">{insight.trend_summary || "Marketplace-based pricing guidance"}</p>
                 </div>
-                <span className="buyer-badge buyer-badge--good">{Math.round((insight.confidence || 0) * 100)}% confidence</span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {Math.round((insight.confidence || 0) * 100)}% confidence
+                </span>
               </div>
-              <div className="two-column-grid">
-                <div className="buyer-kpi">
-                  <span className="muted">Suggested price</span>
-                  <strong>{formatMoney(insight.suggested_price)}</strong>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded p-4">
+                  <span className="text-sm text-gray-500">Suggested price</span>
+                  <strong className="block text-lg font-bold text-gray-900">{formatMoney(insight.suggested_price)}</strong>
                 </div>
-                <div className="buyer-kpi">
-                  <span className="muted">Expected range</span>
-                  <strong>{formatMoney(insight.price_range?.low)} - {formatMoney(insight.price_range?.high)}</strong>
+                <div className="bg-white rounded p-4">
+                  <span className="text-sm text-gray-500">Expected range</span>
+                  <strong className="block text-lg font-bold text-gray-900">{formatMoney(insight.price_range?.low)} - {formatMoney(insight.price_range?.high)}</strong>
                 </div>
               </div>
-              <p className="muted">{insight.description}</p>
-              <div className="buyer-pill-row">
-                <span className="buyer-badge">{insight.demand_level || "steady"} demand</span>
+              <p className="text-sm text-gray-600">{insight.description}</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {insight.demand_level || "steady"} demand
+                </span>
                 {insight.seo_keywords?.map((keyword) => (
-                  <span key={keyword} className="buyer-pill">{keyword}</span>
+                  <span key={keyword} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    {keyword}
+                  </span>
                 ))}
               </div>
             </div>
           ) : null}
 
-          <div className="full-width" style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-            <button className="primary-button" style={{ background: 'var(--brand-blue)', height: '48px', padding: '0 32px' }} type="submit">
+          <div className="col-span-full flex gap-3">
+            <button className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium" type="submit">
               {editingId ? "Update Listing" : "Save Product"}
             </button>
-            {editingId && <button className="secondary-button" type="button" onClick={resetForm}>Cancel</button>}
+            {editingId && <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" type="button" onClick={resetForm}>Cancel</button>}
           </div>
         </form>
       ) : null}
 
-      <div className="panel filter-grid">
-        <label>Search Catalog<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name..." /></label>
-        <label>Category
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+      <div className="bg-white rounded-lg shadow p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">Search Catalog</span>
+          <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name..." />
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">Category</span>
+          <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={category} onChange={(e) => setCategory(e.target.value)}>
             {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
           </select>
         </label>
-        <label>Sort By
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">Sort By</span>
+          <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={sort} onChange={(e) => setSort(e.target.value)}>
             <option value="featured">Featured</option>
             <option value="price_low">Price: Low to High</option>
             <option value="price_high">Price: High to Low</option>
@@ -503,44 +535,47 @@ export function ProductsPage() {
         </label>
       </div>
 
-      <div className="catalog-grid">
-        {loading ? <div className="panel">Loading catalog...</div> : null}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {loading ? <div className="bg-white rounded-lg shadow p-6 col-span-full">Loading catalog...</div> : null}
         {visibleProducts.map((product) => (
-          <article key={product.id} className="panel product-card-react" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <img 
-              src={resolveImageUrl(product.image_url)} 
-              alt={product.name} 
-              className="product-card-image" 
-              style={{ borderRadius: '0', cursor: 'pointer' }}
+          <article key={product.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col">
+            <img
+              src={resolveImageUrl(product.image_url)}
+              alt={product.name}
+              className="w-full h-48 object-cover cursor-pointer"
               onClick={() => navigate(`/app/product/${product.id}`)}
             />
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ cursor: 'pointer', flex: 1 }} onClick={() => navigate(`/app/product/${product.id}`)}>
-                  <h3 style={{ margin: '0' }}>{product.name}</h3>
-                  <p className="muted" style={{ fontSize: '0.85rem' }}>{product.category}</p>
+            <div className="p-5 flex flex-col flex-1">
+              <div className="flex justify-between items-start mb-2">
+                <div className="cursor-pointer flex-1" onClick={() => navigate(`/app/product/${product.id}`)}>
+                  <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
+                  <p className="text-sm text-gray-500">{product.category}</p>
                 </div>
-                <strong style={{ color: 'var(--brand-blue)' }}>{formatMoney(product.price)}</strong>
+                <strong className="text-blue-600 font-bold">{formatMoney(product.price)}</strong>
               </div>
-              <p className="muted" style={{ fontSize: '0.9rem', margin: '12px 0', height: '2.7rem', overflow: 'hidden', cursor: 'pointer' }} onClick={() => navigate(`/app/product/${product.id}`)}>{product.description}</p>
+              <p className="text-sm text-gray-600 mb-3 flex-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}} onClick={() => navigate(`/app/product/${product.id}`)}>{product.description}</p>
               {product.seller?.badges?.length ? (
-                <div className="buyer-pill-row" style={{ marginBottom: '10px' }}>
+                <div className="flex flex-wrap gap-1 mb-3">
                   {product.seller.badges.map((badge) => (
-                    <span key={badge.id} className="buyer-badge buyer-badge--good">{badge.label}</span>
+                    <span key={badge.id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      {badge.label}
+                    </span>
                   ))}
                 </div>
               ) : null}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid #eee' }}>
-                <span className={`status-pill ${product.stock && product.stock > 0 ? "ok" : "danger"}`}>
+              <div className="flex justify-between items-center pt-3 border-t border-gray-200 mt-auto">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  product.stock && product.stock > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                }`}>
                   {product.stock && product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
                 </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="flex gap-2">
                   {user?.role === "user" && (
-                    <button 
-                      className="primary-button product-card-action" 
+                    <button
+                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
                       disabled={!(product.stock && product.stock > 0)}
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
+                      onClick={(e) => {
+                        e.stopPropagation();
                         addToCart({
                           id: product.id,
                           name: product.name || "Product",
@@ -559,8 +594,8 @@ export function ProductsPage() {
                   )}
                   {canManage(user?.role) && (
                     <>
-                      <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={(e) => { e.stopPropagation(); beginEdit(product); }}>Edit</button>
-                      <button className="secondary-button" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>Delete</button>
+                      <button className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition" onClick={(e) => { e.stopPropagation(); beginEdit(product); }}>Edit</button>
+                      <button className="px-3 py-1.5 bg-gray-200 text-red-600 text-sm rounded hover:bg-gray-300 transition" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>Delete</button>
                     </>
                   )}
                 </div>
@@ -571,24 +606,48 @@ export function ProductsPage() {
       </div>
 
       {!canManage(user?.role) ? (
-        <div className="panel ai-insight-card">
-          <div className="panel-header">
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
             <div>
-              <h2>Can&apos;t find what you need?</h2>
-              <p className="muted">Send a product request and let the marketplace recommend sellers or source options for you.</p>
+              <h2 className="text-xl font-bold text-gray-900">Can&apos;t find what you need?</h2>
+              <p className="text-sm text-gray-500 mt-1">Send a product request and let the marketplace recommend sellers or source options for you.</p>
             </div>
           </div>
-          <form className="form-grid auth-form-two-col" onSubmit={submitProductRequest}>
-            <label>Company<input value={requestDraft.company_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, company_name: e.target.value }))} required /></label>
-            <label>Contact name<input value={requestDraft.contact_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, contact_name: e.target.value }))} required /></label>
-            <label>Email<input type="email" value={requestDraft.email} onChange={(e) => setRequestDraft((prev) => ({ ...prev, email: e.target.value }))} required /></label>
-            <label>Phone<input value={requestDraft.phone} onChange={(e) => setRequestDraft((prev) => ({ ...prev, phone: e.target.value }))} /></label>
-            <label className="full-width">Needed product<input value={requestDraft.product_interest} onChange={(e) => setRequestDraft((prev) => ({ ...prev, product_interest: e.target.value }))} required /></label>
-            <label>Quantity<input type="number" min="1" value={requestDraft.quantity} onChange={(e) => setRequestDraft((prev) => ({ ...prev, quantity: e.target.value }))} required /></label>
-            <label>Target budget<input value={requestDraft.target_budget} onChange={(e) => setRequestDraft((prev) => ({ ...prev, target_budget: e.target.value }))} /></label>
-            <label className="full-width">Recommendation details<textarea rows={4} value={requestDraft.notes} onChange={(e) => setRequestDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Tell sellers the type, brand, quality, or substitute you want." /></label>
-            <div className="full-width">
-              <button className="primary-button" type="submit">Request recommendations</button>
+          <form className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={submitProductRequest}>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Company</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.company_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, company_name: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Contact name</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.contact_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, contact_name: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Email</span>
+              <input type="email" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.email} onChange={(e) => setRequestDraft((prev) => ({ ...prev, email: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Phone</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.phone} onChange={(e) => setRequestDraft((prev) => ({ ...prev, phone: e.target.value }))} />
+            </label>
+            <label className="block md:col-span-2">
+              <span className="text-sm font-medium text-gray-700">Needed product</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.product_interest} onChange={(e) => setRequestDraft((prev) => ({ ...prev, product_interest: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Quantity</span>
+              <input type="number" min="1" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.quantity} onChange={(e) => setRequestDraft((prev) => ({ ...prev, quantity: e.target.value }))} required />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Target budget</span>
+              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.target_budget} onChange={(e) => setRequestDraft((prev) => ({ ...prev, target_budget: e.target.value }))} />
+            </label>
+            <label className="block md:col-span-2">
+              <span className="text-sm font-medium text-gray-700">Recommendation details</span>
+              <textarea rows={4} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.notes} onChange={(e) => setRequestDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Tell sellers the type, brand, quality, or substitute you want." />
+            </label>
+            <div className="md:col-span-2">
+              <button className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium" type="submit">Request recommendations</button>
             </div>
           </form>
         </div>

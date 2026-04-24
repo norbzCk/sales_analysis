@@ -40,27 +40,24 @@ function resolveGraphUrl(path?: string | null) {
   return `${env.apiBase}/${path.replace(/^\/+/, "")}`;
 }
 
-function buildGreenChart(points: DashboardChartPoint[]) {
+function buildVerticalBarChart(points: DashboardChartPoint[]) {
   const values = points.map((point) => Number(point.value || 0));
   const safeValues = values.length ? values : [0];
-  const min = Math.min(...safeValues);
   const max = Math.max(...safeValues);
-  const range = max - min || 1;
+  const range = max || 1;
   const innerWidth = CHART_WIDTH - CHART_PADDING * 2;
   const innerHeight = CHART_HEIGHT - CHART_PADDING * 2;
+  const barWidth = Math.max(20, (innerWidth / safeValues.length) * 0.8);
+  const barSpacing = Math.max(5, (innerWidth / safeValues.length) * 0.2);
 
-  const plotted = safeValues.map((value, index) => {
-    const x = CHART_PADDING + (safeValues.length <= 1 ? innerWidth / 2 : (index / (safeValues.length - 1)) * innerWidth);
-    const y = CHART_PADDING + innerHeight - ((value - min) / range) * innerHeight;
-    return { x, y, value };
+  const bars = safeValues.map((value, index) => {
+    const x = CHART_PADDING + index * (barWidth + barSpacing);
+    const barHeight = (value / range) * innerHeight;
+    const y = CHART_PADDING + innerHeight - barHeight;
+    return { x, y, width: barWidth, height: barHeight, value };
   });
 
-  const linePath = plotted.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-  const areaPath = plotted.length
-    ? `${linePath} L ${plotted[plotted.length - 1].x} ${CHART_HEIGHT - CHART_PADDING} L ${plotted[0].x} ${CHART_HEIGHT - CHART_PADDING} Z`
-    : "";
-
-  return { plotted, linePath, areaPath, min, max };
+  return { bars, max, range };
 }
 
 export function AdminDashboardPage() {
@@ -98,7 +95,7 @@ export function AdminDashboardPage() {
     };
   }, []);
 
-  const revenueTrendChart = useMemo(() => buildGreenChart(analytics.revenueOverTime), [analytics.revenueOverTime]);
+  const revenueTrendChart = useMemo(() => buildVerticalBarChart(analytics.revenueOverTime), [analytics.revenueOverTime]);
   const maxProductRevenue = useMemo(
     () => Math.max(...analytics.revenueByProduct.map((item) => Number(item.value || 0)), 1),
     [analytics.revenueByProduct],
@@ -108,122 +105,152 @@ export function AdminDashboardPage() {
 
   if (user?.role === "user") {
     return (
-      <section className="panel">
-        <p className="eyebrow">Dashboard</p>
-        <h1>Customer accounts use the customer dashboard.</h1>
+      <section className="p-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Dashboard</p>
+        <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Customer accounts use the customer dashboard.</h1>
       </section>
     );
   }
 
   if (user?.role === "logistics") {
     return (
-      <section className="panel">
-        <p className="eyebrow">Dashboard</p>
-        <h1>Logistics accounts use the logistics dashboard.</h1>
+      <section className="p-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">dashboard</p>
+        <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Logistics accounts use the logistics dashboard.</h1>
       </section>
     );
   }
 
   return (
-    <section className="panel-stack admin-dashboard">
-      <div className="panel admin-overview-hero">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+    <div className="space-y-6 animate-soft-enter">
+      {/* Hero Section */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <p className="eyebrow">Business workspace</p>
-            <h1>Business Overview</h1>
-            <p className="muted">Live totals and trends from your recorded sales.</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">business workspace</p>
+            <h1 className="text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight mt-1">business overview</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">live totals and trends from your recorded sales.</p>
           </div>
-          <button 
-            className="btn btn-secondary"
+          <button
+            className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             onClick={() => window.open(`${env.apiBase}/dashboard/export-sales`, "_blank")}
           >
-            Export Report (CSV)
+            export report (csv)
           </button>
         </div>
       </div>
 
-      {error ? <p className="alert error">{error}</p> : null}
-      {loading ? <p className="panel">Loading dashboard...</p> : null}
+      {error ? <div className="p-4 bg-red-50 text-red-700 rounded-xl font-bold flex items-center gap-3 border border-red-100">{error}</div> : null}
+      {loading ? <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">loading dashboard...</div> : null}
 
       {!loading ? (
         <>
-          <div className="admin-stats-grid">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {analytics.cards.map((card) => (
-              <article key={card.id} className="stat-card admin-stat-card">
-                <span className="stat-label">{card.label}</span>
-                <strong>{card.display}</strong>
-                <p className="muted">{card.subtitle}</p>
+              <article key={card.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{card.label}</span>
+                <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{card.display}</strong>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{card.subtitle}</p>
               </article>
             ))}
           </div>
 
-          <div className="admin-chart-grid">
-            <article className="panel admin-chart-panel admin-chart-panel--wide">
-              <div className="panel-header">
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue Over Time */}
+            <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
                 <div>
-                  <h2>Revenue per time graph</h2>
-                  <p className="muted">
+                  <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">revenue over time</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     {analytics.revenueOverTime.length
-                      ? `Range: ${formatCompactMoney(revenueTrendChart.min)} to ${formatCompactMoney(revenueTrendChart.max)}`
-                      : "No revenue trend available yet."}
+                      ? `maximum: ${formatCompactMoney(revenueTrendChart.max)}`
+                      : "no revenue trend available yet."}
                   </p>
                 </div>
-                <span>{analytics.revenueOverTime.length} points</span>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{analytics.revenueOverTime.length} points</span>
               </div>
               {revenueTimeGraphUrl ? (
-                <div className="admin-green-graph">
-                  <img src={revenueTimeGraphUrl} alt="Revenue per time graph" />
+                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <img src={revenueTimeGraphUrl} alt="Revenue over time graph" className="w-full h-auto" />
                 </div>
               ) : (
-                <div className="admin-green-graph admin-green-chart">
-                  <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="Revenue over time">
+                <div className="relative rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+                  <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="Revenue over time" className="w-full h-auto">
                     <defs>
                       <linearGradient id="adminRevenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#16a34a" stopOpacity="0.45" />
-                        <stop offset="100%" stopColor="#16a34a" stopOpacity="0.06" />
+                        <stop offset="0%" stopColor="#16a34a" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#16a34a" stopOpacity="0.4" />
                       </linearGradient>
                     </defs>
-                    <line x1={CHART_PADDING} y1={CHART_PADDING} x2={CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" />
-                    <line x1={CHART_PADDING} y1={CHART_HEIGHT - CHART_PADDING} x2={CHART_WIDTH - CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" />
-                    {revenueTrendChart.areaPath ? <path d={revenueTrendChart.areaPath} fill="url(#adminRevenueGradient)" /> : null}
-                    {revenueTrendChart.linePath ? <path d={revenueTrendChart.linePath} fill="none" stroke="#15803d" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" /> : null}
-                    {revenueTrendChart.plotted.map((point, index) => (
-                      <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r={4.5} fill="#166534" />
+                    {/* Grid lines */}
+                    <line x1={CHART_PADDING} y1={CHART_PADDING} x2={CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" strokeWidth="1" />
+                    <line x1={CHART_PADDING} y1={CHART_HEIGHT - CHART_PADDING} x2={CHART_WIDTH - CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" strokeWidth="1" />
+                    
+                    {/* Bars */}
+                    {revenueTrendChart.bars.map((bar, index) => (
+                      <rect
+                        key={`bar-${index}`}
+                        x={bar.x}
+                        y={bar.y}
+                        width={bar.width}
+                        height={bar.height}
+                        fill="url(#adminRevenueGradient)"
+                        rx="2"
+                        ry="2"
+                      />
+                    ))}
+                    
+                    {/* Value labels on top of bars */}
+                    {revenueTrendChart.bars.map((bar, index) => (
+                      <text
+                        key={`label-${index}`}
+                        x={bar.x + bar.width / 2}
+                        y={bar.y - 5}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fill="#166534"
+                        fontWeight="600"
+                      >
+                        {formatCompactMoney(bar.value)}
+                      </text>
                     ))}
                   </svg>
                 </div>
               )}
-              <div className="admin-chart-axis">
+              <div className="flex justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
                 {(analytics.revenueOverTime.length ? analytics.revenueOverTime : [{ label: "", value: 0 }]).slice(0, 7).map((point, index) => (
                   <span key={`${point.label}-${index}`}>{formatDateLabel(point.label)}</span>
                 ))}
               </div>
             </article>
 
-            <article className="panel admin-chart-panel">
-              <div className="panel-header">
+            {/* Revenue by Product */}
+            <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
                 <div>
-                  <h2>Revenue per product graph</h2>
-                  <p className="muted">Top products by earned revenue.</p>
+                  <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">revenue by product</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">top products by earned revenue</p>
                 </div>
-                <span>{analytics.revenueByProduct.length}</span>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{analytics.revenueByProduct.length} products</span>
               </div>
               {revenueProductGraphUrl ? (
-                <div className="admin-green-graph">
-                  <img src={revenueProductGraphUrl} alt="Revenue per product graph" />
+                <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <img src={revenueProductGraphUrl} alt="Revenue by product graph" className="w-full h-auto" />
                 </div>
               ) : (
-                <div className="admin-product-bars">
-                  {!analytics.revenueByProduct.length ? <p className="muted">No product revenue data yet.</p> : null}
+                <div className="space-y-3">
+                  {!analytics.revenueByProduct.length ? <p className="text-sm text-slate-500 dark:text-slate-400">no product revenue data yet.</p> : null}
                   {analytics.revenueByProduct.map((item) => (
-                    <div key={item.label} className="admin-product-bar">
-                      <div className="admin-product-bar__header">
-                        <strong>{item.label}</strong>
-                        <span>{formatMoney(item.value)}</span>
+                    <div key={item.label} className="space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <strong className="text-slate-900 dark:text-white">{item.label}</strong>
+                        <span className="font-bold text-slate-900 dark:text-white">{formatMoney(item.value)}</span>
                       </div>
-  clean u                     <div className="admin-product-bar__track">
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                         <div
-                          className="admin-product-bar__fill"
+                          className="h-full bg-brand rounded-full transition-all duration-300"
                           style={{ width: `${Math.max(10, Math.round((Number(item.value || 0) / maxProductRevenue) * 100))}%` }}
                         />
                       </div>
@@ -234,58 +261,63 @@ export function AdminDashboardPage() {
             </article>
           </div>
 
-          <div className="panel table-scroll">
-            <div className="panel-header">
+          {/* Recent Sales Table */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div>
-                <h2>Recent sales</h2>
-                <p className="muted">Latest sales recorded by the business.</p>
+                <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">recent sales</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">latest sales recorded by the business.</p>
               </div>
-              <span>{analytics.recentSales.length}</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{analytics.recentSales.length} records</span>
             </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th>Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!analytics.recentSales.length ? <tr><td colSpan={5}>No recent sales yet.</td></tr> : null}
-                {analytics.recentSales.map((sale, index) => (
-                  <tr key={`${sale.date || "sale"}-${index}`}>
-                    <td>{formatDateLabel(sale.date)}</td>
-                    <td>{sale.product || "-"}</td>
-                    <td>{sale.category || "-"}</td>
-                    <td>{sale.quantity || 0}</td>
-                    <td>{formatMoney(sale.revenue)}</td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead className="bg-slate-50 dark:bg-slate-900/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">date</th>
+                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">product</th>
+                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">category</th>
+                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">revenue</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {!analytics.recentSales.length ? <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500 italic">no recent sales yet.</td></tr> : null}
+                  {analytics.recentSales.map((sale, index) => (
+                    <tr key={`${sale.date || "sale"}-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td className="px-6 py-4 text-sm text-slate-900 dark:text-slate-100 whitespace-nowrap">{formatDateLabel(sale.date)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900 dark:text-slate-100">{sale.product || "-"}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{sale.category || "-"}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900 dark:text-slate-100">{sale.quantity || 0}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{formatMoney(sale.revenue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="admin-chart-grid">
+          {/* Secondary Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Peak Sales by Day */}
             {analytics.peakPeriods && (
-              <article className="panel">
-                <div className="panel-header">
+              <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
                   <div>
-                    <h2>Peak Sales by Day</h2>
-                    <p className="muted">Orders distributed across days of week.</p>
+                    <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">peak sales by day</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">orders distributed across days of week.</p>
                   </div>
                 </div>
-                <div className="admin-product-bars">
+                <div className="space-y-3">
                   {Object.entries(analytics.peakPeriods.day_of_week).map(([day, stats]) => (
-                    <div key={day} className="admin-product-bar">
-                      <div className="admin-product-bar__header">
-                        <strong>{day}</strong>
-                        <span>{stats.orders} orders</span>
+                    <div key={day} className="space-y-2">
+                      <div className="flex justify-between items-center text-sm">
+                        <strong className="text-slate-900 dark:text-white capitalize">{day}</strong>
+                        <span className="text-slate-600 dark:text-slate-300">{stats.orders} orders</span>
                       </div>
-                      <div className="admin-product-bar__track">
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                         <div
-                          className="admin-product-bar__fill"
+                          className="h-full bg-brand rounded-full transition-all duration-300"
                           style={{ width: `${Math.min(100, (stats.orders / (analytics.cards.find(c => c.id === 'total_orders')?.value || 1)) * 100)}%` }}
                         />
                       </div>
@@ -295,38 +327,41 @@ export function AdminDashboardPage() {
               </article>
             )}
 
+            {/* Customer Loyalty */}
             {analytics.customerPatterns && (
-              <article className="panel">
-                <div className="panel-header">
+              <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
                   <div>
-                    <h2>Customer Loyalty</h2>
-                    <p className="muted">Repeat purchase rate and top customers.</p>
+                    <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">customer loyalty</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">repeat purchase rate and top customers.</p>
                   </div>
-                  <span>{analytics.customerPatterns.repeat_purchase_rate_percent}% Repeat Rate</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{analytics.customerPatterns.repeat_purchase_rate_percent}% repeat rate</span>
                 </div>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Customer</th>
-                      <th>Orders</th>
-                      <th>Total Spent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analytics.customerPatterns.top_customers.map((c) => (
-                      <tr key={c.id}>
-                        <td>{c.name}</td>
-                        <td>{c.orders}</td>
-                        <td>{formatMoney(c.total_spent)}</td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className="bg-slate-50 dark:bg-slate-900/50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">customer</th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">orders</th>
+                        <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">total spent</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {analytics.customerPatterns.top_customers.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                          <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">{c.name}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">{c.orders}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-slate-900 dark:text-white">{formatMoney(c.total_spent)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </article>
             )}
           </div>
         </>
       ) : null}
-    </section>
+    </div>
   );
 }
