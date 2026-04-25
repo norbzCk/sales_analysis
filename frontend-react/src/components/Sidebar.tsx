@@ -1,15 +1,25 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../features/auth/AuthContext";
 import { BrandMark } from "./BrandMark";
-import { env } from "../config/env";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  Users, 
+  Settings, 
+  LogOut, 
+  Truck, 
+  Store,
+  CreditCard,
+  X,
+  ChevronRight
+} from "lucide-react";
 
-function resolveImageUrl(url?: string | null) {
-  const raw = String(url || "").trim();
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("/")) return `${env.apiBase}${raw}`;
-  return `${env.apiBase}/${raw.replace(/^\/+/, "")}`;
+interface SidebarProps {
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
 }
 
 function getInitials(name?: string) {
@@ -22,151 +32,153 @@ function getInitials(name?: string) {
     .join("");
 }
 
-export function Sidebar() {
+export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { user, logout } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
+    setIsOpen(false);
+  }, [location.pathname, setIsOpen]);
 
   const role = String(user?.role || "");
-  const profilePath =
-    role === "seller"
-      ? "/app/seller/profile"
-      : role === "logistics"
-        ? "/app/logistics/profile"
-        : role === "user"
-          ? "/app/customer/profile"
-          : role === "super_admin" || role === "owner"
-            ? "/app/superadmin/profile"
-            : "/app/profile";
   const isSeller = role === "seller";
   const isCustomer = role === "user";
   const isLogistics = role === "logistics";
   const isSuperadmin = role === "super_admin" || role === "owner";
   const isAdmin = role === "admin";
-  const settingsPath = isSuperadmin ? "/app/superadmin/settings" : "/app/settings";
+  
+  const displayName = user?.name || user?.business_name || user?.owner_name || user?.email || "User";
+  const roleLabel = isSeller ? "Business Hub" : isCustomer ? "Customer Hub" : isLogistics ? "Logistics Center" : "Admin Panel";
 
-  const NavItem = ({ to, children, end = false }: { to: string, children: React.ReactNode, end?: boolean }) => (
-    <NavLink 
-      to={to} 
-      end={end}
-      className={({ isActive }) => 
-        `relative flex items-center px-4 py-3 rounded-xl font-semibold transition-all duration-200
-         text-white/90 hover:bg-white/10 hover:text-white
-         ${isActive ? 'bg-white/15 text-white' : ''}`
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <span className="relative z-10">{children}</span>
-          {isActive && (
-            <span className="absolute left-0 w-1 h-1/2 bg-accent rounded-full transition-all duration-300" />
-          )}
-        </>
-      )}
-    </NavLink>
+  const navItems = [
+    { to: "/app/superadmin", label: "Dashboard", icon: LayoutDashboard, show: isSuperadmin, end: true },
+    { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, show: isAdmin, end: true },
+    { to: "/app/seller", label: "Dashboard", icon: LayoutDashboard, show: isSeller, end: true },
+    { to: "/app/customer", label: "Dashboard", icon: LayoutDashboard, show: isCustomer, end: true },
+    { to: "/app/logistics", label: "Dashboard", icon: LayoutDashboard, show: isLogistics, end: true },
+    
+    { to: "/app/products", label: "Marketplace", icon: Store, show: isSeller || isCustomer || isAdmin },
+    { to: "/app/orders", label: "Orders", icon: ShoppingCart, show: isSeller || isCustomer || isAdmin },
+    { to: "/app/payments", label: "Payments", icon: CreditCard, show: isCustomer },
+    { to: "/app/providers", label: "Suppliers", icon: Truck, show: isSeller || isAdmin },
+    { to: "/app/seller/deliveries", label: "Shipments", icon: Truck, show: isSeller },
+    
+    { to: "/app/customers", label: "Customers", icon: Users, show: isSuperadmin },
+    { to: "/app/users", label: "Directory", icon: Users, show: isSuperadmin || isAdmin },
+  ];
+
+  const sidebarContent = (
+    <div className="flex h-full flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] relative overflow-hidden border-r border-[var(--sidebar-border)]">
+      {/* Subtle Dynamic Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-10">
+        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-brand blur-[100px]" />
+        <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-accent blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 flex h-full flex-col px-5 py-8">
+        <header className="mb-10 flex items-center justify-between">
+          <BrandMark subtitle={roleLabel} />
+          <button 
+            onClick={() => setIsOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-soft hover:bg-surface-strong md:hidden"
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="mb-8 rounded-2xl bg-surface border border-[var(--sidebar-border)] p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-brand font-black text-white shadow-lg shrink-0">
+              {getInitials(displayName)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[var(--sidebar-text)]">{displayName}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--sidebar-text-muted)]">{role} Node</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto no-scrollbar pr-1">
+          {navItems.filter(item => item.show).map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                  isActive ? "text-[var(--sidebar-active-text)]" : "text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-surface-soft"
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon size={18} className={isActive ? "text-brand" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="sidebar-active"
+                      className="absolute inset-0 z-[-1] rounded-xl bg-[var(--sidebar-active-bg)] border border-brand/10"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <ChevronRight size={14} className={`opacity-0 transition-opacity group-hover:opacity-40 ${isActive ? "opacity-20" : ""}`} />
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+
+        <footer className="mt-auto space-y-2 border-t border-[var(--sidebar-border)] pt-6">
+          <NavLink
+            to={isSuperadmin ? "/app/superadmin/settings" : "/app/settings"}
+            className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-surface-soft transition-all"
+          >
+            <Settings size={18} />
+            <span>Settings</span>
+          </NavLink>
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-danger/70 hover:bg-danger/5 hover:text-danger transition-all"
+          >
+            <LogOut size={18} />
+            <span>Sign Out</span>
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 
   return (
     <>
-      {/* Mobile menu toggle */}
-      <button 
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-brand text-white md:hidden shadow-lg active:scale-95 transition-transform" 
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        type="button"
-        aria-label="Toggle navigation menu"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-        </svg>
-      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm md:hidden"
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Mobile overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity" 
-          onClick={() => setIsMobileMenuOpen(false)} 
-        />
-      )}
-
-      <aside className={`
-        fixed md:sticky top-0 left-0 h-screen w-72
-        bg-brand-strong text-white p-6 flex flex-col z-40 transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Top branding */}
-        <header className="mb-10 px-2">
-          <BrandMark />
-        </header>
-
-        {/* Navigation links */}
-        <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
-          {isSuperadmin && <NavItem to="/app/superadmin" end>Dashboard</NavItem>}
-          {isAdmin && <NavItem to="/app/dashboard" end>Dashboard</NavItem>}
-          
-          {isSeller && (
-            <>
-              <NavItem to="/app/seller" end>Dashboard</NavItem>
-              <NavItem to="/app/products">Products</NavItem>
-              <NavItem to="/app/orders">Orders</NavItem>
-              <NavItem to="/app/providers">Providers</NavItem>
-              <NavItem to="/app/notifications">Notifications</NavItem>
-              <NavItem to="/app/seller/deliveries">Deliveries</NavItem>
-            </>
-          )}
-
-          {isCustomer && (
-            <>
-              <NavItem to="/app/customer" end>Dashboard</NavItem>
-              <NavItem to="/app/products">Products</NavItem>
-              <NavItem to="/app/orders">Orders</NavItem>
-              <NavItem to="/app/payments">Payments</NavItem>
-              <NavItem to="/app/notifications">Notifications</NavItem>
-            </>
-          )}
-
-          {isLogistics && (
-            <>
-              <NavItem to="/app/logistics" end>Dashboard</NavItem>
-              <NavItem to="/app/notifications">Notifications</NavItem>
-            </>
-          )}
-
-          {(isAdmin || isSuperadmin) && (
-            <>
-              {!isSuperadmin && (
-                <>
-                  <NavItem to="/app/products">Products</NavItem>
-                  <NavItem to="/app/orders">Orders</NavItem>
-                  <NavItem to="/app/providers">Providers</NavItem>
-                  <NavItem to="/app/users">Users</NavItem>
-                </>
-              )}
-              {isSuperadmin && (
-                <>
-                  <NavItem to="/app/customers">Customers</NavItem>
-                  <NavItem to="/app/users">Users</NavItem>
-                </>
-              )}
-              <NavItem to="/app/notifications">Notifications</NavItem>
-            </>
-          )}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="mt-auto pt-6 flex flex-col gap-1">
-          <NavItem to={profilePath}>Profile</NavItem>
-          <NavItem to={settingsPath}>Settings</NavItem>
-          <button
-            type="button"
-            className="flex items-center px-4 py-3 rounded-xl font-semibold transition-all duration-200 mt-2 hover:bg-white/10"
-            onClick={logout}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.aside
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed bottom-0 left-0 top-0 z-50 w-72 md:hidden"
           >
-            Sign Out
-          </button>
+            {sidebarContent}
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      <aside className="hidden w-64 shrink-0 md:block">
+        <div className="sticky top-0 h-screen w-full">
+          {sidebarContent}
         </div>
       </aside>
     </>

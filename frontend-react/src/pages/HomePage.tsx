@@ -1,5 +1,35 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Search, 
+  ArrowRight, 
+  Zap, 
+  ShieldCheck, 
+  Truck, 
+  Plus, 
+  Menu, 
+  X,
+  Globe,
+  Sparkles,
+  ChevronRight,
+  TrendingUp,
+  Star,
+  Activity,
+  BarChart3,
+  Layers,
+  CloudLightning,
+  Clock,
+  Instagram,
+  Twitter,
+  Linkedin,
+  Facebook,
+  Github,
+  Mail,
+  MapPin,
+  Phone,
+  ArrowUp
+} from "lucide-react";
 import logoUrl from "../assets/sokolink-logo.png";
 import { useAuth } from "../features/auth/AuthContext";
 import { useAIAssistant } from "../features/ai/AIAssistantContext";
@@ -15,24 +45,56 @@ const SLIDES = [
   {
     image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80",
     title: "Systematic sourcing for modern trade",
-    description: "Find reliable products, smarter pricing, and faster delivery coordination across the marketplace.",
+    description: "Find reliable products and smarter pricing coordination.",
+    accent: "Marketplace"
   },
   {
     image: "https://images.unsplash.com/photo-1493934558415-9d19f0b2b4d2?auto=format&fit=crop&w=1600&q=80",
     title: "AI-assisted discovery for buyers",
-    description: "Switch to AI mode to describe what you want and get guided product suggestions instantly.",
+    description: "Switch to AI mode to describe what you want instantly.",
+    accent: "Smart Search"
   },
   {
     image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80",
     title: "Trusted sellers, visible fulfillment",
-    description: "Browse top-rated sellers, compare routes, and track last-mile operations with confidence.",
+    description: "Browse top-rated sellers and track last-mile operations.",
+    accent: "Trust Built-in"
   },
 ];
 
 const CAMPAIGNS = [
-  { title: "Fresh Delivery Week", copy: "Free routing optimization on grouped grocery orders.", accent: "Top campaign" },
-  { title: "Verified Seller Spotlight", copy: "Featured badges help buyers trust high-performing stores.", accent: "Trust builder" },
-  { title: "Bulk Buy Advantage", copy: "Send an RFQ when your needed product is not yet listed.", accent: "Buyer tool" },
+  { 
+    title: "Fresh Delivery", 
+    copy: "Optimized grouped grocery routing.", 
+    accent: "Top campaign",
+    icon: Truck,
+    color: "text-blue-500",
+    bg: "bg-blue-500/10"
+  },
+  { 
+    title: "Verified Spotlight", 
+    copy: "Trust high-performing verified stores.", 
+    accent: "Trust builder",
+    icon: ShieldCheck,
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10"
+  },
+  { 
+    title: "Bulk Advantage", 
+    copy: "Send an RFQ for needed products.", 
+    accent: "Buyer tool",
+    icon: Zap,
+    color: "text-amber-500",
+    bg: "bg-amber-500/10"
+  },
+];
+
+const MARKET_TICKER = [
+  { label: "Solar Energy", trend: "+12.4%", status: "High Demand" },
+  { label: "Consumer Tech", trend: "+8.1%", status: "Active" },
+  { label: "Modern Agro", trend: "+15.2%", status: "Sourcing Now" },
+  { label: "Logistics Load", trend: "Balanced", status: "Optimal" },
+  { label: "Trust Index", trend: "99.8%", status: "Verified" },
 ];
 
 type ProductSearchResponse = {
@@ -76,7 +138,6 @@ export function HomePage() {
   const [flash, setFlash] = useState("");
   const [error, setError] = useState("");
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     if (!loading && token && user) {
@@ -91,7 +152,7 @@ export function HomePage() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timer);
   }, []);
 
@@ -166,7 +227,6 @@ export function HomePage() {
     if (!search.trim()) return;
     setError("");
     await fetchProducts(search, activeCategory);
-    setHasSearched(true);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -199,57 +259,69 @@ export function HomePage() {
     }
   }
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="min-h-screen bg-surface-bg font-sans text-dark-bg selection:bg-brand/20">
-      {/* Premium Navigation */}
-      <header className="sticky top-0 z-50 w-full transition-all duration-300">
-        <div className="bg-brand/90 backdrop-blur-md py-2 px-4 text-center">
-          <p className="text-[11px] md:text-xs font-bold text-white uppercase tracking-[0.2em]">
-            Systematic sourcing for modern trade • <button onClick={openAssistant} className="underline hover:text-accent transition-colors">Try AI Assistant</button>
-          </p>
+    <div className="min-h-screen bg-bg font-sans text-text selection:bg-brand/20 overflow-x-hidden">
+      {/* Market Intelligence Ticker */}
+      <div className="w-full bg-dark-bg text-white py-2 border-b border-white/5 relative z-50">
+        <div className="flex whitespace-nowrap animate-marquee hover:[animation-play-state:paused]">
+          {[...MARKET_TICKER, ...MARKET_TICKER].map((item, i) => (
+            <div key={i} className="flex items-center gap-6 px-10 border-r border-white/10">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">{item.label}</span>
+              <span className="text-xs font-black text-brand">{item.trend}</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-[8px] font-bold uppercase text-white/60">
+                <Activity size={10} className="text-emerald-500" />
+                {item.status}
+              </span>
+            </div>
+          ))}
         </div>
-        
-        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-b border-white/20 dark:border-slate-700/50 shadow-sm py-4">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between gap-8">
+      </div>
+
+      {/* Premium Sticky Navigation */}
+      <header className="sticky top-0 z-50 w-full transition-all">
+        <nav className="bg-surface/90 backdrop-blur-xl border-b border-border py-4">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 flex items-center justify-between gap-8">
             <Link to="/" className="flex items-center gap-3 shrink-0 group">
-              <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center p-1.5 shadow-lg group-hover:scale-105 transition-transform duration-500">
                 <img src={logoUrl} alt="SokoLink" className="w-full h-full object-contain" />
               </div>
               <div className="hidden sm:flex flex-col">
-                <span className="font-display font-extrabold text-xl tracking-tight text-slate-900 dark:text-white">SokoLnk</span>
-                <span className="text-[9px] uppercase font-bold text-brand tracking-widest leading-none">Smart Operations</span>
+                <span className="font-display font-black text-xl tracking-tight text-text leading-none">SokoLnk</span>
+                <span className="text-[8px] uppercase font-black text-brand tracking-[0.2em] mt-1">Smart Network</span>
               </div>
             </Link>
 
-            <div className="flex-1 max-w-2xl hidden md:flex relative group">
+            <div className="flex-1 max-w-xl hidden lg:flex relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-text-muted group-focus-within:text-brand transition-all">
+                <Search size={18} />
+              </div>
               <input
                 type="text"
-                className="w-full pl-5 pr-12 py-3 bg-slate-100/50 dark:bg-slate-700/50 border-2 border-transparent focus:border-brand/30 focus:bg-white dark:focus:bg-slate-700 rounded-2xl transition-all duration-300 outline-none text-sm font-medium text-slate-900 dark:text-white"
-                placeholder="Search products, categories, or verified suppliers..."
+                className="w-full pl-11 pr-5 py-2.5 bg-surface-soft border border-transparent focus:border-brand/20 focus:bg-surface rounded-2xl transition-all outline-none text-xs font-bold text-text placeholder:text-text-muted shadow-sm group-hover:shadow-md"
+                placeholder="Search inventory or verified suppliers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
-              <button 
-                onClick={handleSearch}
-                className="absolute right-2 top-1.5 p-1.5 bg-brand text-white rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Link to="/login" className="px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 hover:text-brand transition-colors">Sign In</Link>
-              <Link to="/register/customer" className="btn-primary !text-sm !px-6 shadow-brand/20">Join Free</Link>
+            <div className="flex items-center gap-4">
+              <Link to="/login" className="px-4 py-2 text-xs font-black uppercase tracking-widest text-text hover:text-brand transition-colors hidden sm:block">Sign In</Link>
+              <Link to="/register/customer" className="h-10 px-6 bg-brand text-white font-black text-[10px] uppercase tracking-[0.1em] rounded-xl shadow-lg shadow-brand/20 hover:bg-brand-strong transition-all flex items-center gap-2 group">
+                Join Network
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
             </div>
           </div>
-        </div>
+        </nav>
 
         {/* Categories Bar */}
-        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
-          <div className="max-w-7xl mx-auto px-4 md:px-8 flex gap-8 whitespace-nowrap py-3">
+        <div className="bg-surface/80 backdrop-blur-md border-b border-border overflow-x-auto no-scrollbar">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 flex gap-8 whitespace-nowrap py-3">
             {categoryValues.map((cat) => (
               <button
                 key={cat}
@@ -257,382 +329,342 @@ export function HomePage() {
                   e.preventDefault();
                   setActiveCategory(cat);
                   await fetchProducts(search, cat);
-                  setHasSearched(true);
                   document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
-                className={`text-[13px] font-bold tracking-tight transition-all relative py-1
-                  ${activeCategory === cat ? 'text-brand' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}
+                className={`text-[10px] font-black uppercase tracking-[0.15em] transition-all relative py-1
+                  ${activeCategory === cat ? 'text-brand' : 'text-text-muted hover:text-text'}
                 `}
               >
-                {cat === "all" ? "All Categories" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                {activeCategory === cat && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-brand rounded-full animate-in fade-in slide-in-from-bottom-1 duration-300" />}
+                {cat === "all" ? "Marketplace" : cat}
+                {activeCategory === cat && (
+                  <motion.span 
+                    layoutId="category-active"
+                    className="absolute -bottom-1 left-0 w-full h-0.5 bg-brand rounded-full" 
+                  />
+                )}
               </button>
             ))}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-24">
-        {/* Immersive Hero Section */}
-        <section className="relative h-[480px] md:h-[560px] rounded-[24px] md:rounded-[32px] overflow-hidden shadow-2xl animate-soft-enter">
-          {SLIDES.map((slide, idx) => (
-            <div 
-              key={idx} 
-              className={`absolute inset-0 transition-all duration-1000 ease-in-out ${idx === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
+      <main className="max-w-6xl mx-auto px-4 md:px-8 py-12 space-y-24">
+        {/* Scaled-down Hero Section */}
+        <section className="relative h-[420px] md:h-[500px] rounded-[2.5rem] overflow-hidden shadow-premium-xl">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSlide}
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="absolute inset-0"
             >
-              <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent" />
-              <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-16 space-y-4 md:space-y-6">
-                <div className="max-w-3xl space-y-2 md:space-y-4">
-                  <h1 className="text-3xl md:text-6xl font-display font-extrabold text-white leading-[1.1] tracking-tight">
-                    {slide.title}
+              <img 
+                src={SLIDES[currentSlide].image} 
+                alt={SLIDES[currentSlide].title} 
+                className="w-full h-full object-cover opacity-90" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/80 via-dark-bg/20 to-transparent" />
+              
+              <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-16 space-y-6">
+                <motion.div
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  className="max-w-3xl space-y-4"
+                >
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/90 text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
+                    {SLIDES[currentSlide].accent}
+                  </span>
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-black text-white leading-tight tracking-tight">
+                    {SLIDES[currentSlide].title}
                   </h1>
-                  <p className="text-base md:text-xl text-white/80 font-medium leading-relaxed max-w-2xl line-clamp-2 md:line-clamp-none">
-                    {slide.description}
+                  <p className="text-sm md:text-lg text-white/80 font-medium max-w-xl leading-relaxed">
+                    {SLIDES[currentSlide].description}
                   </p>
-                </div>
-                <div className="flex flex-wrap gap-3 md:gap-4">
-                  <button onClick={() => activateMode("marketplace")} className="btn-primary !px-6 md:!px-8 !py-3 md:!py-4 text-base md:text-lg bg-white !text-slate-900 hover:!bg-slate-50">
-                    Explore
+                </motion.div>
+
+                <motion.div
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                  className="flex flex-wrap gap-4"
+                >
+                  <button 
+                    onClick={() => activateMode("marketplace")} 
+                    className="h-12 px-8 rounded-2xl bg-white text-dark-bg font-black text-xs uppercase tracking-widest hover:bg-surface-soft transition-all active:scale-95 shadow-xl"
+                  >
+                    Enter Shop
                   </button>
-                  <button onClick={() => activateMode("ai")} className="px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-bold text-white bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 transition-all">
-                    Guided by AI
+                  <button 
+                    onClick={() => activateMode("ai")} 
+                    className="h-12 px-8 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all active:scale-95 inline-flex items-center gap-2"
+                  >
+                    <Zap size={16} className="fill-current text-brand" />
+                    AI Help
                   </button>
-                </div>
+                </motion.div>
               </div>
-            </div>
-          ))}
-          
+            </motion.div>
+          </AnimatePresence>
+
           <div className="absolute bottom-8 right-8 flex gap-2">
             {SLIDES.map((_, idx) => (
-              <button 
-                key={idx} 
+              <button
+                key={idx}
                 onClick={() => setCurrentSlide(idx)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/40'}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-8 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'}`}
               />
             ))}
           </div>
         </section>
 
-        {/* Campaign Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {CAMPAIGNS.map((campaign) => (
-            <div
+        {/* Scaled Grid - Campaigns */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {CAMPAIGNS.map((campaign, idx) => (
+            <motion.div
               key={campaign.title}
-              onClick={() => {
-                const target = campaign.title.includes("Bulk Buy") ? "request" : "products";
-                document.getElementById(target)?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="glass-card p-8 group cursor-pointer hover:border-brand/30 transition-all duration-300 hover:shadow-premium-hover hover:-translate-y-1 dark:bg-slate-800/50"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="stat-card p-8 group cursor-default"
             >
-              <span className="inline-block px-3 py-1 rounded-full bg-accent/10 text-accent text-[10px] font-black uppercase tracking-widest mb-4">
-                {campaign.accent}
-              </span>
-              <h3 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-2 group-hover:text-brand transition-colors">
-                {campaign.title}
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                {campaign.copy}
-              </p>
-            </div>
+              <div className={`w-12 h-12 rounded-2xl bg-surface-soft flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 ${campaign.color}`}>
+                <campaign.icon size={24} />
+              </div>
+              <h3 className="text-lg font-display font-black text-text mb-2 tracking-tight">{campaign.title}</h3>
+              <p className="text-xs text-text-muted font-medium leading-relaxed">{campaign.copy}</p>
+            </motion.div>
           ))}
         </section>
 
-        {/* Products Section */}
+        {/* Product Feed */}
         <section id="products" className="space-y-12">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-8">
             <div className="space-y-2">
-              <h2 className="text-3xl md:text-4xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">Recommended for you</h2>
-              <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Trending products, verified seller badges, and smart pricing.</p>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand">Live Feed</span>
+              <h2 className="text-3xl font-display font-black text-text tracking-tight">Verified Listings</h2>
             </div>
-            <div className="flex items-center gap-2 text-brand font-bold">
-              <span>Verified fulfillment only</span>
-              <div className="w-6 h-6 rounded-full bg-brand/10 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-lg text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+              <ShieldCheck size={14} />
+              Trust Protocol Active
             </div>
           </div>
 
-          {isLoadingProducts ? (
-            <div className="h-96 flex flex-col items-center justify-center space-y-4">
-              <div className="w-12 h-12 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
-              <p className="font-bold text-slate-400 dark:text-slate-500">Discovering best deals...</p>
-            </div>
-          ) : featuredItems.length === 0 ? (
-            <div className="h-96 glass-card dark:bg-slate-800/50 flex flex-col items-center justify-center p-12 text-center space-y-6">
-              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-3xl flex items-center justify-center text-slate-300 dark:text-slate-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-              </div>
-              <div className="max-w-md space-y-2">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">No products match your search</h3>
-                <p className="text-slate-500 dark:text-slate-400">Try a different keyword or category, or submit an RFQ and let sellers come to you.</p>
-              </div>
-              <button onClick={() => {setSearch(""); fetchProducts("", "all");}} className="btn-secondary">Clear All Filters</button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {featuredItems.map((product) => (
-                <article 
-                  key={product.id} 
-                  className="group bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[24px] overflow-hidden hover:shadow-premium-hover transition-all duration-500 hover:-translate-y-2 flex flex-col h-full cursor-pointer"
-                  onClick={() => navigate(`/product/${product.id}`)}
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-slate-100 dark:bg-slate-700">
-                    <img 
-                      src={resolveImageUrl(product.image_url)} 
-                      alt={product.name} 
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                      loading="lazy" 
-                    />
-                    <div className="absolute top-4 left-4">
-                      <span className="px-3 py-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-brand border border-white/50 dark:border-slate-600 shadow-sm">
-                        {product.category || "General"}
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredItems.map((product, idx) => (
+              <motion.article
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="group glass-card overflow-hidden hover:-translate-y-2 flex flex-col h-full cursor-pointer"
+                onClick={() => navigate(`/product/${product.id}`)}
+              >
+                <div className="relative aspect-[4/5] overflow-hidden bg-surface-soft">
+                  <img
+                    src={resolveImageUrl(product.image_url)}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-xl text-[8px] font-black uppercase tracking-widest text-text shadow-sm">
+                      {product.category || "Standard"}
+                    </span>
                   </div>
-                  
-                  <div className="p-6 flex flex-col flex-1 space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="font-display font-bold text-slate-900 dark:text-white leading-snug group-hover:text-brand transition-colors line-clamp-2">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                          {(product.seller_name || "S")[0].toUpperCase()}
-                        </div>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">{product.seller_name || "Independent Seller"}</span>
-                      </div>
-                    </div>
+                </div>
 
-                    <div className="mt-auto flex items-end justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 leading-none mb-1">Price</span>
-                        <span className="text-lg font-display font-extrabold text-slate-900 dark:text-white tracking-tight">{formatMoney(product.price)}</span>
+                <div className="p-6 flex flex-col flex-1 space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest truncate max-w-[120px]">
+                        {product.seller_name || "Merchant"}
+                      </span>
+                      <div className="flex items-center gap-1 text-amber-500">
+                        <Star size={10} className="fill-current" />
+                        <span className="text-[9px] font-black text-text">4.9</span>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart({
-                            id: product.id,
-                            name: product.name,
-                            price: product.price ?? 0,
-                            image_url: resolveImageUrl(product.image_url),
-                            seller_id: product.seller_id,
-                            seller_name: product.seller_name || product.seller?.business_name || null,
-                            seller_area: product.seller?.area || null,
-                            seller_region: product.seller?.region || null,
-                          });
-                          setIsOpen(true);
-                        }}
-                        className="w-10 h-10 bg-slate-900 dark:bg-brand text-white rounded-xl flex items-center justify-center hover:bg-brand transition-all duration-300 shadow-lg active:scale-90"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </button>
                     </div>
+                    <h3 className="font-display font-black text-base text-text leading-tight group-hover:text-brand transition-colors line-clamp-2">
+                      {product.name}
+                    </h3>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
+
+                  <div className="mt-auto flex items-end justify-between pt-4 border-t border-border">
+                    <div className="flex flex-col">
+                      <span className="text-xl font-display font-black text-text tracking-tight">{formatMoney(product.price)}</span>
+                    </div>
+                    <button className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center hover:bg-brand-strong transition-all shadow-lg active:scale-90">
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
         </section>
 
-        {/* RFQ Section */}
-        <section id="request" className="relative p-1 overflow-hidden rounded-[40px]">
-          <div className="absolute inset-0 bg-brand-strong" />
-          <div className="relative bg-white/5 backdrop-blur-3xl p-8 md:p-16 rounded-[39px] border border-white/10 flex flex-col lg:flex-row gap-16 items-start">
-            <div className="lg:w-1/3 space-y-8">
+        {/* Global Sourcing - Scaled down */}
+        <section id="request" className="relative p-1 overflow-hidden rounded-[3rem] bg-dark-bg">
+          <div className="relative z-10 p-8 md:p-16 lg:p-20 flex flex-col lg:flex-row gap-12 items-center">
+            <div className="lg:w-1/2 space-y-8">
               <div className="space-y-4">
-                <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-accent text-xs font-black uppercase tracking-widest border border-accent/20">
-                  Sourcing Hub
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-white text-[9px] font-black uppercase tracking-widest border border-white/10">
+                  <Globe size={14} className="text-brand" />
+                  Sourcing Protocol
                 </span>
-                <h2 className="text-4xl md:text-5xl font-display font-extrabold text-white leading-tight tracking-tight">
-                  Can&apos;t find what you need?
+                <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight leading-tight">
+                  Can&apos;t find an asset? <br />
+                  <span className="text-brand">We&apos;ll source it.</span>
                 </h2>
-                <p className="text-white/70 text-lg font-medium leading-relaxed">
-                  Send a detailed request to our verified network and let sellers recommend or source exactly what you need.
+                <p className="text-white/50 text-base font-medium leading-relaxed max-w-md">
+                  Initiate a systematic sourcing request to our global network of verified suppliers.
                 </p>
               </div>
 
-              <div className="grid gap-4">
+              <div className="grid gap-6">
                 {[
-                  "Systematic quote comparison",
-                  "Verified seller sourcing",
-                  "Consolidated fulfillment options"
+                  { title: "Smart Match", icon: Sparkles },
+                  { title: "Trust Layer", icon: ShieldCheck },
+                  { title: "Visibility", icon: Globe }
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-3 text-white/90 font-bold">
-                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
+                  <div key={idx} className="flex items-center gap-4 text-white/80 group cursor-default">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10 text-brand group-hover:bg-brand group-hover:text-white transition-all">
+                      <item.icon size={18} />
                     </div>
-                    {item}
+                    <span className="text-sm font-bold">{item.title}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="flex-1 w-full bg-white dark:bg-slate-800 rounded-[32px] p-8 md:p-10 shadow-2xl">
-              {error ? <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800 animate-in fade-in duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                {error}
-              </div> : null}
-              {flash ? <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800 animate-in fade-in duration-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                {flash}
-              </div> : null}
-
-              <form onSubmit={submitRfq} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Company Name</label>
-                  <input 
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.company_name} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, company_name: e.target.value }))} 
-                    placeholder="E.g. Smart Retailers Ltd"
-                    required 
-                  />
+            <div className="w-full lg:w-1/2">
+              <div className="bg-surface rounded-[2rem] p-8 md:p-12 shadow-2xl border border-white/5">
+                <div className="mb-8">
+                  <h3 className="text-xl font-display font-black text-text">Launch Request</h3>
+                  <p className="text-xs text-text-muted font-medium mt-1">Professional outcomes, zero obligations.</p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Contact Name</label>
-                  <input 
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.contact_name} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, contact_name: e.target.value }))} 
-                    placeholder="Your Full Name"
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Work Email</label>
-                  <input 
-                    type="email"
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.email} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, email: e.target.value }))} 
-                    placeholder="name@company.com"
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Phone Number</label>
-                  <input 
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.phone} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, phone: e.target.value }))} 
-                    placeholder="+255..."
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Product Description</label>
-                  <input 
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.product_interest} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, product_interest: e.target.value }))} 
-                    placeholder="What specific product are you looking for?"
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Estimated Quantity</label>
-                  <input 
-                    type="number"
-                    min="1"
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.quantity} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, quantity: e.target.value }))} 
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Target Budget (TZS)</label>
-                  <input 
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold text-slate-900 dark:text-white"
-                    value={rfqDraft.target_budget} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, target_budget: e.target.value }))} 
-                    placeholder="Optional"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Additional Notes</label>
-                  <textarea 
-                    rows={4}
-                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-700 border-2 border-transparent focus:border-brand/20 focus:bg-white dark:focus:bg-slate-600 rounded-2xl outline-none transition-all font-semibold resize-none text-slate-900 dark:text-white"
-                    value={rfqDraft.notes} 
-                    onChange={(e) => setRfqDraft((prev) => ({ ...prev, notes: e.target.value }))} 
-                    placeholder="Describe specific specs, quality requirements, or delivery preferences..."
-                  />
-                </div>
-                <div className="md:col-span-2 pt-4">
-                  <button type="submit" className="w-full btn-primary !py-5 !text-lg !rounded-2xl shadow-brand/40">
-                    Send Sourcing Request
-                  </button>
-                </div>
-              </form>
+                <form onSubmit={submitRfq} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input className="modern-input h-12" value={rfqDraft.company_name} onChange={(e) => setRfqDraft(p => ({...p, company_name: e.target.value}))} placeholder="Business Name" required />
+                  <input className="modern-input h-12" value={rfqDraft.contact_name} onChange={(e) => setRfqDraft(p => ({...p, contact_name: e.target.value}))} placeholder="Your Name" required />
+                  <input className="modern-input h-12" type="email" value={rfqDraft.email} onChange={(e) => setRfqDraft(p => ({...p, email: e.target.value}))} placeholder="Email Protocol" required />
+                  <input className="modern-input h-12" value={rfqDraft.product_interest} onChange={(e) => setRfqDraft(p => ({...p, product_interest: e.target.value}))} placeholder="Target Asset" required />
+                  <textarea rows={3} className="modern-input md:col-span-2 resize-none" value={rfqDraft.notes} onChange={(e) => setRfqDraft(p => ({...p, notes: e.target.value}))} placeholder="Operational Specs..." />
+                  <button type="submit" className="md:col-span-2 btn-primary !h-14 !text-[10px]">Execute Sourcing Protocol</button>
+                </form>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Premium Footer */}
-      <footer className="bg-slate-900 dark:bg-slate-950 pt-24 pb-12 text-white">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col gap-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-            <div className="space-y-6">
+      <footer className="bg-dark-bg pt-24 pb-12 text-white relative overflow-hidden">
+        {/* Background Decorative Element */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        
+        <div className="max-w-6xl mx-auto px-4 md:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8 mb-20">
+            {/* Brand Column */}
+            <div className="lg:col-span-2 space-y-8">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center p-1.5 shadow-lg">
                   <img src={logoUrl} alt="SokoLink" className="w-full h-full object-contain" />
                 </div>
-                <span className="font-display font-extrabold text-2xl tracking-tight">SokoLnk</span>
+                <span className="font-display font-black text-2xl tracking-tight text-white leading-none">SokoLnk</span>
               </div>
-              <p className="text-white/50 dark:text-white/40 leading-relaxed font-medium">
-                The modern marketplace for reliable sourcing, seller trust, and visible fulfillment from order to delivery.
+              <p className="text-white/50 font-medium text-sm leading-relaxed max-w-sm">
+                The platform command for modern commerce. Systematic sourcing, verified trust, and transparent fulfillment protocols for global enterprises.
               </p>
+              <div className="flex gap-4">
+                {[
+                  { icon: Twitter, href: "#", label: "Twitter" },
+                  { icon: Linkedin, href: "#", label: "LinkedIn" },
+                  { icon: Instagram, href: "#", label: "Instagram" },
+                  { icon: Github, href: "#", label: "GitHub" }
+                ].map((social) => (
+                  <a 
+                    key={social.label} 
+                    href={social.href}
+                    className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:bg-brand hover:text-white hover:border-brand transition-all duration-300"
+                  >
+                    <social.icon size={18} />
+                  </a>
+                ))}
+              </div>
             </div>
-            
-            <div className="space-y-6">
-              <h4 className="font-display font-bold text-lg">Services</h4>
+
+            {/* Links Columns */}
+            <div className="space-y-8">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Marketplace</h4>
               <ul className="space-y-4">
-                <li><a href="#request" className="text-white/60 hover:text-brand transition-colors font-medium">Product Requests</a></li>
-                <li><button onClick={openAssistant} className="text-white/60 hover:text-brand transition-colors font-medium text-left">AI Shopping Assistant</button></li>
-                <li><a href="#products" className="text-white/60 hover:text-brand transition-colors font-medium">Marketplace Catalog</a></li>
+                {["Live Catalog", "Verified Sellers", "Global Sourcing", "AI Assistant", "Flash Deals"].map(link => (
+                  <li key={link}><a href="#" className="text-white/50 hover:text-brand transition-colors font-bold text-xs">{link}</a></li>
+                ))}
               </ul>
             </div>
 
-            <div className="space-y-6">
-              <h4 className="font-display font-bold text-lg">Company</h4>
+            <div className="space-y-8">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Intelligence</h4>
               <ul className="space-y-4">
-                <li><a href="#" className="text-white/60 hover:text-brand transition-colors font-medium">About Operations</a></li>
-                <li><a href="#" className="text-white/60 hover:text-brand transition-colors font-medium">Verified Sourcing</a></li>
-                <li><a href="#" className="text-white/60 hover:text-brand transition-colors font-medium">Trust & Safety</a></li>
+                {["Market Analysis", "Route Optimization", "Inventory Risk", "Supplier Trust", "Price Index"].map(link => (
+                  <li key={link}><a href="#" className="text-white/50 hover:text-brand transition-colors font-bold text-xs">{link}</a></li>
+                ))}
               </ul>
             </div>
 
-            <div className="space-y-6">
-              <h4 className="font-display font-bold text-lg">Partnerships</h4>
+            <div className="space-y-8">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Platform</h4>
               <ul className="space-y-4">
-                <li><Link to="/register/business" className="text-white/60 hover:text-brand transition-colors font-medium">Create Seller Store</Link></li>
-                <li><Link to="/register/logistics" className="text-white/60 hover:text-brand transition-colors font-medium">Join Logistics Network</Link></li>
-                <li><Link to="/login" className="text-white/60 hover:text-brand transition-colors font-medium">Partner Dashboard</Link></li>
+                {["Merchant Hub", "Logistics Mesh", "Escrow Protocol", "Marketplace API", "Trust Center"].map(link => (
+                  <li key={link}><a href="#" className="text-white/50 hover:text-brand transition-colors font-bold text-xs">{link}</a></li>
+                ))}
               </ul>
+            </div>
+
+            <div className="space-y-8">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">Connect</h4>
+              <div className="space-y-6">
+                <ul className="space-y-4">
+                  <li className="flex items-center gap-3 text-white/50 font-bold text-xs">
+                    <Mail size={14} className="text-brand" />
+                    support@sokolink.net
+                  </li>
+                  <li className="flex items-center gap-3 text-white/50 font-bold text-xs">
+                    <MapPin size={14} className="text-brand" />
+                    SokoLnk Hub, DSM
+                  </li>
+                </ul>
+                <div className="pt-4 space-y-4">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Newsletter</p>
+                  <div className="flex gap-2">
+                    <input className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-brand/50 transition-all w-full" placeholder="Enter email..." />
+                    <button className="p-2 bg-brand text-white rounded-lg hover:bg-brand-strong transition-all"><ArrowRight size={14} /></button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm font-bold text-white/30 uppercase tracking-[0.15em]">
-            <p>© 2026 SokoLnk Smart Marketplace. Sourcing with Confidence.</p>
-            <div className="flex gap-8">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
+          {/* Bottom Bar */}
+          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <p className="text-white/20 text-[9px] font-black uppercase tracking-[0.4em]">© 2026 SOKOLNK SMART MARKETPLACE</p>
+              <div className="flex gap-6">
+                {["Privacy Protocol", "Terms of Service", "Cookie Policy"].map(legal => (
+                  <a key={legal} href="#" className="text-white/20 hover:text-white transition-colors text-[9px] font-black uppercase tracking-widest">{legal}</a>
+                ))}
+              </div>
             </div>
+            <button 
+              onClick={scrollToTop}
+              className="group flex items-center gap-3 px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-all"
+            >
+              Back to Apex
+              <ArrowUp size={14} className="group-hover:-translate-y-1 transition-transform" />
+            </button>
           </div>
         </div>
       </footer>

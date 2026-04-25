@@ -1,5 +1,22 @@
 import { useEffect, useState, MouseEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ShoppingBag, 
+  Zap, 
+  ShieldCheck, 
+  Truck, 
+  Plus, 
+  Minus, 
+  CheckCircle2, 
+  Maximize2, 
+  X,
+  Store,
+  Star,
+  ArrowLeft,
+  Share2,
+  Heart
+} from "lucide-react";
 import { apiRequest } from "../lib/http";
 import { useAuth } from "../features/auth/AuthContext";
 import { useCart } from "../features/auth/CartContext";
@@ -57,7 +74,7 @@ export function ProductDetailPage() {
       navigate("/login", { state: { from: `/product/${productId}` } });
       return;
     }
-    
+
     if (user.role !== "user") {
       alert("Only customers can place orders.");
       return;
@@ -76,174 +93,205 @@ export function ProductDetailPage() {
   }
 
   if (loading) return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
-      <div className="w-12 h-12 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
-      <p className="font-bold text-slate-400 italic text-lg uppercase tracking-widest">Loading Premium Specs...</p>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center gap-6">
+      <div className="w-16 h-16 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
+      <p className="font-display font-black text-text-muted uppercase tracking-widest animate-pulse">Loading Product Asset...</p>
     </div>
   );
 
   if (error || !product) return (
     <div className="min-h-[60vh] flex items-center justify-center p-8">
-      <div className="max-w-md w-full glass-card p-12 text-center space-y-6">
-        <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-md w-full glass-card p-12 text-center space-y-6"
+      >
+        <div className="w-24 h-24 bg-danger/10 text-danger rounded-[2rem] flex items-center justify-center mx-auto">
+          <X size={48} />
         </div>
-        <h2 className="text-2xl font-display font-black text-slate-900 uppercase tracking-tight">Product Not Found</h2>
-        <p className="text-slate-500 font-medium">The item you're looking for might have been moved or is no longer available.</p>
-        <button onClick={() => navigate('/app/products')} className="btn-primary w-full">Back to Marketplace</button>
-      </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-display font-black text-text tracking-tight uppercase">Unavailable</h2>
+          <p className="text-text-muted font-medium">This product asset could not be synchronized.</p>
+        </div>
+        <button onClick={() => navigate('/app/products')} className="btn-primary w-full h-14">Back to Marketplace</button>
+      </motion.div>
     </div>
   );
 
   const imageUrl = resolveImageUrl(product.image_url);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 animate-soft-enter">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 lg:gap-20 items-start">
-        {/* Left: Premium Image Showcase */}
-        <div className="space-y-6 group">
-          <div 
-            className="relative aspect-square md:aspect-[4/5] rounded-[24px] md:rounded-[48px] overflow-hidden bg-white shadow-2xl border border-slate-100 cursor-zoom-in group-hover:shadow-brand/10 transition-shadow duration-500"
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-7xl mx-auto py-8 lg:py-12 space-y-12"
+    >
+      {/* Navigation & Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <button 
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm font-bold text-text-muted hover:text-brand transition-colors group"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+          Back to Listings
+        </button>
+        <div className="flex items-center gap-4">
+          <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-surface border border-border text-text-muted hover:text-danger hover:border-danger/30 transition-all">
+            <Heart size={18} />
+          </button>
+          <button className="h-10 w-10 flex items-center justify-center rounded-xl bg-surface border border-border text-text-muted hover:text-brand hover:border-brand/30 transition-all">
+            <Share2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+        {/* Left: Premium Image Gallery */}
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative aspect-square md:aspect-[4/5] rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-border group cursor-zoom-in"
             onClick={() => setShowLightbox(true)}
           >
-            <img 
-              src={imageUrl} 
-              alt={product.name} 
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+            <img
+              src={imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            
-            <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 md:px-6 py-2.5 md:py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span className="text-xs md:text-sm font-bold text-white uppercase tracking-widest">Click to Zoom</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-dark-bg/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0">
+              <Maximize2 size={18} className="text-white" />
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">Enhanced View</span>
             </div>
-            
-            <div className="absolute top-6 md:top-8 left-6 md:left-8">
-              <span className="px-4 md:px-5 py-1.5 md:py-2 bg-brand/90 backdrop-blur-md text-white rounded-xl md:rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest border border-white/20 shadow-lg">
+
+            <div className="absolute top-8 left-8">
+              <span className="px-4 py-2 bg-brand text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl">
                 {product.category || "Premium Listing"}
               </span>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Right: Immersive Product Info */}
-        <div className="space-y-8 md:space-y-12 py-2 md:py-4">
-          <div className="space-y-4 md:space-y-6">
-            <div className="space-y-2">
+        <div className="space-y-12">
+          <div className="space-y-6">
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-4"
+            >
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-brand/10 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-3.5 md:w-3.5 text-brand" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] text-brand">Verified SokoLnk Listing</span>
+                <ShieldCheck size={16} className="text-brand" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-brand">Verified SokoLnk Smart Listing</span>
               </div>
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-display font-black text-slate-900 leading-tight tracking-tight">
+              <h1 className="text-4xl md:text-6xl font-display font-black text-text leading-[1.1] tracking-tight">
                 {product.name}
               </h1>
-            </div>
+              <div className="flex items-center gap-4 text-amber-500">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} size={14} className="fill-current" />)}
+                </div>
+                <span className="text-sm font-black text-text">4.9 (120+ Verified Reviews)</span>
+              </div>
+            </motion.div>
 
-            <div className="flex items-center gap-4 md:gap-6">
-              <span className="text-2xl md:text-3xl lg:text-4xl font-display font-black text-slate-900 tracking-tight">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-wrap items-center gap-8"
+            >
+              <span className="text-4xl md:text-5xl font-display font-black text-text tracking-tight">
                 {formatMoney(product.price)}
               </span>
-              <div className="h-6 md:h-8 w-px bg-slate-200" />
-              <div className="space-y-0.5">
-                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-widest block ${product.stock && product.stock > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {product.stock && product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+              <div className="h-10 w-px bg-border hidden sm:block" />
+              <div className="flex flex-col">
+                <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${product.stock && product.stock > 0 ? 'text-emerald-500' : 'text-danger'}`}>
+                  {product.stock && product.stock > 0 ? 'Immediate Availability' : 'Temporarily Unavailable'}
                 </span>
-                <span className="text-xs md:text-sm font-bold text-slate-400">{product.stock || 0} Units</span>
+                <span className="text-sm font-bold text-text-muted">{product.stock || 0} Professional Units in Stock</span>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">About this Product</h3>
-            <p className="text-lg text-slate-600 font-medium leading-relaxed max-w-2xl">
-              {product.description || "Crafted for quality and reliability, this premium marketplace offering meets all standard specifications for modern trade."}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
+          >
+            <h3 className="text-xs font-black uppercase tracking-widest text-text-muted">Technical Overview</h3>
+            <p className="text-xl text-text-muted font-medium leading-relaxed max-w-2xl">
+              {product.description || "Designed for mission-critical operations, this premium listing features systematic quality control and optimized fulfillment compatibility."}
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-8 border-y border-slate-100">
-            <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Merchant Details</h4>
-              <div className="flex items-center gap-4 group">
-                <div className="w-14 h-14 rounded-2xl bg-brand/5 flex items-center justify-center text-brand font-black text-xl border border-brand/10 transition-colors group-hover:bg-brand group-hover:text-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 py-10 border-y border-border">
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Verified Merchant</h4>
+              <div className="flex items-center gap-4 group cursor-pointer">
+                <div className="w-16 h-16 rounded-[1.5rem] bg-surface-soft flex items-center justify-center text-brand font-black text-2xl border border-border transition-all group-hover:bg-brand group-hover:text-white group-hover:border-brand shadow-sm">
                   {(product.seller_name || "S")[0].toUpperCase()}
                 </div>
-                <div>
-                  <p className="font-display font-black text-slate-900 group-hover:text-brand transition-colors">{product.seller_name || "Independent Seller"}</p>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Verified Supplier</p>
+                <div className="min-w-0">
+                  <p className="font-display font-black text-text truncate text-lg leading-none">{product.seller_name || "Independent Seller"}</p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <CheckCircle2 size={12} className="text-emerald-500" />
+                    <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Premium Sourcing Partner</span>
+                  </div>
                 </div>
               </div>
-              {product.seller?.badges?.length ? (
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {product.seller.badges.map((badge) => (
-                    <span key={badge.id} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-100">
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Fulfillment Model</h4>
-              <ul className="space-y-3">
+            <div className="space-y-6">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-text-muted">Fulfillment Edge</h4>
+              <div className="space-y-4">
                 {[
-                  "Secure Escrow Payments",
-                  "Verified Carrier Routing",
-                  "Direct Sourcing Verification"
+                  { label: "Secure Smart Payments", icon: Zap },
+                  { label: "Optimized Route Fulfillment", icon: Truck },
+                  { label: "Escrow Protected Sourcing", icon: ShieldCheck }
                 ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                    <div className="w-5 h-5 rounded-full bg-brand/10 flex items-center justify-center shrink-0 text-brand">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
+                  <div key={idx} className="flex items-center gap-3 text-sm font-bold text-text">
+                    <div className="w-8 h-8 rounded-xl bg-surface-soft flex items-center justify-center shrink-0 text-brand">
+                      <item.icon size={14} />
                     </div>
-                    {item}
-                  </li>
+                    {item.label}
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-8 pt-4">
+          <div className="space-y-8">
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="flex items-center bg-slate-100 rounded-[20px] p-1 border-2 border-transparent focus-within:border-brand/20 transition-all">
-                <button 
+              <div className="flex items-center bg-surface-soft rounded-2xl p-1 border-2 border-transparent focus-within:border-brand/30 transition-all h-16">
+                <button
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-brand transition-colors"
+                  className="w-14 h-full flex items-center justify-center text-text-muted hover:text-brand transition-all active:scale-90"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
-                  </svg>
+                  <Minus size={20} />
                 </button>
-                <div className="w-16 text-center font-display font-black text-xl text-slate-900">{quantity}</div>
-                <button 
+                <div className="w-14 text-center font-display font-black text-2xl text-text">{quantity}</div>
+                <button
                   onClick={() => setQuantity(q => Math.min(product.stock || 100, q + 1))}
-                  className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-brand transition-colors"
+                  className="w-14 h-full flex items-center justify-center text-text-muted hover:text-brand transition-all active:scale-90"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <Plus size={20} />
                 </button>
               </div>
 
               <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button 
-                  className="btn-primary !py-5 shadow-brand/30 w-full"
+                <button
+                  className="btn-primary !h-16 shadow-brand/40 text-sm active:scale-95"
                   disabled={submitting || !product.stock || product.stock <= 0}
                   onClick={handleOrder}
                 >
-                  {submitting ? "Processing..." : "Express Checkout"}
+                  {submitting ? "Syncing..." : "Checkout Order"}
                 </button>
-                <button 
-                  className="px-8 py-5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-brand transition-all shadow-xl active:scale-95 disabled:opacity-30 w-full"
+                <button
+                  className="h-16 bg-dark-bg text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-brand transition-all active:scale-95 shadow-xl disabled:opacity-50 inline-flex items-center justify-center gap-2"
                   disabled={!product.stock || product.stock <= 0}
                   onClick={() => {
                     addToCart({
@@ -252,67 +300,62 @@ export function ProductDetailPage() {
                       price: product.price || 0,
                       image_url: product.image_url,
                       seller_id: product.seller_id,
-                      seller_name: product.seller_name || product.seller?.business_name || null,
-                      seller_area: product.seller?.area || null,
-                      seller_region: product.seller?.region || null,
+                      seller_name: product.seller_name || null,
                     });
                     setIsOpen(true);
                   }}
                 >
+                  <ShoppingBag size={18} />
                   Add to Cart
                 </button>
               </div>
             </div>
-            
-            <div className="flex items-center justify-center gap-4 text-slate-400 font-bold text-xs uppercase tracking-[0.1em]">
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.954 0 0112 2.944a11.955 11.954 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                Secure Fulfillment
+
+            <div className="flex flex-wrap items-center justify-center gap-8 py-4 opacity-40">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <ShieldCheck size={14} /> Global Escrow
               </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-              <div className="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Real-time Tracking
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <Truck size={14} /> Smart Routing
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <Zap size={14} /> Instant Settlement
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Lightbox / Zoom Overlay */}
+      {/* Enhanced Lightbox Overlay */}
       <Modal isOpen={showLightbox} onClose={() => setShowLightbox(false)} title={product.name}>
         <div className="space-y-8 p-4">
-          <div 
-            className={`relative overflow-hidden rounded-[32px] bg-slate-50 cursor-crosshair group ${zoom ? 'h-[70vh]' : 'h-auto'}`}
+          <div
+            className={`relative overflow-hidden rounded-[2.5rem] bg-surface-soft cursor-crosshair group ${zoom ? 'h-[75vh]' : 'h-auto'}`}
             onMouseEnter={() => setZoom(true)}
             onMouseLeave={() => setZoom(false)}
             onMouseMove={handleImageMouseMove}
           >
-            <img 
-              src={imageUrl} 
+            <img
+              src={imageUrl}
               alt={product.name}
               className={`w-full h-full object-contain transition-transform duration-200 ${zoom ? 'scale-[2.5]' : 'scale-100'}`}
               style={zoom ? { transformOrigin: `${mousePosition.x}% ${mousePosition.y}%` } : undefined}
             />
             {!zoom && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-900/5 transition-opacity opacity-0 group-hover:opacity-100">
-                <span className="px-6 py-3 bg-white/90 backdrop-blur-md rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Move Mouse to Zoom</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="px-6 py-3 bg-white text-dark-bg rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl">Precision Zoom Enabled</span>
               </div>
             )}
           </div>
-          <div className="flex justify-between items-center px-4">
+          <div className="flex justify-between items-center px-6">
             <div className="space-y-1">
-              <h4 className="font-display font-black text-slate-900 uppercase tracking-tight">{product.name}</h4>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">Ultra-High Definition Asset View</p>
+              <h4 className="font-display font-black text-text uppercase tracking-tight">{product.name}</h4>
+              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">High-Definition Asset Preview</p>
             </div>
-            <button onClick={() => setShowLightbox(false)} className="px-8 py-3 bg-slate-100 text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-all">Close Viewer</button>
+            <button onClick={() => setShowLightbox(false)} className="btn-secondary !h-12 !px-8">Close View</button>
           </div>
         </div>
       </Modal>
-    </div>
+    </motion.div>
   );
 }

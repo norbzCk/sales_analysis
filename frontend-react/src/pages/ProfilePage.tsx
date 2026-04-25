@@ -39,10 +39,8 @@ export function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileState>({ name: "", email: "", phone: "", address: "", profile_photo: "" });
   const [passwordDraft, setPasswordDraft] = useState<PasswordState>({ current_password: "", new_password: "", confirm_password: "" });
-  const [editing, setEditing] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [passwordUpdating, setPasswordUpdating] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
@@ -86,8 +84,6 @@ export function ProfilePage() {
         profile_photo: updated.profile_photo || "",
       });
       await refreshUser();
-
-      setEditing(false);
       setFlash("Profile updated.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
@@ -120,7 +116,6 @@ export function ProfilePage() {
         },
       });
       setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
-      setShowPasswordModal(false);
       setFlash("Password updated successfully.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update password");
@@ -144,7 +139,7 @@ export function ProfilePage() {
       });
       setProfile((state) => ({ ...state, profile_photo: response.image_url }));
       setFlash("Profile photo uploaded. Save profile to apply.");
-      setShowPhotoModal(false); // Close modal after upload
+      setShowPhotoModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload profile photo");
     } finally {
@@ -155,276 +150,126 @@ export function ProfilePage() {
 
   if (user?.role !== "user") {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile</h1>
-            <p className="text-gray-600">The legacy profile screen is only available for customer accounts.</p>
-          </div>
-        </div>
-      </div>
+      <section className="rounded-[2rem] border border-white/60 bg-white/80 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
+        <h1 className="font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Profile</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">The polished customer profile experience is available for customer accounts.</p>
+      </section>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex justify-between items-start">
+    <div className="space-y-6 animate-soft-enter">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/80 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)] backdrop-blur md:p-8 dark:border-white/10 dark:bg-slate-900/70">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.12),transparent_28%)]" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.28em] text-brand">Profile & Settings</p>
+            <h1 className="font-display text-3xl font-black tracking-tight text-slate-950 md:text-4xl dark:text-white">Manage your account</h1>
+            <p className="max-w-2xl text-sm leading-6 text-slate-600 md:text-base dark:text-slate-300">
+              A cleaner account center with stronger visual hierarchy, reliable feedback, and a consistent blue and orange identity across light and dark themes.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 rounded-[1.75rem] border border-white/70 bg-white/70 px-5 py-4 shadow-sm dark:border-white/10 dark:bg-slate-800/60">
+            {profile.profile_photo ? (
+              <img src={resolveImageUrl(profile.profile_photo)} alt={profile.name || "Profile"} className="h-16 w-16 rounded-2xl object-cover shadow-md" />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/10 text-lg font-black text-brand">
+                {getInitials(profile.name || "User")}
+              </div>
+            )}
             <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Profile & Settings</p>
-              <h1 className="text-3xl font-bold text-gray-900">Manage your account</h1>
+              <p className="font-display text-xl font-black text-slate-950 dark:text-white">{profile.name || "User"}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
             </div>
           </div>
         </div>
+      </section>
 
-        {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">{error}</div>}
-        {flash && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">{flash}</div>}
+      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">{error}</div> : null}
+      {flash ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">{flash}</div> : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center space-x-4 mb-6">
-                {profile.profile_photo ? (
-                  <img
-                    src={resolveImageUrl(profile.profile_photo)}
-                    alt={profile.name || "Profile"}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center">
-                    <span className="text-teal-600 font-semibold text-lg">{getInitials(profile.name || "User")}</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-900">{profile.name || "User"}</h2>
-                  <p className="text-gray-600">{user?.email}</p>
-                  <button
-                    className="mt-3 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                    onClick={() => setShowPhotoModal(true)}
-                  >
-                    Change Photo
-                  </button>
-                </div>
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-6">
+          <section className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">Identity</p>
+                <h2 className="mt-2 font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Personal details</h2>
               </div>
-
+              <button className="btn-secondary" onClick={() => setShowPhotoModal(true)} type="button">Change photo</button>
             </div>
 
-            <form className="space-y-6" onSubmit={handleProfileSubmit}>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Personal Details</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input
-                      value={profile.name}
-                      onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      value={profile.email}
-                      readOnly
-                      disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                      <input
-                        value={profile.phone}
-                        onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                      <input
-                        value={profile.address}
-                        onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-6">
-                  <button
-                    className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    type="submit"
-                    disabled={uploadingPhoto}
-                  >
-                    {uploadingPhoto ? "Processing..." : "Update Profile"}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <form className="space-y-6" onSubmit={handlePasswordSubmit}>
+            <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleProfileSubmit}>
+              <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Full name
+                <input
+                  value={profile.name}
+                  onChange={(event) => setProfile((state) => ({ ...state, name: event.target.value }))}
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Email
+                <input
+                  value={profile.email}
+                  readOnly
+                  disabled
+                   className="w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-500 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300"
+                />
+              </label>
+              <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Phone
+                <input
+                  value={profile.phone}
+                  onChange={(event) => setProfile((state) => ({ ...state, phone: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </label>
+              <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Address
+                <input
+                  value={profile.address}
+                  onChange={(event) => setProfile((state) => ({ ...state, address: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </label>
+              <div className="md:col-span-2 flex items-center justify-between rounded-[1.5rem] bg-slate-50 px-4 py-4 dark:bg-slate-800/60">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">Change Password</h2>
-                  <p className="text-gray-600 text-sm mb-4">Keep your account secure with a strong password.</p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
-                      <div className="relative">
-                        <input
-                          type={showPassword.current ? "text" : "password"}
-                          value={passwordDraft.current_password}
-                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
-                          required
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}
-                        >
-                          <span className="text-gray-400">{showPassword.current ? "👁️" : "👁️‍🗨️"}</span>
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
-                      <div className="relative">
-                        <input
-                          type={showPassword.new ? "text" : "password"}
-                          minLength={8}
-                          value={passwordDraft.new_password}
-                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
-                          required
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}
-                        >
-                          <span className="text-gray-400">{showPassword.new ? "👁️" : "👁️‍🗨️"}</span>
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
-                      <div className="relative">
-                        <input
-                          type={showPassword.confirm ? "text" : "password"}
-                          minLength={8}
-                          value={passwordDraft.confirm_password}
-                          onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
-                          required
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                          onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}
-                        >
-                          <span className="text-gray-400">{showPassword.confirm ? "👁️" : "👁️‍🗨️"}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <button
-                      className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
-                      type="submit"
-                      disabled={passwordUpdating}
-                    >
-                      {passwordUpdating ? "Updating..." : "Update Password"}
-                    </button>
-                  </div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Account reliability</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Keep contact information current so delivery and payment updates reach you immediately.</p>
                 </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-      {/* Change Photo Modal */}
-      {showPhotoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Change Profile Photo</h2>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Upload new photo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  disabled={uploadingPhoto}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Or enter photo URL</label>
-                <input
-                  value={profile.profile_photo}
-                  onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
-                  placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              </div>
-              {profile.profile_photo && (
-                <div className="flex justify-center">
-                  <img
-                    src={resolveImageUrl(profile.profile_photo)}
-                    alt="Profile preview"
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="flex justify-end pt-4 border-t border-gray-200">
-                <button
-                  className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setShowPhotoModal(false)}
-                  disabled={uploadingPhoto}
-                >
-                  {uploadingPhoto ? "Uploading..." : "Close"}
+                <button className="btn-primary" type="submit" disabled={uploadingPhoto}>
+                  {uploadingPhoto ? "Processing..." : "Save changes"}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </form>
+          </section>
 
-      {/* Change Password Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+          <section className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+            <div>
+                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">Security</p>
+              <h2 className="mt-2 font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Change password</h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Keep your account secure with a strong password and updated credentials.</p>
             </div>
-            <form className="p-6 space-y-4" onSubmit={handlePasswordSubmit}>
+            <form className="mt-6 space-y-4" onSubmit={handlePasswordSubmit}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Current password</label>
                 <div className="relative">
                   <input
                     type={showPassword.current ? "text" : "password"}
                     value={passwordDraft.current_password}
                     onChange={(event) => setPasswordDraft((prev) => ({ ...prev, current_password: event.target.value }))}
                     required
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-14 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(prev => ({...prev, current: !prev.current}))}
-                  >
-                    <span className="text-gray-400">{showPassword.current ? "👁️" : "👁️‍🗨️"}</span>
+                  <button type="button" className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-400" onClick={() => setShowPassword((prev) => ({ ...prev, current: !prev.current }))}>
+                    {showPassword.current ? "Hide" : "Show"}
                   </button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">New password</label>
                 <div className="relative">
                   <input
                     type={showPassword.new ? "text" : "password"}
@@ -432,19 +277,15 @@ export function ProfilePage() {
                     value={passwordDraft.new_password}
                     onChange={(event) => setPasswordDraft((prev) => ({ ...prev, new_password: event.target.value }))}
                     required
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-14 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(prev => ({...prev, new: !prev.new}))}
-                  >
-                    <span className="text-gray-400">{showPassword.new ? "👁️" : "👁️‍🗨️"}</span>
+                  <button type="button" className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-400" onClick={() => setShowPassword((prev) => ({ ...prev, new: !prev.new }))}>
+                    {showPassword.new ? "Hide" : "Show"}
                   </button>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Confirm new password</label>
                 <div className="relative">
                   <input
                     type={showPassword.confirm ? "text" : "password"}
@@ -452,38 +293,82 @@ export function ProfilePage() {
                     value={passwordDraft.confirm_password}
                     onChange={(event) => setPasswordDraft((prev) => ({ ...prev, confirm_password: event.target.value }))}
                     required
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-14 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(prev => ({...prev, confirm: !prev.confirm}))}
-                  >
-                    <span className="text-gray-400">{showPassword.confirm ? "👁️" : "👁️‍🗨️"}</span>
+                  <button type="button" className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-slate-400" onClick={() => setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))}>
+                    {showPassword.confirm ? "Hide" : "Show"}
                   </button>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                <button
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                  type="button"
-                  onClick={() => setShowPasswordModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="submit"
-                  disabled={passwordUpdating}
-                >
-                  {passwordUpdating ? "Updating..." : "Update Password"}
+              <button className="btn-primary w-full" type="submit" disabled={passwordUpdating}>
+                {passwordUpdating ? "Updating..." : "Update password"}
+              </button>
+            </form>
+          </section>
+        </div>
+
+        <div className="space-y-6">
+          <section className="rounded-[2rem] border border-white/60 bg-white/85 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
+               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">Overview</p>
+            <h2 className="mt-2 font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Account snapshot</h2>
+            <div className="mt-6 grid gap-4">
+              <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 dark:bg-slate-800/60">
+                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Email</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{profile.email || "Not available"}</p>
+              </div>
+              <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 dark:bg-slate-800/60">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Phone</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{profile.phone || "Add your phone number"}</p>
+              </div>
+              <div className="rounded-[1.5rem] bg-slate-50 px-4 py-4 dark:bg-slate-800/60">
+                 <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Address</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{profile.address || "Add your delivery address"}</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {showPhotoModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/60 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+            <div className="border-b border-slate-200 pb-4 dark:border-slate-800">
+              <h2 className="font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Change profile photo</h2>
+            </div>
+            <div className="space-y-4 pt-6">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Upload new photo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Or enter photo URL</label>
+                <input
+                  value={profile.profile_photo}
+                  onChange={(event) => setProfile((state) => ({ ...state, profile_photo: event.target.value }))}
+                  placeholder="/uploads/profile-photo.jpg or https://example.com/avatar.png"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              {profile.profile_photo ? (
+                <div className="flex justify-center">
+                  <img src={resolveImageUrl(profile.profile_photo)} alt="Profile preview" className="h-24 w-24 rounded-3xl object-cover shadow-lg" />
+                </div>
+              ) : null}
+              <div className="flex justify-end border-t border-slate-200 pt-4 dark:border-slate-800">
+                <button className="btn-secondary" onClick={() => setShowPhotoModal(false)} disabled={uploadingPhoto} type="button">
+                  Close
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
     </div>
   );
 }

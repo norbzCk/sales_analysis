@@ -1,7 +1,24 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState, useCallback } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-presence";
+import { 
+  Truck, 
+  MapPin, 
+  CheckCircle2, 
+  X, 
+  MessageSquare, 
+  Navigation, 
+  Star, 
+  ChevronRight, 
+  ShieldCheck, 
+  Activity,
+  User as UserIcon,
+  Phone,
+  Package,
+  ArrowRight
+} from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { getStoredToken } from "../features/auth/authStorage";
-import { StatCards } from "../components/ui/PageSections";
+import { PageIntro, StatCards, SectionCard } from "../components/ui/PageSections";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
 import type { LogisticsDelivery } from "../types/domain";
@@ -33,6 +50,10 @@ interface LogisticsProfile {
   };
 }
 
+function formatMoney(value?: number) {
+  return `TZS ${Number(value || 0).toLocaleString()}`;
+}
+
 function resolveImageUrl(url?: string | null) {
   const raw = String(url || "").trim();
   if (!raw) return "";
@@ -43,21 +64,16 @@ function resolveImageUrl(url?: string | null) {
 
 function ActiveDeliveryManager({ delivery, currentUserId, onStatusUpdate }: { delivery: LogisticsDelivery, currentUserId: number | undefined, onStatusUpdate: () => void }) {
   const token = getStoredToken();
-  const { messages, sendChat, sendLocation, isConnected } = useDeliverySocket(delivery.order_id as number, token);
+  const { messages, sendChat, sendLocation, sendTyping, isConnected, isOtherPartyTyping } = useDeliverySocket(delivery.order_id as number, token);
   const [showChat, setShowChat] = useState(false);
 
-  // Broadcast GPS location if in transit
   useEffect(() => {
     if (delivery.status !== "in_transit" || !isConnected) return;
-
     const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        sendLocation(pos.coords.latitude, pos.coords.longitude);
-      },
+      (pos) => sendLocation(pos.coords.latitude, pos.coords.longitude),
       (err) => console.warn("GPS tracking error:", err),
       { enableHighAccuracy: true }
     );
-
     return () => navigator.geolocation.clearWatch(watchId);
   }, [delivery.status, isConnected, sendLocation]);
 
@@ -66,58 +82,57 @@ function ActiveDeliveryManager({ delivery, currentUserId, onStatusUpdate }: { de
   const currentCoords: [number, number] | null = delivery.current_lat && delivery.current_lng ? [delivery.current_lat, delivery.current_lng] : null;
 
   return (
-    <article className="glass-card overflow-hidden animate-soft-enter border-brand/20 shadow-brand/10 border-2">
+    <article className="glass-card overflow-hidden border-brand/20 shadow-xl">
       <div className="p-6 bg-brand-strong text-white flex justify-between items-center">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Active Mission</span>
-          <h3 className="text-xl font-display font-black tracking-tight">Order #{delivery.order_id}</h3>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Active Operation</span>
+          <h3 className="text-xl font-display font-black tracking-tight">Deployment #{delivery.order_id}</h3>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowChat(!showChat)}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-white/10"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            {showChat ? 'Close Chat' : 'Chat Buyer'}
-          </button>
-        </div>
+        <button 
+          onClick={() => setShowChat(!showChat)}
+          className="h-10 px-5 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10"
+        >
+          <MessageSquare size={14} />
+          {showChat ? 'Close Comms' : 'Sync Buyer'}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-slate-100">
-        <div className="bg-white p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pickup</span>
-              <p className="text-sm font-bold text-slate-900 leading-tight">{delivery.pickup_location}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border">
+        <div className="bg-surface p-8 space-y-8">
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Origin Node</span>
+              <p className="text-sm font-bold text-text leading-tight">{delivery.pickup_location}</p>
             </div>
-            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Destination</span>
-              <p className="text-sm font-bold text-slate-900 leading-tight">{delivery.delivery_location}</p>
+            <div className="space-y-1.5">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Target Node</span>
+              <p className="text-sm font-bold text-text leading-tight">{delivery.delivery_location}</p>
             </div>
           </div>
 
-          <div className="pt-4 flex flex-col gap-3 border-t border-slate-100">
+          <div className="pt-6 flex flex-col gap-3 border-t border-border">
              {delivery.status === "assigned" && (
-                <button onClick={() => onStatusUpdate()} className="w-full btn-primary !py-4">Confirm Pickup</button>
+                <button onClick={() => onStatusUpdate()} className="btn-primary w-full !h-14">Confirm Pickup Protocol</button>
              )}
              {delivery.status === "picked_up" && (
-                <button onClick={() => onStatusUpdate()} className="w-full btn-primary !py-4 bg-orange-500 hover:bg-orange-600">Start Live Delivery</button>
+                <button onClick={() => onStatusUpdate()} className="btn-primary w-full !h-14 !bg-orange-500 hover:!bg-orange-600">Initiate Transit</button>
              )}
              {delivery.status === "in_transit" && (
-                <button onClick={() => onStatusUpdate()} className="w-full btn-primary !py-4 bg-emerald-600 hover:bg-emerald-700">Finish Delivery</button>
+                <button onClick={() => onStatusUpdate()} className="btn-primary w-full !h-14 !bg-emerald-600 hover:!bg-emerald-700">Verify Final Receipt</button>
              )}
           </div>
         </div>
 
-        <div className="bg-white">
+        <div className="bg-surface-soft min-h-[300px]">
           {showChat ? (
             <DeliveryChat 
               messages={messages} 
               onSend={sendChat} 
+              onTyping={sendTyping}
               currentUserId={currentUserId} 
               otherPartyName="Buyer" 
+              isConnected={isConnected}
+              isOtherPartyTyping={isOtherPartyTyping}
             />
           ) : (
             <LiveTrackingMap 
@@ -135,16 +150,11 @@ function ActiveDeliveryManager({ delivery, currentUserId, onStatusUpdate }: { de
 export function LogisticsDashboardPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<LogisticsProfile | null>(null);
-  const [profileDraft, setProfileDraft] = useState<LogisticsProfile | null>(null);
-  const [passwordDraft, setPasswordDraft] = useState({ current_password: "", new_password: "", confirm_password: "" });
   const [deliveries, setDeliveries] = useState<LogisticsDelivery[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [loading, setLoading] = useState(false);
-  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   const metrics = profile?.metrics || {};
   const deliverySummary = useMemo(() => {
@@ -159,30 +169,21 @@ export function LogisticsDashboardPage() {
     return deliveries.filter((item) => item.status === statusFilter);
   }, [deliveries, statusFilter]);
 
-  const totalCompleted = Math.max(Number(metrics.total_deliveries || 0), deliverySummary.completed);
-  
   const statItems = useMemo(
     () => [
-      { id: "delivery-role", label: "Role", value: "Delivery Agent", note: "Workspace scoped to your assigned deliveries." },
-      { id: "delivery-status", label: "Status", value: String(profile?.status || "-"), note: "Your current rider availability state." },
-      { id: "delivery-availability", label: "Availability", value: String(profile?.availability || "-"), note: "Shown to dispatch when assigning work." },
-      { id: "delivery-assigned", label: "Assigned", value: deliverySummary.assigned, note: "Ready for pickup or waiting for action." },
-      { id: "delivery-transit", label: "In Transit", value: deliverySummary.inTransit, note: "Packages currently on the road." },
-      { id: "delivery-completed", label: "Completed", value: totalCompleted, note: "Delivered jobs recorded for your account." },
-      { id: "delivery-success", label: "Success Rate", value: `${Number(metrics.success_rate || 0).toFixed(0)}%`, note: "Based on logistics metrics from the backend." },
-      { id: "delivery-rating", label: "Rating", value: Number(metrics.rating || 0).toFixed(1), note: "Average delivery feedback score." },
+      { id: "id", label: "Fleet Identity", value: `#L${profile?.id || '—'}`, icon: <Truck size={18} />, note: profile?.account_type || "Agent" },
+      { id: "status", label: "Protocol State", value: profile?.status || "Offline", icon: <Activity size={18} />, note: profile?.availability || "Status" },
+      { id: "assigned", label: "Active Jobs", value: deliverySummary.assigned, icon: <Package size={18} /> },
+      { id: "rating", label: "Trust Rating", value: Number(metrics.rating || 0).toFixed(1), icon: <Star size={18} /> },
     ],
-    [deliverySummary.assigned, deliverySummary.inTransit, metrics.rating, metrics.success_rate, profile?.availability, profile?.status, totalCompleted],
+    [profile, deliverySummary.assigned, metrics.rating]
   );
 
   useEffect(() => {
-    if (user?.role === "logistics") {
-      void load();
-    }
+    if (user?.role === "logistics") void load();
   }, [user?.role]);
 
   async function load() {
-    setError("");
     setLoading(true);
     try {
       const [profileData, deliveriesData] = await Promise.all([
@@ -190,10 +191,9 @@ export function LogisticsDashboardPage() {
         apiRequest<{ deliveries: LogisticsDelivery[] }>("/logistics/deliveries"),
       ]);
       setProfile(profileData);
-      setProfileDraft(profileData);
       setDeliveries(deliveriesData.deliveries || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load logistics dashboard");
+      setError(err instanceof Error ? err.message : "System sync failed");
     } finally {
       setLoading(false);
     }
@@ -202,94 +202,10 @@ export function LogisticsDashboardPage() {
   async function updateAvailability(type: "status" | "availability", value: string) {
     try {
       await apiRequest(`/logistics/${type}`, { method: "PUT", body: { [type]: value } });
-      setFlash(`${type} updated.`);
+      setFlash(`${type} successfully synchronized.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update logistics profile");
-    }
-  }
-
-  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!profileDraft) return;
-    setError("");
-    setFlash("");
-    try {
-      const wantsPasswordChange =
-        Boolean(passwordDraft.current_password) ||
-        Boolean(passwordDraft.new_password) ||
-        Boolean(passwordDraft.confirm_password);
-      if (wantsPasswordChange) {
-        if (!passwordDraft.current_password || !passwordDraft.new_password || !passwordDraft.confirm_password) {
-          setError("Fill all password fields to change password.");
-          return;
-        }
-        if (passwordDraft.new_password !== passwordDraft.confirm_password) {
-          setError("New passwords do not match.");
-          return;
-        }
-      }
-
-      const response = await apiRequest<{ message?: string; user?: LogisticsProfile }>("/logistics/me", {
-        method: "PUT",
-        body: {
-          name: profileDraft.name || null,
-          email: profileDraft.email || null,
-          phone: profileDraft.phone || null,
-          vehicle_type: profileDraft.vehicle_type || null,
-          plate_number: profileDraft.plate_number || null,
-          license_number: profileDraft.license_number || null,
-          base_area: profileDraft.base_area || null,
-          coverage_areas: profileDraft.coverage_areas || null,
-          profile_photo: profileDraft.profile_photo || null,
-        },
-      });
-      if (response.user) {
-        setProfile(response.user);
-        setProfileDraft(response.user);
-      } else {
-        await load();
-      }
-      if (wantsPasswordChange) {
-        setPasswordUpdating(true);
-        await apiRequest("/logistics/change-password", {
-          method: "POST",
-          body: {
-            current_password: passwordDraft.current_password,
-            new_password: passwordDraft.new_password,
-          },
-        });
-      }
-      setPasswordDraft({ current_password: "", new_password: "", confirm_password: "" });
-      setEditingProfile(false);
-      setFlash(wantsPasswordChange ? "Profile and password updated." : response.message || "Profile updated.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile");
-    } finally {
-      setPasswordUpdating(false);
-    }
-  }
-
-  async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setError("");
-    setFlash("");
-    setUploadingPhoto(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const response = await apiRequest<{ image_url: string }>("/logistics/upload-profile-photo", {
-        method: "POST",
-        body: form,
-      });
-      setProfileDraft((prev) => (prev ? { ...prev, profile_photo: response.image_url } : prev));
-      setFlash("Profile photo uploaded. Save profile to apply.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload profile photo");
-    } finally {
-      setUploadingPhoto(false);
-      event.target.value = "";
+      setError("Protocol update failed.");
     }
   }
 
@@ -300,81 +216,50 @@ export function LogisticsDashboardPage() {
         method: "PUT",
         body: { status, verification_code: verification || undefined },
       });
-      setFlash(`Delivery moved to ${status}.`);
+      setFlash(`Job updated to ${status}.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update delivery");
+      setError("Fulfillment update failed.");
     }
   }
 
-  if (user?.role !== "logistics") {
-    return <section className="p-8"><h1>Logistics dashboard</h1><p className="muted">This route is only for logistics accounts.</p></section>;
-  }
+  if (loading) return (
+    <div className="h-96 flex flex-col items-center justify-center gap-6">
+      <div className="w-16 h-16 border-4 border-brand/10 border-t-brand rounded-full animate-spin" />
+      <p className="font-black text-[10px] uppercase tracking-[0.3em] text-text-muted animate-pulse">Syncing Fulfillment Node...</p>
+    </div>
+  );
 
   const activeDelivery = deliveries.find(d => ["assigned", "picked_up", "in_transit"].includes(d.status));
 
   return (
-    <div className="p-4 md:p-8 space-y-10 animate-soft-enter">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="space-y-1">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-brand">Logistics Command Center</span>
-          <h1 className="text-4xl font-display font-black text-slate-900 tracking-tight">Partner Dashboard</h1>
-          <p className="text-slate-500 font-medium text-lg">Manage routes, status, and live customer communication.</p>
-        </div>
-        
-        <div className="flex gap-3 w-full md:w-auto">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <PageIntro 
+        eyebrow="Logistics Mesh"
+        title="Agent Command Center"
+        description="Monitor assignments, coordinate real-time delivery routes, and manage system availability across the network."
+        actions={
           <button 
             onClick={() => updateAvailability("status", profile?.status === "online" ? "offline" : "online")}
-            className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-lg
-              ${profile?.status === 'online' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}
+            className={`h-12 px-8 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl
+              ${profile?.status === 'online' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-surface-strong text-text-muted hover:text-text'}
             `}
           >
-            {profile?.status === 'online' ? '● System Online' : '○ Go Online'}
+            {profile?.status === 'online' ? '● Node Online' : '○ Go Online'}
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {error ? (
-        <div className="p-4 bg-red-50 text-red-700 rounded-2xl font-bold flex items-center gap-3 border border-red-100">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          {error}
-        </div>
-      ) : null}
-      {flash ? (
-        <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl font-bold flex items-center gap-3 border border-emerald-100">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          {flash}
-        </div>
-      ) : null}
+      <StatCards items={statItems} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <article className="glass-card p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rider ID</span>
-          <strong className="text-xl font-display font-black text-slate-900">#L{profile?.id}</strong>
-        </article>
-        <article className="glass-card p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned</span>
-          <strong className="text-xl font-display font-black text-brand">{deliverySummary.assigned}</strong>
-        </article>
-        <article className="glass-card p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rating</span>
-          <strong className="text-xl font-display font-black text-accent">{Number(metrics.rating || 0).toFixed(1)}</strong>
-        </article>
-        <article className="glass-card p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Success</span>
-          <strong className="text-xl font-display font-black text-slate-900">{Number(metrics.success_rate || 0).toFixed(0)}%</strong>
-        </article>
-      </div>
+      {error && <div className="p-4 bg-danger/10 text-danger rounded-2xl font-bold border border-danger/20 text-xs animate-soft-enter">{error}</div>}
+      {flash && <div className="p-4 bg-accent/10 text-accent rounded-2xl font-bold border border-accent/20 text-xs animate-soft-enter">{flash}</div>}
 
       {activeDelivery && (
         <section className="space-y-6">
           <div className="flex items-center gap-2 px-1">
             <div className="w-2 h-2 rounded-full bg-brand animate-ping" />
-            <h2 className="text-sm font-black uppercase tracking-widest text-slate-900">Active Delivery Workflow</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-text">Critical Mission Active</h2>
           </div>
           <ActiveDeliveryManager 
             delivery={activeDelivery} 
@@ -389,114 +274,105 @@ export function LogisticsDashboardPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <article className="glass-card p-0 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="space-y-1 w-full md:w-auto">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fulfillment Log</span>
-                <h2 className="text-2xl font-display font-extrabold text-slate-900 tracking-tight">Delivery History</h2>
-              </div>
+        <div className="lg:col-span-2">
+          <SectionCard 
+            title="Operational Ledger" 
+            description="Historical log of fulfillment protocols."
+            action={
               <select 
                 value={statusFilter} 
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-6 py-2 bg-slate-50 border-2 border-transparent focus:border-brand/20 rounded-xl outline-none transition-all font-semibold text-xs appearance-none cursor-pointer"
+                className="px-4 py-2 bg-surface-soft border border-border rounded-xl outline-none font-bold text-[10px] uppercase tracking-widest cursor-pointer"
               >
-                <option value="all">All Records</option>
-                <option value="delivered">Delivered</option>
-                <option value="assigned">Pending Pickup</option>
+                <option value="all">Full Ledger</option>
+                <option value="delivered">Completed</option>
+                <option value="assigned">Pending</option>
               </select>
-            </div>
-
-            <div className="divide-y divide-slate-100">
+            }
+          >
+            <div className="divide-y divide-border -mx-8 -mb-8">
               {!visibleDeliveries.length ? (
-                <div className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs italic">No delivery records found</div>
+                <div className="p-12 text-center text-text-muted text-[10px] font-black uppercase tracking-[0.2em] opacity-40">No records synchronized.</div>
               ) : (
                 visibleDeliveries.map((delivery) => (
-                  <div key={delivery.id} className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-slate-50/50 transition-colors group">
-                    <div className="flex gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-brand/5 flex items-center justify-center text-brand font-black text-xs">
+                  <div key={delivery.id} className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-surface-soft/40 transition-colors group">
+                    <div className="flex gap-5">
+                      <div className="w-12 h-12 rounded-xl bg-brand/5 border border-brand/20 flex items-center justify-center text-brand font-black text-xs">
                         #{delivery.order_id}
                       </div>
                       <div className="space-y-1">
-                        <h4 className="font-bold text-slate-900 leading-none">To: {delivery.delivery_location}</h4>
-                        <p className="text-xs font-semibold text-slate-400">From: {delivery.pickup_location}</p>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter
-                          ${delivery.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-brand/10 text-brand'}
+                        <h4 className="text-sm font-black text-text leading-none group-hover:text-brand transition-colors">Target: {delivery.delivery_location}</h4>
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">From: {delivery.pickup_location}</p>
+                        <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter mt-1
+                          ${delivery.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand/10 text-brand'}
                         `}>{delivery.status}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fee Earned</span>
-                      <strong className="text-lg font-display font-black text-slate-900">TZS {Number(delivery.price || 0).toLocaleString()}</strong>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Settlement</span>
+                      <strong className="text-lg font-display font-black text-text">{formatMoney(delivery.price)}</strong>
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </article>
+          </SectionCard>
         </div>
 
         <aside className="space-y-8">
-           <article className="glass-card p-8 space-y-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                 <div className="w-24 h-24 rounded-[32px] overflow-hidden border-4 border-white shadow-2xl relative group">
-                    <img src={resolveImageUrl(profile?.profile_photo)} alt={profile?.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-brand/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                       <label className="cursor-pointer p-2 bg-white rounded-full shadow-lg">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                       </label>
-                    </div>
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-display font-black text-slate-900 leading-none mb-1">{profile?.name}</h3>
-                    <span className="px-3 py-1 bg-brand/5 text-brand rounded-full text-[10px] font-black uppercase tracking-widest border border-brand/10">
-                       Verified Rider
-                    </span>
-                 </div>
+           <article className="glass-card p-8 flex flex-col items-center text-center space-y-6">
+              <div className="w-24 h-24 rounded-[2.5rem] overflow-hidden border-4 border-surface shadow-2xl relative group bg-surface-soft">
+                 {profile?.profile_photo ? (
+                   <img src={resolveImageUrl(profile.profile_photo)} alt={profile.name} className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center text-brand font-black text-3xl">
+                     {(profile?.name || "R")[0].toUpperCase()}
+                   </div>
+                 )}
+              </div>
+              <div>
+                 <h3 className="text-xl font-display font-black text-text tracking-tight">{profile?.name}</h3>
+                 <span className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-brand/10 text-brand rounded-lg text-[10px] font-black uppercase tracking-widest border border-brand/20">
+                    <ShieldCheck size={12} />
+                    Verified Node
+                 </span>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Vehicle</span>
-                    <span className="text-slate-900 font-black">{profile?.vehicle_type || 'Motorcycle'}</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Plate</span>
-                    <span className="text-slate-900 font-black">{profile?.plate_number || '-'}</span>
-                 </div>
-                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Base</span>
-                    <span className="text-slate-900 font-black">{profile?.base_area || 'Central'}</span>
-                 </div>
+              <div className="w-full space-y-4 pt-6 border-t border-border">
+                 {[
+                   { label: 'Vehicle', val: profile?.vehicle_type || 'Fleet Default' },
+                   { label: 'Asset ID', val: profile?.plate_number || 'Fleet-X' },
+                   { label: 'Base Area', val: profile?.base_area || 'Central' }
+                 ].map(item => (
+                   <div key={item.label} className="flex justify-between items-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">{item.label}</span>
+                      <span className="text-xs font-black text-text">{item.val}</span>
+                   </div>
+                 ))}
               </div>
 
-              <button 
-                onClick={() => setEditingProfile(true)}
-                className="w-full py-3 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-brand transition-all"
-              >
+              <button className="w-full h-12 bg-dark-bg text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-brand transition-all shadow-xl active:scale-95">
                 Manage Profile
               </button>
            </article>
 
-           <article className="glass-card p-8 bg-brand-strong text-white border-none relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16" />
+           <article className="glass-card p-8 bg-dark-bg text-white border-none relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                <Navigation size={60} />
+              </div>
               <div className="relative space-y-6">
                  <div className="space-y-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Connectivity</span>
-                    <h3 className="text-xl font-display font-black tracking-tight">System Status</h3>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Telemetry Sync</span>
+                    <h3 className="text-xl font-display font-black tracking-tight">System Integrity</h3>
                  </div>
-                 <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md space-y-4">
+                 <div className="p-4 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md space-y-4">
                     <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-bold text-white/60">GPS SIGNAL</span>
-                       <span className="text-[10px] font-black text-emerald-400">EXCELLENT</span>
+                       <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">GPS Payload</span>
+                       <span className="text-[10px] font-black text-emerald-400">NOMINAL</span>
                     </div>
                     <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-bold text-white/60">SOCKET API</span>
-                       <span className="text-[10px] font-black text-emerald-400 uppercase">Synchronized</span>
+                       <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Data Stream</span>
+                       <span className="text-[10px] font-black text-emerald-400">ACTIVE</span>
                     </div>
                  </div>
               </div>
@@ -506,3 +382,4 @@ export function LogisticsDashboardPage() {
     </div>
   );
 }
+

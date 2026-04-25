@@ -1,5 +1,25 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Package, 
+  AlertTriangle, 
+  TrendingDown, 
+  DollarSign, 
+  Sparkles, 
+  Upload, 
+  Search, 
+  Filter, 
+  ArrowUpDown,
+  Trash2,
+  Edit2,
+  Plus,
+  ChevronRight,
+  TrendingUp,
+  Box,
+  Store,
+  X
+} from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useCart } from "../features/auth/CartContext";
 import { env } from "../config/env";
@@ -49,17 +69,6 @@ interface InventoryForecastItem {
   risk_level?: string;
 }
 
-interface ProductRequestDraft {
-  company_name: string;
-  contact_name: string;
-  email: string;
-  phone: string;
-  product_interest: string;
-  quantity: string;
-  target_budget: string;
-  notes: string;
-}
-
 const emptyDraft: ProductDraft = {
   name: "",
   category: "",
@@ -100,16 +109,7 @@ export function ProductsPage() {
   const [insight, setInsight] = useState<ProductInsight | null>(null);
   const [forecast, setForecast] = useState<InventoryForecastItem[]>([]);
   const [generatingInsight, setGeneratingInsight] = useState(false);
-  const [requestDraft, setRequestDraft] = useState<ProductRequestDraft>({
-    company_name: "",
-    contact_name: "",
-    email: "",
-    phone: "",
-    product_interest: "",
-    quantity: "1",
-    target_budget: "",
-    notes: "",
-  });
+  const [showForm, setShowForm] = useState(false);
 
   const sellerMode = String(user?.role || "") === "seller";
   const adminMode = ["admin", "super_admin", "owner"].includes(String(user?.role || ""));
@@ -192,6 +192,7 @@ export function ProductsPage() {
       provider_id: product.provider_id ? String(product.provider_id) : "",
       seller_id: product.seller_id ? String(product.seller_id) : "",
     });
+    setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -201,6 +202,7 @@ export function ProductsPage() {
     setInsight(null);
     setFlash("");
     setError("");
+    setShowForm(false);
   }
 
   async function generateInsight() {
@@ -305,353 +307,416 @@ export function ProductsPage() {
     }
   }
 
-  async function submitProductRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setFlash("");
-    try {
-      await apiRequest("/rfq/", {
-        method: "POST",
-        auth: false,
-        body: {
-          ...requestDraft,
-          quantity: Number(requestDraft.quantity || 1),
-        },
-      });
-      setFlash("Product request submitted successfully.");
-      setRequestDraft({
-        company_name: "",
-        contact_name: "",
-        email: "",
-        phone: "",
-        product_interest: "",
-        quantity: "1",
-        target_budget: "",
-        notes: "",
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit product request");
-    }
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-10 max-w-7xl mx-auto">
+      {/* Inventory Stats Grid */}
       {inventory ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <article className="bg-white rounded-lg shadow p-6">
-            <span className="text-sm text-gray-500">Total Inventory</span>
-            <strong className="block text-2xl font-bold text-gray-900">{inventory.total_products}</strong>
-            <p className="text-sm text-gray-500 mt-1">Across all categories</p>
-          </article>
-          <article className="bg-white rounded-lg shadow p-6">
-            <span className="text-sm text-gray-500">Low Stock</span>
-            <strong className="block text-2xl font-bold text-orange-600">{inventory.low_stock_count}</strong>
-            <p className="text-sm text-gray-500 mt-1">Needs attention</p>
-          </article>
-          <article className="bg-white rounded-lg shadow p-6">
-            <span className="text-sm text-gray-500">Out of Stock</span>
-            <strong className="block text-2xl font-bold text-red-600">{inventory.out_of_stock_count}</strong>
-            <p className="text-sm text-gray-500 mt-1">Currently unavailable</p>
-          </article>
-          <article className="bg-white rounded-lg shadow p-6">
-            <span className="text-sm text-gray-500">Total Value</span>
-            <strong className="block text-2xl font-bold text-gray-900">{formatMoney(inventory.total_value)}</strong>
-            <p className="text-sm text-gray-500 mt-1">Estimated worth</p>
-          </article>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: "Total Inventory", value: inventory.total_products, icon: Box, color: "text-brand" },
+            { label: "Low Stock", value: inventory.low_stock_count, icon: AlertTriangle, color: "text-amber-500" },
+            { label: "Out of Stock", value: inventory.out_of_stock_count, icon: Package, color: "text-danger" },
+            { label: "Total Value", value: formatMoney(inventory.total_value), icon: DollarSign, color: "text-emerald-500" }
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="glass-card p-6 flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{stat.label}</span>
+                <div className={`w-8 h-8 rounded-lg bg-surface-soft flex items-center justify-center ${stat.color}`}>
+                  <stat.icon size={16} />
+                </div>
+              </div>
+              <strong className="text-3xl font-display font-black text-text">{stat.value}</strong>
+            </motion.div>
+          ))}
         </div>
       ) : null}
 
+      {/* Forecasting Section */}
       {sellerMode && forecast.length ? (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card overflow-hidden"
+        >
+          <div className="p-6 border-b border-border bg-surface-soft/30 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Smart inventory forecasting</h2>
-              <p className="text-sm text-gray-500 mt-1">Projected stock-out risk based on the last 30 days of sales.</p>
+              <h2 className="text-xl font-display font-black text-text tracking-tight flex items-center gap-2">
+                <Sparkles size={18} className="text-brand" />
+                Smart Inventory Forecasting
+              </h2>
+              <p className="text-sm text-text-muted mt-1">AI-powered risk analysis based on your recent performance.</p>
             </div>
           </div>
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {forecast.slice(0, 4).map((item) => (
-              <div key={item.product_id} className="p-6 flex items-center justify-between">
-                <div>
-                  <strong className="text-gray-900">{item.product_name}</strong>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {item.current_stock} in stock · {item.daily_burn_rate.toFixed(1)} / day · approx. {item.days_left} days left
-                  </p>
+              <div key={item.product_id} className="p-6 flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <strong className="text-text font-bold block truncate">{item.product_name}</strong>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-text-muted">
+                    <span className="flex items-center gap-1"><Box size={14} /> {item.current_stock} in stock</span>
+                    <span className="flex items-center gap-1 text-emerald-500 font-semibold"><TrendingUp size={14} /> {item.daily_burn_rate.toFixed(1)}/day</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    item.risk_level === "critical" ? "bg-red-100 text-red-800" :
-                    item.risk_level === "watch" ? "bg-yellow-100 text-yellow-800" :
-                    "bg-green-100 text-green-800"
-                  }`}>
-                    {item.risk_level || "healthy"}
-                  </span>
-                  <span className="text-sm text-gray-500">Restock {item.recommended_restock || 0}</span>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-text-muted block">Status</span>
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest mt-1 ${
+                      item.risk_level === "critical" ? "bg-danger/10 text-danger" :
+                      item.risk_level === "watch" ? "bg-amber-500/10 text-amber-500" :
+                      "bg-emerald-500/10 text-emerald-500"
+                    }`}>
+                      {item.risk_level || "healthy"}
+                    </span>
+                  </div>
+                  <div className="text-right min-w-[100px]">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-text-muted block">Next Restock</span>
+                    <span className="text-lg font-display font-black text-text">+{item.recommended_restock || 0}</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       ) : null}
 
-      {error ? <p className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</p> : null}
-      {flash ? <p className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">{flash}</p> : null}
-
-      {canManage(user?.role) ? (
-        <form className="bg-white rounded-lg shadow p-6 space-y-4" onSubmit={handleCreateOrUpdate}>
-          <div className="col-span-full">
-            <h2 className="text-xl font-bold text-gray-900">{editingId ? `Update Product #${editingId}` : "List New Product"}</h2>
-            <p className="text-sm text-gray-500 mt-1">Provide the details for your marketplace listing.</p>
-          </div>
-
-          <div className="col-span-full flex items-center gap-4">
-            <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" type="button" onClick={() => void generateInsight()} disabled={generatingInsight}>
-              {generatingInsight ? "Generating..." : "Generate AI listing insight"}
+      {/* Management & Form Section */}
+      {canManage(user?.role) && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-display font-black text-text tracking-tight">Product Management</h2>
+            <button 
+              onClick={() => setShowForm(!showForm)}
+              className="btn-primary !py-2.5 flex items-center gap-2"
+            >
+              {showForm ? <X size={18} /> : <Plus size={18} />}
+              {showForm ? "Cancel" : "List New Product"}
             </button>
-            <span className="text-sm text-gray-500">Creates an SEO-friendly description and a price suggestion from marketplace activity.</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Product Name</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.name} onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Category</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.category} onChange={(e) => setDraft(prev => ({ ...prev, category: e.target.value }))} required />
-            </label>
-
-            {adminMode ? (
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Assign to Seller</span>
-                <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.seller_id} onChange={(e) => setDraft(prev => ({ ...prev, seller_id: e.target.value }))}>
-                  <option value="">Select Seller</option>
-                  {businessmen.map(s => <option key={s.id} value={s.id}>{s.business_name}</option>)}
-                </select>
-              </label>
-            ) : null}
-
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Price (TZS)</span>
-              <input type="number" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.price} onChange={(e) => setDraft(prev => ({ ...prev, price: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Initial Stock</span>
-              <input type="number" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.stock} onChange={(e) => setDraft(prev => ({ ...prev, stock: e.target.value }))} required />
-            </label>
-
-            {!sellerMode ? (
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Provider (Optional)</span>
-                <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.provider_id} onChange={(e) => setDraft(prev => ({ ...prev, provider_id: e.target.value }))}>
-                  <option value="">Select Provider</option>
-                  {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </label>
-            ) : null}
-          </div>
-
-          <label className="block col-span-full">
-            <span className="text-sm font-medium text-gray-700">Detailed Description</span>
-            <textarea className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.description} onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))} required />
-          </label>
-
-          <label className="block col-span-full">
-            <span className="text-sm font-medium text-gray-700">Product Image</span>
-            <div className="flex gap-4 mt-1">
-              <input type="file" accept="image/*" className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onChange={handleImageUpload} disabled={uploadingImage} />
-              <input type="text" placeholder="Or enter Image URL" className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={draft.image_url} onChange={(e) => setDraft(prev => ({ ...prev, image_url: e.target.value }))} />
-            </div>
-          </label>
-
-          {draft.image_url && (
-            <div className="col-span-full">
-              <img src={resolveImageUrl(draft.image_url)} alt="Preview" className="w-32 h-32 rounded-lg object-cover" />
-            </div>
-          )}
-
-          {insight ? (
-            <div className="col-span-full bg-blue-50 rounded-lg p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">AI-powered product insight</h3>
-                  <p className="text-sm text-gray-500">{insight.trend_summary || "Marketplace-based pricing guidance"}</p>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  {Math.round((insight.confidence || 0) * 100)}% confidence
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded p-4">
-                  <span className="text-sm text-gray-500">Suggested price</span>
-                  <strong className="block text-lg font-bold text-gray-900">{formatMoney(insight.suggested_price)}</strong>
-                </div>
-                <div className="bg-white rounded p-4">
-                  <span className="text-sm text-gray-500">Expected range</span>
-                  <strong className="block text-lg font-bold text-gray-900">{formatMoney(insight.price_range?.low)} - {formatMoney(insight.price_range?.high)}</strong>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600">{insight.description}</p>
-              <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {insight.demand_level || "steady"} demand
-                </span>
-                {insight.seo_keywords?.map((keyword) => (
-                  <span key={keyword} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                    {keyword}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="col-span-full flex gap-3">
-            <button className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium" type="submit">
-              {editingId ? "Update Listing" : "Save Product"}
-            </button>
-            {editingId && <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition" type="button" onClick={resetForm}>Cancel</button>}
-          </div>
-        </form>
-      ) : null}
-
-      <div className="bg-white rounded-lg shadow p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Search Catalog</span>
-          <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter by name..." />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Category</span>
-          <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All categories' : c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-          </select>
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-gray-700">Sort By</span>
-          <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="featured">Featured</option>
-            <option value="price_low">Price: Low to High</option>
-            <option value="price_high">Price: High to Low</option>
-          </select>
-        </label>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {loading ? <div className="bg-white rounded-lg shadow p-6 col-span-full">Loading catalog...</div> : null}
-        {visibleProducts.map((product) => (
-          <article key={product.id} className="bg-white rounded-lg shadow overflow-hidden flex flex-col">
-            <img
-              src={resolveImageUrl(product.image_url)}
-              alt={product.name}
-              className="w-full h-48 object-cover cursor-pointer"
-              onClick={() => navigate(`/app/product/${product.id}`)}
-            />
-            <div className="p-5 flex flex-col flex-1">
-              <div className="flex justify-between items-start mb-2">
-                <div className="cursor-pointer flex-1" onClick={() => navigate(`/app/product/${product.id}`)}>
-                  <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-                  <p className="text-sm text-gray-500">{product.category}</p>
-                </div>
-                <strong className="text-blue-600 font-bold">{formatMoney(product.price)}</strong>
-              </div>
-              <p className="text-sm text-gray-600 mb-3 flex-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}} onClick={() => navigate(`/app/product/${product.id}`)}>{product.description}</p>
-              {product.seller?.badges?.length ? (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {product.seller.badges.map((badge) => (
-                    <span key={badge.id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200 mt-auto">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  product.stock && product.stock > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                }`}>
-                  {product.stock && product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-                </span>
-                <div className="flex gap-2">
-                  {user?.role === "user" && (
-                    <button
-                      className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition"
-                      disabled={!(product.stock && product.stock > 0)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          id: product.id,
-                          name: product.name || "Product",
-                          price: product.price || 0,
-                          image_url: product.image_url,
-                          seller_id: product.seller_id,
-                          seller_name: product.seller_name || product.seller?.business_name || null,
-                          seller_area: product.seller?.area || null,
-                          seller_region: product.seller?.region || null,
-                        });
-                        setIsOpen(true);
-                      }}
+          <AnimatePresence>
+            {showForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="glass-card p-8 space-y-8 bg-surface/50 border-brand/20">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border">
+                    <div>
+                      <h3 className="text-xl font-display font-black text-text">{editingId ? `Edit Listing #${editingId}` : "Create New Marketplace Listing"}</h3>
+                      <p className="text-sm text-text-muted mt-1">Optimization tips: Use high-res images and SEO tags.</p>
+                    </div>
+                    <button 
+                      onClick={() => void generateInsight()} 
+                      disabled={generatingInsight} 
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-brand/10 text-brand font-black text-xs uppercase tracking-widest hover:bg-brand hover:text-white transition-all disabled:opacity-50"
                     >
-                      + Add to Cart
+                      <Sparkles size={16} className={generatingInsight ? "animate-spin" : ""} />
+                      {generatingInsight ? "Analyzing Market..." : "Generate AI Insights"}
                     </button>
-                  )}
-                  {canManage(user?.role) && (
-                    <>
-                      <button className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition" onClick={(e) => { e.stopPropagation(); beginEdit(product); }}>Edit</button>
-                      <button className="px-3 py-1.5 bg-gray-200 text-red-600 text-sm rounded hover:bg-gray-300 transition" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}>Delete</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+                  </div>
 
-      {!canManage(user?.role) ? (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Can&apos;t find what you need?</h2>
-              <p className="text-sm text-gray-500 mt-1">Send a product request and let the marketplace recommend sellers or source options for you.</p>
+                  {error && <div className="p-4 bg-danger/10 text-danger rounded-2xl font-bold flex items-center gap-3 border border-danger/20">{error}</div>}
+                  {flash && <div className="p-4 bg-accent/10 text-accent rounded-2xl font-bold flex items-center gap-3 border border-accent/20">{flash}</div>}
+
+                  <form className="grid gap-8 md:grid-cols-2" onSubmit={handleCreateOrUpdate}>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Product Name</label>
+                      <input
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text placeholder:text-text-muted"
+                        value={draft.name}
+                        onChange={(e) => setDraft(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="E.g. High-performance Solar Panel"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Category</label>
+                      <input
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text"
+                        value={draft.category}
+                        onChange={(e) => setDraft(prev => ({ ...prev, category: e.target.value }))}
+                        placeholder="Electronics, Energy, etc."
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Price (TZS)</label>
+                      <input
+                        type="number"
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text"
+                        value={draft.price}
+                        onChange={(e) => setDraft(prev => ({ ...prev, price: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Inventory Level</label>
+                      <input
+                        type="number"
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text"
+                        value={draft.stock}
+                        onChange={(e) => setDraft(prev => ({ ...prev, stock: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Listing Description</label>
+                      <textarea
+                        rows={5}
+                        className="w-full px-5 py-4 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text resize-none"
+                        value={draft.description}
+                        onChange={(e) => setDraft(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe technical specs, warranty, and features..."
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-4">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-text-muted ml-1">Product Assets</label>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="relative group/upload">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            id="image-upload"
+                            onChange={handleImageUpload}
+                            disabled={uploadingImage}
+                          />
+                          <label 
+                            htmlFor="image-upload"
+                            className="flex flex-col items-center justify-center gap-3 w-full h-32 rounded-2xl border-2 border-dashed border-border bg-surface-soft/50 hover:bg-surface-soft hover:border-brand transition-all cursor-pointer"
+                          >
+                            <Upload size={24} className={uploadingImage ? "animate-bounce text-brand" : "text-text-muted"} />
+                            <span className="text-xs font-bold text-text-muted">{uploadingImage ? "Uploading..." : "Click to Upload Photo"}</span>
+                          </label>
+                        </div>
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Or paste high-res image URL"
+                            className="w-full px-5 py-4 h-32 rounded-2xl border-2 border-transparent focus:border-brand/20 bg-surface outline-none transition-all font-semibold text-text"
+                            value={draft.image_url}
+                            onChange={(e) => setDraft(prev => ({ ...prev, image_url: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {draft.image_url && (
+                      <div className="md:col-span-2 flex justify-center p-6 bg-surface-soft rounded-[2rem] border border-border">
+                        <img src={resolveImageUrl(draft.image_url)} alt="Preview" className="h-64 rounded-2xl object-cover shadow-2xl border-4 border-surface" />
+                      </div>
+                    )}
+
+                    {insight && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="md:col-span-2 rounded-[2rem] bg-brand text-white p-8 relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 p-8 opacity-10"><Sparkles size={120} /></div>
+                        <div className="relative z-10 space-y-6">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-[10px] font-black uppercase tracking-widest border border-white/20">
+                                <Sparkles size={12} /> AI Strategy Insight
+                              </span>
+                              <h4 className="text-2xl font-display font-black mt-3">Smart Pricing Analysis</h4>
+                              <p className="text-white/70 font-medium mt-1">{insight.trend_summary}</p>
+                            </div>
+                            <div className="h-16 w-16 rounded-2xl bg-white/10 flex flex-col items-center justify-center border border-white/10 backdrop-blur-md">
+                              <span className="text-xs font-bold opacity-60">Conf.</span>
+                              <span className="text-xl font-black">{Math.round((insight.confidence || 0) * 100)}%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Suggested Price</span>
+                              <p className="text-lg font-black mt-1">{formatMoney(insight.suggested_price)}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Market Range</span>
+                              <p className="text-sm font-black mt-1">{formatMoney(insight.price_range?.low)} - {formatMoney(insight.price_range?.high)}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Demand Level</span>
+                              <p className="text-sm font-black mt-1 uppercase tracking-widest">{insight.demand_level}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md">
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Benchmark Avg</span>
+                              <p className="text-sm font-black mt-1">{formatMoney(insight.price_range?.benchmark_average)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 md:col-span-2 pt-4 border-t border-border">
+                      <button className="btn-primary !px-10 h-14" type="submit">{editingId ? "Update Listing" : "Launch Listing"}</button>
+                      <button className="btn-secondary !px-10 h-14" type="button" onClick={resetForm}>Discard Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Main Filter & Grid Section */}
+      <div className="space-y-8">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between bg-surface border border-border p-6 rounded-[2rem]">
+          <div className="flex-1 relative group">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-brand transition-colors" />
+            <input
+              className="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-soft border border-transparent focus:border-brand/20 outline-none font-bold text-text transition-all"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search inventory, sellers, categories..."
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3 px-4 py-3 bg-surface-soft rounded-2xl border border-transparent">
+              <Filter size={16} className="text-text-muted" />
+              <select
+                className="bg-transparent outline-none font-bold text-sm text-text pr-2"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {categories.map(c => <option key={c} value={c}>{c === 'all' ? 'All Categories' : c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3 bg-surface-soft rounded-2xl border border-transparent">
+              <ArrowUpDown size={16} className="text-text-muted" />
+              <select
+                className="bg-transparent outline-none font-bold text-sm text-text pr-2"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="featured">Best Matches</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+              </select>
             </div>
           </div>
-          <form className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={submitProductRequest}>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Company</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.company_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, company_name: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Contact name</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.contact_name} onChange={(e) => setRequestDraft((prev) => ({ ...prev, contact_name: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Email</span>
-              <input type="email" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.email} onChange={(e) => setRequestDraft((prev) => ({ ...prev, email: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Phone</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.phone} onChange={(e) => setRequestDraft((prev) => ({ ...prev, phone: e.target.value }))} />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="text-sm font-medium text-gray-700">Needed product</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.product_interest} onChange={(e) => setRequestDraft((prev) => ({ ...prev, product_interest: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Quantity</span>
-              <input type="number" min="1" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.quantity} onChange={(e) => setRequestDraft((prev) => ({ ...prev, quantity: e.target.value }))} required />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Target budget</span>
-              <input className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.target_budget} onChange={(e) => setRequestDraft((prev) => ({ ...prev, target_budget: e.target.value }))} />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="text-sm font-medium text-gray-700">Recommendation details</span>
-              <textarea rows={4} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" value={requestDraft.notes} onChange={(e) => setRequestDraft((prev) => ({ ...prev, notes: e.target.value }))} placeholder="Tell sellers the type, brand, quality, or substitute you want." />
-            </label>
-            <div className="md:col-span-2">
-              <button className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium" type="submit">Request recommendations</button>
-            </div>
-          </form>
         </div>
-      ) : null}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <AnimatePresence>
+            {loading ? (
+              <div className="col-span-full py-20 flex flex-col items-center justify-center gap-4">
+                <div className="w-12 h-12 border-4 border-brand/20 border-t-brand rounded-full animate-spin" />
+                <p className="font-bold text-text-muted">Synchronizing marketplace data...</p>
+              </div>
+            ) : visibleProducts.length === 0 ? (
+              <div className="col-span-full glass-card p-20 text-center space-y-4">
+                <div className="w-20 h-20 bg-surface-soft rounded-3xl flex items-center justify-center mx-auto text-text-muted"><Search size={40} /></div>
+                <h3 className="text-2xl font-black text-text">Inventory is empty</h3>
+                <p className="text-text-muted max-w-sm mx-auto">Try adjusting your filters or search keywords to find what you're looking for.</p>
+              </div>
+            ) : (
+              visibleProducts.map((product) => (
+                <motion.article
+                  key={product.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="glass-card overflow-hidden group flex flex-col h-full hover:border-brand/30 transition-all duration-300"
+                >
+                  <div 
+                    className="relative aspect-[4/5] overflow-hidden bg-surface-soft cursor-pointer" 
+                    onClick={() => navigate(`/product/${product.id}`)}
+                  >
+                    <img
+                      src={resolveImageUrl(product.image_url)}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                      <span className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-text shadow-sm border border-white/50">
+                        {product.category || "General"}
+                      </span>
+                      {product.stock && product.stock <= 5 && (
+                        <span className="px-3 py-1 bg-danger/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-sm flex items-center gap-1.5">
+                          <AlertTriangle size={12} /> Low Stock
+                        </span>
+                      )}
+                    </div>
+                    {canManage(user?.role) && (
+                      <div className="absolute top-4 right-4 flex gap-2 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); beginEdit(product); }}
+                          className="h-10 w-10 rounded-xl bg-white/90 backdrop-blur-md text-text hover:bg-brand hover:text-white transition-all shadow-lg flex items-center justify-center border border-white/50"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}
+                          className="h-10 w-10 rounded-xl bg-white/90 backdrop-blur-md text-danger hover:bg-danger hover:text-white transition-all shadow-lg flex items-center justify-center border border-white/50"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 flex flex-col flex-1 gap-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Store size={14} className="text-text-muted" />
+                        <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest truncate">{product.seller_name || "Independent Seller"}</span>
+                      </div>
+                      <h3 className="font-display font-bold text-lg text-text leading-tight group-hover:text-brand transition-colors line-clamp-2 cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
+                        {product.name}
+                      </h3>
+                    </div>
+
+                    <div className="mt-auto flex items-end justify-between border-t border-border pt-4">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-text-muted block leading-none mb-1">Price</span>
+                        <span className="text-2xl font-display font-black text-text tracking-tight">{formatMoney(product.price)}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart({
+                            id: product.id,
+                            name: product.name || "Product",
+                            price: product.price || 0,
+                            image_url: product.image_url,
+                            seller_id: product.seller_id,
+                            seller_name: product.seller_name || null,
+                          });
+                          setIsOpen(true);
+                        }}
+                        disabled={!(product.stock && product.stock > 0)}
+                        className="h-12 px-5 bg-text dark:bg-brand text-white rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-widest hover:bg-brand active:scale-95 transition-all disabled:opacity-30 disabled:grayscale"
+                      >
+                        <Plus size={18} />
+                        {product.stock && product.stock > 0 ? "Add to Cart" : "Out of Stock"}
+                      </button>
+                    </div>
+                  </div>
+                </motion.article>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 }

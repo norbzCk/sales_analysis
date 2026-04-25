@@ -59,24 +59,32 @@ def _write_revenue_time_graph(points: list[dict[str, Any]], user) -> str | None:
     values = [float(point["value"]) for point in points] or [0.0]
     x_positions = list(range(len(values)))
 
+    # Modern Tech Palette
+    primary_color = "#3b82f6"  # Brand Blue
+    grid_color = "#f1f5f9"    # Slate 100
+    text_color = "#64748b"    # Slate 500
+
     fig, ax = plt.subplots(figsize=(11, 4.2))
-    ax.plot(x_positions, values, color="#15803d", linewidth=3.2, marker="o", markersize=5.5)
-    ax.fill_between(x_positions, values, color="#22c55e", alpha=0.18)
-    ax.set_title("Revenue per time", fontsize=16, fontweight="bold", loc="left")
-    ax.set_ylabel("Revenue (TZS)")
+    ax.plot(x_positions, values, color=primary_color, linewidth=4, marker="o", markersize=6, markerfacecolor="white", markeredgewidth=2)
+    ax.fill_between(x_positions, values, color=primary_color, alpha=0.1)
+    
+    ax.set_title("Operational Revenue Flow", fontsize=14, fontweight="black", loc="left", color="#0f172a", pad=20)
+    ax.set_ylabel("Revenue (TZS)", color=text_color, fontsize=10, fontweight="bold")
     ax.set_xticks(x_positions)
-    ax.set_xticklabels(labels)
-    ax.grid(axis="y", color="#d1fae5", linewidth=1)
-    ax.set_facecolor("#f7fff8")
+    ax.set_xticklabels(labels, color=text_color, fontweight="bold")
+    
+    ax.grid(axis="y", color=grid_color, linewidth=1, linestyle="--")
+    ax.set_facecolor("#ffffff")
     fig.patch.set_facecolor("#ffffff")
-    for spine in ["top", "right"]:
+    
+    for spine in ["top", "right", "left", "bottom"]:
         ax.spines[spine].set_visible(False)
-    ax.spines["left"].set_color("#86efac")
-    ax.spines["bottom"].set_color("#86efac")
-    ax.tick_params(axis="x", rotation=25, labelsize=9, colors="#166534")
-    ax.tick_params(axis="y", labelsize=9, colors="#166534")
+        
+    ax.tick_params(axis="x", rotation=0, labelsize=9, colors=text_color, length=0)
+    ax.tick_params(axis="y", labelsize=9, colors=text_color, length=0)
+    
     fig.tight_layout()
-    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    fig.savefig(output_path, format="svg", bbox_inches="tight", transparent=True)
     plt.close(fig)
     return public_path
 
@@ -90,25 +98,39 @@ def _write_revenue_product_graph(points: list[dict[str, Any]], user) -> str | No
     labels = [str(point["label"]) for point in points] or ["No data"]
     values = [float(point["value"]) for point in points] or [0.0]
 
+    primary_color = "#3b82f6"  # Brand Blue
+    secondary_color = "#10b981" # Emerald
+    text_color = "#64748b"    # Slate 500
+
     fig, ax = plt.subplots(figsize=(10.2, 5.4))
     positions = list(range(len(values)))
-    bars = ax.bar(positions, values, color="#22c55e", edgecolor="#15803d", linewidth=1.1, width=0.62)
-    ax.set_title("Revenue per product", fontsize=16, fontweight="bold", loc="left")
-    ax.set_ylabel("Revenue (TZS)")
+    
+    # Use a subtle blue for the bars
+    bars = ax.bar(positions, values, color=primary_color, alpha=0.85, width=0.6, borderpad=0)
+    
+    ax.set_title("Asset Performance Analysis", fontsize=14, fontweight="black", loc="left", color="#0f172a", pad=20)
+    ax.set_ylabel("Total Revenue (TZS)", color=text_color, fontsize=10, fontweight="bold")
     ax.set_xticks(positions)
-    ax.set_xticklabels(labels, rotation=18, ha="right")
-    ax.grid(axis="y", color="#d1fae5", linewidth=1)
-    ax.set_facecolor("#f7fff8")
+    ax.set_xticklabels(labels, rotation=45, ha="right", color=text_color, fontweight="bold")
+    
+    ax.grid(axis="y", color="#f1f5f9", linewidth=1, linestyle="--")
+    ax.set_facecolor("#ffffff")
     fig.patch.set_facecolor("#ffffff")
-    for spine in ["top", "right"]:
+    
+    for spine in ["top", "right", "left", "bottom"]:
         ax.spines[spine].set_visible(False)
-    ax.spines["left"].set_color("#86efac")
-    ax.spines["bottom"].set_color("#86efac")
-    ax.tick_params(axis="x", labelsize=9, colors="#166534")
-    ax.tick_params(axis="y", labelsize=9, colors="#166534")
-    ax.bar_label(bars, labels=[f"TZS {value:,.0f}" for value in values], padding=4, fontsize=8, color="#166534")
+        
+    ax.tick_params(axis="x", labelsize=9, colors=text_color, length=0)
+    ax.tick_params(axis="y", labelsize=9, colors=text_color, length=0)
+    
+    # Add values on top of bars
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height + (max(values)*0.02),
+                f'{height:,.0f}', ha='center', va='bottom', fontsize=8, fontweight='black', color=primary_color)
+                
     fig.tight_layout()
-    fig.savefig(output_path, format="svg", bbox_inches="tight")
+    fig.savefig(output_path, format="svg", bbox_inches="tight", transparent=True)
     plt.close(fig)
     return public_path
 

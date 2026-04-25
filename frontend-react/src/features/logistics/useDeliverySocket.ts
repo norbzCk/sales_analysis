@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { env } from "../../config/env";
 
+export type DeliveryMessageState = "sending" | "sent" | "delivered" | "read";
+
 export interface ChatMessage {
+  id?: string;
   sender_id: number;
   sender_name: string;
   sender_role: string;
   text: string;
   timestamp: string;
+  status?: DeliveryMessageState;
 }
 
 export interface LocationUpdate {
@@ -19,13 +23,15 @@ export function useDeliverySocket(orderId: number | string | undefined, token: s
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [location, setLocation] = useState<LocationUpdate | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [presence, setPresence] = useState<any[]>([]);
+  const [presence, setPresence] = useState<Array<{ user?: number; state?: string; updated_at?: string }>>([]);
+  const [isOtherPartyTyping, setIsOtherPartyTyping] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
+  const optimisticIdRef = useRef(0);
+  const typingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!orderId || !token) return;
 
-    // Build WS URL (Assuming secure if https, otherwise ws)
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = env.apiBase.replace(/^https?:\/\//, "");
     const wsUrl = `${protocol}//${host}/notifications/ws/delivery/${orderId}?token=${token}`;
@@ -34,58 +40,120 @@ export function useDeliverySocket(orderId: number | string | undefined, token: s
     socketRef.current = socket;
 
     socket.onopen = () => {
-      console.log("Connected to delivery socket");
       setIsConnected(true);
     };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
       if (data.type === "chat") {
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => {
+          const incomingId = String(data.id || data.client_id || `server-${Date.now()}`);
+          const optimisticMatch = data.client_id ? prev.findIndex((item) => item.id === String(data.client_id)) : -1;
+
+          if (optimisticMatch >= 0) {
+            const next = [...prev];
+            next[optimisticMatch] = {
+              ...next[optimisticMatch],
+              ...data,
+              id: incomingId,
+              status: data.status || "delivered",
+            };
+            return next;
+          }
+
+          return [...prev, { ...data, id: incomingId, status: data.status || "delivered" }];
+        });
+      } else if (data.type === "chat_status" || data.type === "receipt") {
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id && String(item.id) === String(data.message_id)
+              ? { ...item, status: data.status || item.status }
+              : item,
+          ),
+        );
+      } else if (data.type === "typing") {
+        setIsOtherPartyTyping(Boolean(data.is_typing));
+        if (typingTimeoutRef.current) {
+          window.clearTimeout(typingTimeoutRef.current);
+        }
+        if (data.is_typing) {
+          typingTimeoutRef.current = window.setTimeout(() => setIsOtherPartyTyping(false), 2200);
+        }
       } else if (data.type === "location") {
         setLocation(data);
       } else if (data.type === "presence") {
         setPresence((prev) => {
-           const others = prev.filter(p => p.user !== data.user);
-           return [...others, data];
+          const others = prev.filter((item) => item.user !== data.user);
+          return [...others, data];
         });
       }
     };
 
     socket.onclose = () => {
-      console.log("Disconnected from delivery socket");
       setIsConnected(false);
     };
 
-    socket.onerror = (err) => {
-      console.error("Socket error:", err);
+    socket.onerror = () => {
       setIsConnected(false);
     };
 
     return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
       socket.close();
     };
   }, [orderId, token]);
 
   const sendChat = useCallback((text: string) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
+    if (socketRef.current?.readyState !== WebSocket.OPEN) return;
+
+    const optimisticId = `local-${Date.now()}-${optimisticIdRef.current++}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId,
+        sender_id: 0,
+        sender_name: "You",
+        sender_role: "self",
+        text,
+        timestamp: new Date().toISOString(),
+        status: "sending",
+      },
+    ]);
+
+    socketRef.current.send(
+      JSON.stringify({
         type: "chat",
         text,
-        timestamp: new Date().toISOString()
-      }));
-    }
+        timestamp: new Date().toISOString(),
+        client_id: optimisticId,
+      }),
+    );
+  }, []);
+
+  const sendTyping = useCallback((isTyping: boolean) => {
+    if (socketRef.current?.readyState !== WebSocket.OPEN) return;
+
+    socketRef.current.send(
+      JSON.stringify({
+        type: "typing",
+        is_typing: isTyping,
+      }),
+    );
   }, []);
 
   const sendLocation = useCallback((lat: number, lng: number) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
+    if (socketRef.current?.readyState !== WebSocket.OPEN) return;
+
+    socketRef.current.send(
+      JSON.stringify({
         type: "location",
         lat,
-        lng
-      }));
-    }
+        lng,
+      }),
+    );
   }, []);
 
   return {
@@ -93,7 +161,9 @@ export function useDeliverySocket(orderId: number | string | undefined, token: s
     location,
     isConnected,
     presence,
+    isOtherPartyTyping,
     sendChat,
-    sendLocation
+    sendTyping,
+    sendLocation,
   };
 }

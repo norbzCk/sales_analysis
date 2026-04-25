@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 import type { Order, PaymentHistoryItem, PaymentMethod, PaymentResponse } from "../types/domain";
 
 function formatMoney(value?: number) {
@@ -44,6 +45,9 @@ export function PaymentsPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    setFlash("");
+
     const form = new FormData(event.currentTarget);
     const orderId = Number(form.get("order_id"));
     const amount = Number(form.get("amount"));
@@ -80,71 +84,159 @@ export function PaymentsPage() {
   }
 
   if (user?.role !== "user") {
-    return <section className="panel"><h1>Payments</h1><p className="muted">Payments are only available in the customer flow.</p></section>;
+    return (
+      <section className="rounded-[2rem] border border-white/60 bg-white/80 p-8 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
+        <h1 className="font-display text-2xl font-black tracking-tight text-slate-950 dark:text-white">Payments</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Payments are only available in the customer flow.</p>
+      </section>
+    );
   }
 
   return (
-    <section className="panel-stack">
-      <div className="panel"><p className="eyebrow">Payments</p><h1>Pay for orders and view payment history</h1></div>
-      {error ? <p className="alert error">{error}</p> : null}
-      {flash ? <p className="alert success">{flash}</p> : null}
+    <div className="space-y-6 animate-soft-enter">
+      <PageIntro
+        eyebrow="Payments"
+        title="Pay for orders and review transaction history"
+        description="This buyer payment workspace now matches the rest of the product with cleaner hierarchy, safer form grouping, and a readable transaction ledger."
+      />
 
-      <form className="panel form-grid payment-form" onSubmit={handleSubmit}>
-        <h2>Initiate payment</h2>
-        <p className="muted">Choose an order, then select the payment method you want to use for that transaction.</p>
-        <label>
-          Order
-          <select name="order_id" defaultValue={preselectedOrderId} required>
-            <option value="">Select order</option>
-            {orders.map((order) => (
-              <option key={order.id} value={order.id}>#{order.id} {order.product} - {formatMoney(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0))}</option>
-            ))}
-          </select>
-        </label>
-        <label>Amount<input name="amount" type="number" min="0" step="0.01" defaultValue={preselectedAmount} required /></label>
-        <label>
-          Method
-          <select name="payment_method" required>
-            <option value="">Select method</option>
-            {methods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
-          </select>
-        </label>
-        <label>Phone number<input name="phone_number" /></label>
-        <div className="payment-actions">
-          <button className="btn btn-primary payment-btn" type="submit">Pay Now</button>
-        </div>
-        {result ? (
-          <div className="payment-result success">
-            <strong>{result.transaction_id}</strong>
-            <p>{result.message}</p>
-            <p>{formatMoney(result.amount)}</p>
-          </div>
-        ) : null}
-      </form>
+      <StatCards
+        items={[
+          { id: "methods", label: "Payment methods", value: methods.length, note: methods.length ? "Available at checkout" : "No methods loaded yet" },
+          { id: "orders", label: "Payable orders", value: orders.length, note: "Orders available for payment initiation" },
+          { id: "history", label: "Payment records", value: history.length, note: history.length ? "Transactions already captured" : "No payment history yet" },
+        ]}
+      />
 
-      <div className="panel table-scroll">
-        <div className="panel-header"> {/* Added panel-header for consistency */}
-          <h2>Payment history</h2>
-          <button className="secondary-button" onClick={handleClearHistory}>Clear History</button>
-        </div>
-        <table className="data-table">
-          <thead><tr><th>Transaction</th><th>Order</th><th>Product</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-          <tbody>
-            {!history.length ? <tr><td colSpan={7}>No payment history yet.</td></tr> : null}
-            {history.map((item) => (
-              <tr key={item.transaction_id}>
-                <td>{item.transaction_id}</td>
-                <td>#{item.order_id}</td>
-                <td>{item.product || "-"}</td>
-                <td>{item.payment_method || "-"}</td>
-                <td>{formatMoney(item.amount)}</td>
-                <td>{item.status}</td>
-                <td>{item.date || "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_1.3fr]">
+        <SectionCard
+          title="Initiate payment"
+          description="Choose an order, confirm the amount, and submit through your preferred payment channel."
+        >
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Order
+              <select
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                name="order_id"
+                defaultValue={preselectedOrderId}
+                required
+              >
+                <option value="">Select order</option>
+                {orders.map((order) => (
+                  <option key={order.id} value={order.id}>
+                    #{order.id} {order.product} - {formatMoney(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0))}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Amount
+              <input
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                name="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={preselectedAmount}
+                required
+              />
+            </label>
+
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Method
+              <select
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                name="payment_method"
+                required
+              >
+                <option value="">Select method</option>
+                {methods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}
+              </select>
+            </label>
+
+            <label className="space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Phone number
+              <input
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-brand/30 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                name="phone_number"
+                placeholder="Optional for card or bank flows"
+              />
+            </label>
+
+            <div className="md:col-span-2 flex flex-wrap gap-3">
+              <button className="btn-primary" type="submit">Pay now</button>
+            </div>
+          </form>
+
+          {result ? (
+            <div className="mt-6 rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em]">Latest transaction</p>
+              <strong className="mt-2 block font-display text-2xl font-black tracking-tight">{result.transaction_id}</strong>
+              <p className="mt-2 text-sm">{result.message}</p>
+              <p className="mt-3 text-sm font-semibold">{formatMoney(result.amount)}</p>
+            </div>
+          ) : null}
+        </SectionCard>
+
+        <SectionCard
+          title="Payment history"
+          description="Transactions are shown in a mobile-friendly card grid so nothing becomes unreadable on smaller screens."
+          action={
+            <button className="btn-secondary" onClick={handleClearHistory} type="button" disabled={!history.length}>
+              Clear history
+            </button>
+          }
+        >
+          {!history.length ? (
+            <EmptyState
+              title="No payment history yet"
+              description="Once you initiate transactions, each record will appear here with status, order linkage, and payment method."
+            />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {history.map((item) => (
+                <article
+                  key={item.transaction_id}
+                  className="rounded-[1.5rem] border border-slate-200/80 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-900/40"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-300">Transaction</p>
+                      <h3 className="mt-2 font-display text-lg font-black tracking-tight text-slate-950 dark:text-white">{item.transaction_id}</h3>
+                    </div>
+                    <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <DataCell label="Order" value={`#${item.order_id}`} />
+                    <DataCell label="Method" value={item.payment_method || "-"} />
+                    <DataCell label="Amount" value={formatMoney(item.amount)} />
+                    <DataCell label="Date" value={item.date || "-"} />
+                  </div>
+
+                  <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{item.product || "No product name available"}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </SectionCard>
       </div>
-    </section>
+    </div>
+  );
+}
+
+function DataCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3 shadow-sm dark:bg-slate-800">
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
+      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+    </div>
   );
 }

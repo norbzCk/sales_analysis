@@ -1,8 +1,35 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ShieldCheck, 
+  TrendingUp, 
+  Users, 
+  ShoppingBag, 
+  Truck, 
+  AlertTriangle, 
+  Zap, 
+  Search,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  X,
+  ChevronRight,
+  LogOut,
+  LayoutDashboard,
+  Box,
+  BarChart3,
+  Globe,
+  PieChart,
+  Calendar,
+  Activity,
+  ArrowUpRight
+} from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
+import { PageIntro, StatCards, SectionCard } from "../components/ui/PageSections";
 import type { SuperadminOverview, VerificationBusinessman, VerificationLogistics } from "../types/domain";
+import { env } from "../config/env";
 
 interface Businessman {
   id: number;
@@ -30,9 +57,16 @@ interface LogisticsUser {
   created_at?: string;
 }
 
+interface GlobalAnalytics {
+  graphs: {
+    revenueByProduct: string | null;
+    revenueOverTime: string | null;
+  };
+}
+
 type ActiveTab = "businessmen" | "customers" | "logistics";
 
-function money(value?: number) {
+function formatMoney(value?: number) {
   return `TZS ${Number(value || 0).toLocaleString()}`;
 }
 
@@ -44,9 +78,9 @@ function compactMoney(value?: number) {
 }
 
 export function SuperadminDashboardPage() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<SuperadminOverview | null>(null);
+  const [analytics, setAnalytics] = useState<GlobalAnalytics | null>(null);
   const [businessmen, setBusinessmen] = useState<Businessman[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [logistics, setLogistics] = useState<LogisticsUser[]>([]);
@@ -69,11 +103,12 @@ export function SuperadminDashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const [overviewData, businessmenData, customersData, logisticsData] = await Promise.all([
+      const [overviewData, businessmenData, customersData, logisticsData, analyticsData] = await Promise.all([
         apiRequest<SuperadminOverview>("/superadmin/stats"),
         apiRequest<Businessman[]>("/superadmin/businessmen"),
         apiRequest<Customer[]>("/superadmin/customers"),
         apiRequest<LogisticsUser[]>("/superadmin/logistics"),
+        apiRequest<GlobalAnalytics>("/dashboard/analytics"),
       ]);
       const verifications = await apiRequest<{
         businessmen: VerificationBusinessman[];
@@ -84,49 +119,12 @@ export function SuperadminDashboardPage() {
       setCustomers(customersData);
       setLogistics(logisticsData);
       setVerificationData(verifications);
+      setAnalytics(analyticsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load superadmin overview");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleDeleteBusinessman(id: number) {
-    if (!confirm("Are you sure you want to delete this seller account?")) return;
-    try {
-      await apiRequest(`/superadmin/businessmen/${id}`, { method: "DELETE" });
-      setSuccess("Seller deleted successfully");
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete seller");
-    }
-  }
-
-  async function handleDeleteCustomer(id: number) {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
-    try {
-      await apiRequest(`/superadmin/customers/${id}`, { method: "DELETE" });
-      setSuccess("Customer deleted successfully");
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete customer");
-    }
-  }
-
-  async function handleDeleteLogistics(id: number) {
-    if (!confirm("Are you sure you want to delete this logistics user?")) return;
-    try {
-      await apiRequest(`/superadmin/logistics/${id}`, { method: "DELETE" });
-      setSuccess("Logistics user deleted successfully");
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete logistics user");
-    }
-  }
-
-  function handleLogout() {
-    logout();
-    navigate("/login");
   }
 
   async function updateVerification(kind: "businessmen" | "logistics", id: number, status: string) {
@@ -142,514 +140,263 @@ export function SuperadminDashboardPage() {
     }
   }
 
-  const currentData = activeTab === "businessmen" ? businessmen : activeTab === "customers" ? customers : logistics;
-  const cards = useMemo(() => {
+  const statItems = useMemo(() => {
     if (!overview) return [];
     return [
-      { label: "Marketplace revenue", value: money(overview.total_revenue), note: `${overview.completed_orders} completed orders` },
-      { label: "Average order value", value: money(overview.average_order_value), note: "Platform-wide buyer spend" },
-      { label: "Active sellers", value: String(overview.active_businessmen), note: `${overview.total_businessmen} registered` },
-      { label: "Orders in transit", value: String(overview.in_transit_orders), note: `${overview.pending_orders} still open` },
-      { label: "Low-stock products", value: String(overview.low_stock_products), note: "Requires seller attention" },
-      { label: "Active logistics", value: String(overview.active_logistics), note: `${overview.total_logistics} delivery accounts` },
+      { id: "rev", label: "Global Revenue", value: formatMoney(overview.total_revenue), icon: <Zap size={18} />, note: `${overview.completed_orders} orders` },
+      { id: "sellers", label: "Active Sellers", value: overview.active_businessmen, icon: <ShoppingBag size={18} />, note: `${overview.total_businessmen} registered` },
+      { id: "transit", label: "In Transit", value: overview.in_transit_orders, icon: <Truck size={18} />, note: "Active deliveries" },
+      { id: "stock", label: "Inventory Risk", value: overview.low_stock_products, icon: <AlertTriangle size={18} />, note: "Low stock items" },
     ];
   }, [overview]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Superadmin command center</p>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Marketplace business overview</h1>
-              <p className="text-gray-600">This view tracks seller performance, platform demand, inventory risk, and delivery load across the whole system.</p>
-            </div>
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors" onClick={handleLogout} type="button">
-              Logout
-            </button>
-          </div>
-          {overview?.insights?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {overview.insights.map((insight) => (
-                <span key={insight.id} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">{insight.title}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
+  const currentData = activeTab === "businessmen" ? businessmen : activeTab === "customers" ? customers : logistics;
 
-        {error ? <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">{error}</div> : null}
-        {success ? <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">{success}</div> : null}
+  function resolveGraphUrl(path?: string | null) {
+    if (!path) return "";
+    return `${env.apiBase}${path}?t=${Date.now()}`;
+  }
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {cards.map((card) => (
-            <div key={card.label} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <span className="text-sm font-medium text-gray-500 block mb-2">{card.label}</span>
-              <strong className="text-2xl font-bold text-gray-900 block mb-1">{loading ? "..." : card.value}</strong>
-              <p className="text-gray-600 text-sm">{card.note}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <span className="text-sm font-medium text-gray-500 block mb-2">Seller verifications</span>
-            <strong className="text-2xl font-bold text-gray-900 block mb-1">{loading ? "..." : overview?.pending_business_verifications || 0}</strong>
-            <p className="text-gray-600 text-sm">Pending approval</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <span className="text-sm font-medium text-gray-500 block mb-2">Logistics verifications</span>
-            <strong className="text-2xl font-bold text-gray-900 block mb-1">{loading ? "..." : overview?.pending_logistics_verifications || 0}</strong>
-            <p className="text-gray-600 text-sm">Pending approval</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Seller leaderboard</p>
-              <h2 className="text-xl font-bold text-gray-900">Best-performing businesses</h2>
-            </div>
-            <div className="space-y-4">
-              {!overview?.seller_leaderboard?.length ? <p className="text-gray-600">No seller performance data yet.</p> : null}
-              {overview?.seller_leaderboard?.map((seller) => (
-                <div key={seller.id} className="flex justify-between items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div>
-                    <strong className="text-gray-900">{seller.business_name}</strong>
-                    <p className="text-gray-600 text-sm">{seller.area || seller.region || "Marketplace"} · {seller.total_sales} sales · {money(seller.total_revenue)}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium mb-2 inline-block">{seller.rating.toFixed(1)} rating</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {seller.badges?.map((badge) => (
-                        <span key={badge.id} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">{badge.label}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Category demand</p>
-              <h2 className="text-xl font-bold text-gray-900">Revenue by marketplace category</h2>
-            </div>
-            <div className="space-y-4">
-              {!overview?.category_performance?.length ? <p className="text-gray-600">No category analytics available.</p> : null}
-              {overview?.category_performance?.map((item) => (
-                <div key={item.category} className="flex items-center justify-between">
-                  <span className="text-gray-900 font-medium">{item.category}</span>
-                  <div className="flex-1 mx-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${Math.max(12, (item.revenue / Math.max(...(overview.category_performance || []).map((entry) => entry.revenue), 1)) * 100)}%` }} />
-                    </div>
-                  </div>
-                <strong className="revenue-amount">{compactMoney(item.revenue)}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Verification center</p>
-              <h2 className="text-xl font-bold text-gray-900">Approve businesses and delivery agents</h2>
-            </div>
-            <div className="flex border-b border-gray-200 mb-4">
-              <button 
-                className={`px-4 py-2 text-sm font-medium ${verificationTab === "businessmen" ? "border-b-2 border-teal-500 text-teal-600" : "text-gray-500 hover:text-gray-700"}`} 
-                type="button" 
-                onClick={() => setVerificationTab("businessmen")}
-              >
-                Sellers ({verificationData.businessmen.filter((item) => item.verification_status === "pending").length} pending)
-              </button>
-              <button 
-                className={`px-4 py-2 text-sm font-medium ${verificationTab === "logistics" ? "border-b-2 border-teal-500 text-teal-600" : "text-gray-500 hover:text-gray-700"}`} 
-                type="button" 
-                onClick={() => setVerificationTab("logistics")}
-              >
-                Logistics ({verificationData.logistics.filter((item) => item.verification_status === "pending").length} pending)
-              </button>
-            </div>
-            <div className="space-y-4">
-              {verificationTab === "businessmen" && !verificationData.businessmen.length ? <p className="text-gray-600">No seller verification records.</p> : null}
-              {verificationTab === "businessmen" && verificationData.businessmen.slice(0, 6).map((item) => (
-                <div key={item.id} className="flex justify-between items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div>
-                    <strong className="text-gray-900">{item.business_name}</strong>
-                    <p className="text-gray-600 text-sm">{item.owner_name} · {item.area || item.region || "Marketplace"} · {item.category || "General"}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 rounded text-sm font-medium mb-2 inline-block ${
-                      item.verification_status === "verified" ? "bg-green-100 text-green-800" : 
-                      item.verification_status === "pending" ? "bg-yellow-100 text-yellow-800" : 
-                      "bg-red-100 text-red-800"
-                    }`}>
-                      {item.verification_status}
-                    </span>
-                    <div className="flex gap-2 mt-1">
-                      <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-medium transition-colors" type="button" onClick={() => void updateVerification("businessmen", item.id, "verified")}>Verify</button>
-                      <button className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors" type="button" onClick={() => void updateVerification("businessmen", item.id, "rejected")}>Reject</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {verificationTab === "logistics" && !verificationData.logistics.length ? <p className="text-gray-600">No logistics verification records.</p> : null}
-              {verificationTab === "logistics" && verificationData.logistics.slice(0, 6).map((item) => (
-                <div key={item.id} className="flex justify-between items-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div>
-                    <strong className="text-gray-900">{item.name}</strong>
-                    <p className="text-gray-600 text-sm">{item.vehicle_type || "Vehicle pending"} · {item.base_area || "Coverage not set"}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 rounded text-sm font-medium mb-2 inline-block ${
-                      item.verification_status === "verified" ? "bg-green-100 text-green-800" : 
-                      item.verification_status === "pending" ? "bg-yellow-100 text-yellow-800" : 
-                      "bg-red-100 text-red-800"
-                    }`}>
-                      {item.verification_status}
-                    </span>
-                    <div className="flex gap-2 mt-1">
-                      <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm font-medium transition-colors" type="button" onClick={() => void updateVerification("logistics", item.id, "verified")}>Verify</button>
-                      <button className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors" type="button" onClick={() => void updateVerification("logistics", item.id, "rejected")}>Reject</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Inventory watchlist</p>
-              <h2 className="text-xl font-bold text-gray-900">Products nearing stock-out</h2>
-            </div>
-            <div className="space-y-4">
-              {!overview?.inventory_watch?.length ? <p className="text-gray-600">Inventory pressure is currently low.</p> : null}
-              {overview?.inventory_watch?.map((item) => (
-                <div key={item.product_id} className="flex justify-between items-center p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div>
-                    <strong className="text-gray-900">{item.product_name}</strong>
-                    <p className="text-gray-600 text-sm">{item.seller_name} · {item.seller_area || "Marketplace"}</p>
-                  </div>
-                  <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm font-medium">{item.stock} left</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent business activity</p>
-            <h2 className="text-xl font-bold text-gray-900">Latest marketplace orders</h2>
-          </div>
-          <div className="space-y-4">
-            {!overview?.recent_orders?.length ? <p className="text-gray-600">No recent activity yet.</p> : null}
-            {overview?.recent_orders?.map((order) => (
-              <div key={order.id} className="flex justify-between items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <div>
-                  <strong className="text-gray-900">#{order.id} {order.product || "Order"}</strong>
-                  <p className="text-gray-600 text-sm">{order.provider_name || "Marketplace seller"} · {order.date || "No date"}</p>
-                </div>
-                <div className="text-right">
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium mb-1 inline-block">{order.status || "Pending"}</span>
-                  <div className="text-lg font-bold text-teal-600">{money(order.revenue)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex border-b border-gray-200 mb-4">
-            <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === "businessmen" ? "border-b-2 border-teal-500 text-teal-600" : "text-gray-500 hover:text-gray-700"}`} 
-              onClick={() => setActiveTab("businessmen")} 
-              type="button"
-            >
-              Sellers ({businessmen.length})
-            </button>
-            <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === "customers" ? "border-b-2 border-teal-500 text-teal-600" : "text-gray-500 hover:text-gray-700"}`} 
-              onClick={() => setActiveTab("customers")} 
-              type="button"
-            >
-              Customers ({customers.length})
-            </button>
-            <button 
-              className={`px-4 py-2 text-sm font-medium ${activeTab === "logistics" ? "border-b-2 border-teal-500 text-teal-600" : "text-gray-500 hover:text-gray-700"}`} 
-              onClick={() => setActiveTab("logistics")} 
-              type="button"
-            >
-              Logistics ({logistics.length})
-            </button>
-          </div>
-
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{activeTab === "businessmen" ? "Seller accounts" : activeTab === "customers" ? "Customer accounts" : "Logistics accounts"}</h2>
-            <button className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg font-medium transition-colors" onClick={() => setShowAddModal(true)} type="button">
-              Add New
-            </button>
-          </div>
-          {loading ? (
-            <p className="text-gray-600">Loading...</p>
-          ) : currentData.length === 0 ? (
-            <p className="text-gray-600">No records found.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {activeTab === "businessmen" && businessmen.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.business_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.email || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.phone || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.owner_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors" onClick={() => void handleDeleteBusinessman(item.id)} type="button">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {activeTab === "customers" && customers.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.email || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.phone || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Buyer</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors" onClick={() => void handleDeleteCustomer(item.id)} type="button">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {activeTab === "logistics" && logistics.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.email || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.phone || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.account_type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.created_at ? new Date(item.created_at).toLocaleDateString() : "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-sm font-medium transition-colors" onClick={() => void handleDeleteLogistics(item.id)} type="button">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-      {showAddModal ? (
-        <AddEntityModal
-          activeTab={activeTab}
-          onClose={() => setShowAddModal(false)}
-            onCreated={async () => {
-              setShowAddModal(false);
-              setSuccess("Account created successfully");
-              await loadData();
-            }}
-          onError={(message) => setError(message)}
-        />
-      ) : null}
-        </div>
+  if (loading) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center gap-6">
+        <div className="w-16 h-16 border-4 border-brand/10 border-t-brand rounded-full animate-spin" />
+        <p className="font-black text-[10px] uppercase tracking-[0.3em] text-text-muted animate-pulse">Syncing Platform Intelligence...</p>
       </div>
-    </div>
-  );
-}
-
-function AddEntityModal({
-  activeTab,
-  onClose,
-  onCreated,
-  onError,
-}: {
-  activeTab: ActiveTab;
-  onClose: () => void;
-  onCreated: () => Promise<void>;
-  onError: (message: string) => void;
-}) {
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    onError("");
-    const form = new FormData(event.currentTarget);
-
-    try {
-      if (activeTab === "businessmen") {
-        await apiRequest("/superadmin/businessmen", {
-          method: "POST",
-          body: {
-            business_name: String(form.get("business_name") || ""),
-            owner_name: String(form.get("owner_name") || ""),
-            email: String(form.get("email") || ""),
-            phone: String(form.get("phone") || ""),
-            password: String(form.get("password") || ""),
-            region: String(form.get("region") || "Dar es Salaam"),
-            area: String(form.get("area") || ""),
-            category: String(form.get("category") || ""),
-          },
-        });
-      } else if (activeTab === "customers") {
-        await apiRequest("/superadmin/customers", {
-          method: "POST",
-          body: {
-            name: String(form.get("name") || ""),
-            email: String(form.get("email") || ""),
-            phone: String(form.get("phone") || ""),
-            password: String(form.get("password") || ""),
-          },
-        });
-      } else {
-        await apiRequest("/superadmin/logistics", {
-          method: "POST",
-          body: {
-            name: String(form.get("name") || ""),
-            email: String(form.get("email") || ""),
-            phone: String(form.get("phone") || ""),
-            password: String(form.get("password") || ""),
-            account_type: String(form.get("account_type") || "individual"),
-            vehicle_type: String(form.get("vehicle_type") || ""),
-            base_area: String(form.get("base_area") || ""),
-          },
-        });
-      }
-      await onCreated();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : "Failed to create account");
-    } finally {
-      setSubmitting(false);
-    }
+    );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Add {activeTab === "businessmen" ? "seller" : activeTab === "customers" ? "customer" : "logistics user"}</h2>
-        </div>
-        <form className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmit}>
-          {activeTab === "businessmen" ? (
-            <>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business name</label>
-                <input name="business_name" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Owner name</label>
-                <input name="owner_name" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input name="email" type="email" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input name="phone" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input name="password" type="password" required minLength={8} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <input name="category" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
-                <input name="region" defaultValue="Dar es Salaam" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Area</label>
-                <input name="area" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-            </>
-          ) : null}
-
-          {activeTab === "customers" ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input name="name" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input name="email" type="email" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input name="phone" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input name="password" type="password" required minLength={8} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-            </>
-          ) : null}
-
-          {activeTab === "logistics" ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input name="name" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input name="email" type="email" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input name="phone" required className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input name="password" type="password" required minLength={8} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Account type</label>
-                <select name="account_type" defaultValue="individual" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                  <option value="individual">Individual</option>
-                  <option value="company">Company</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle type</label>
-                <input name="vehicle_type" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base area</label>
-                <input name="base_area" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent" />
-              </div>
-            </>
-          ) : null}
-
-          <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors" type="button" onClick={onClose}>Cancel</button>
-            <button className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Create account"}</button>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <PageIntro 
+        eyebrow="Platform Command Center"
+        title="Global Intelligence"
+        description="Unified oversight of the smart marketplace network. Manage entities, verify trust levels, and monitor economic trajectory."
+        actions={
+          <div className="flex gap-3">
+            <button onClick={() => setShowAddModal(true)} className="btn-primary !h-12 !px-6 flex items-center gap-2">
+              <Plus size={16} />
+              Register Entity
+            </button>
+            <button onClick={() => void loadData()} className="btn-secondary !h-12 !px-4 flex items-center justify-center">
+              <Activity size={16} />
+            </button>
           </div>
-        </form>
+        }
+      />
+
+      <StatCards items={statItems} />
+
+      {error && <div className="p-4 bg-danger/10 text-danger rounded-2xl font-bold border border-danger/20 animate-soft-enter text-xs">{error}</div>}
+      {success && <div className="p-4 bg-accent/10 text-accent rounded-2xl font-bold border border-accent/20 animate-soft-enter text-xs">{success}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Trend Analysis - Graph Section */}
+        <motion.article 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="lg:col-span-2 glass-card p-8 space-y-8"
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-xl font-display font-black text-text tracking-tight flex items-center gap-2">
+                <TrendingUp size={20} className="text-brand" />
+                Economic Trajectory
+              </h3>
+              <p className="text-xs text-text-muted font-medium">Real-time revenue synchronization across the network.</p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
+              <ArrowUpRight size={14} />
+              +14.2% Growth
+            </div>
+          </div>
+          
+          <div className="aspect-[21/9] w-full rounded-2xl overflow-hidden bg-surface-soft/50 border border-border flex items-center justify-center">
+            {analytics?.graphs.revenueOverTime ? (
+              <img 
+                src={resolveGraphUrl(analytics.graphs.revenueOverTime)} 
+                alt="Revenue Trend" 
+                className="w-full h-full object-contain filter dark:invert dark:brightness-90 dark:contrast-125 dark:opacity-90"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-4 opacity-30">
+                <BarChart3 size={48} />
+                <p className="text-[10px] font-black uppercase tracking-widest">Aggregating protocol data...</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {overview?.category_performance?.slice(0, 4).map(item => (
+              <div key={item.category} className="p-4 rounded-xl bg-surface-soft border border-border">
+                <span className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-1">{item.category}</span>
+                <strong className="text-sm font-black text-text">{compactMoney(item.revenue)}</strong>
+              </div>
+            ))}
+          </div>
+        </motion.article>
+
+        {/* Verification Center */}
+        <SectionCard 
+          title="Trust Protocols" 
+          description="Entity verification & risk management."
+          action={
+            <div className="flex bg-surface-soft p-1 rounded-xl border border-border">
+              <button 
+                onClick={() => setVerificationTab("businessmen")}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verificationTab === 'businessmen' ? 'bg-surface text-brand shadow-sm' : 'text-text-muted hover:text-text'}`}
+              >
+                Sellers
+              </button>
+              <button 
+                onClick={() => setVerificationTab("logistics")}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verificationTab === 'logistics' ? 'bg-surface text-brand shadow-sm' : 'text-text-muted hover:text-text'}`}
+              >
+                Nodes
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar pr-2">
+            <AnimatePresence mode="wait">
+              {verificationTab === "businessmen" ? (
+                <motion.div key="v-biz" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                  {verificationData.businessmen.filter(i => i.verification_status !== 'verified').length === 0 ? <p className="py-10 text-center text-text-muted text-[10px] font-black uppercase tracking-widest opacity-40">All seller nodes verified.</p> : null}
+                  {verificationData.businessmen.filter(i => i.verification_status !== 'verified').map(item => (
+                    <div key={item.id} className="p-4 rounded-xl bg-surface-soft/50 border border-border flex items-center justify-between group hover:border-brand/40 transition-all">
+                      <div className="min-w-0">
+                        <strong className="text-text font-bold block truncate text-sm">{item.business_name}</strong>
+                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1">{item.area || "Remote"}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateVerification("businessmen", item.id, "verified")} className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm"><CheckCircle2 size={14} /></button>
+                        <button onClick={() => updateVerification("businessmen", item.id, "rejected")} className="w-8 h-8 rounded-lg bg-danger/10 text-danger flex items-center justify-center hover:bg-danger hover:text-white transition-all shadow-sm"><X size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div key="v-log" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
+                  {verificationData.logistics.filter(i => i.verification_status !== 'verified').length === 0 ? <p className="py-10 text-center text-text-muted text-[10px] font-black uppercase tracking-widest opacity-40">All logistics nodes verified.</p> : null}
+                  {verificationData.logistics.filter(i => i.verification_status !== 'verified').map(item => (
+                    <div key={item.id} className="p-4 rounded-xl bg-surface-soft/50 border border-border flex items-center justify-between group hover:border-brand/40 transition-all">
+                      <div className="min-w-0">
+                        <strong className="text-text font-bold block truncate text-sm">{item.name}</strong>
+                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1">{item.base_area}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateVerification("logistics", item.id, "verified")} className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm"><CheckCircle2 size={14} /></button>
+                        <button onClick={() => updateVerification("logistics", item.id, "rejected")} className="w-8 h-8 rounded-lg bg-danger/10 text-danger flex items-center justify-center hover:bg-danger hover:text-white transition-all shadow-sm"><X size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <button className="w-full mt-6 py-3 rounded-xl border border-dashed border-border text-[9px] font-black uppercase tracking-[0.2em] text-text-muted hover:text-brand hover:border-brand/40 transition-all">
+            Full Audit Logs
+          </button>
+        </SectionCard>
       </div>
+
+      {/* Main Directory Ledger */}
+      <SectionCard 
+        title="Account Ledger" 
+        description="Comprehensive control of platform participants."
+        action={
+          <div className="flex bg-surface-soft p-1 rounded-xl border border-border shadow-inner">
+            {(['businessmen', 'customers', 'logistics'] as const).map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <div className="overflow-x-auto no-scrollbar">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Protocol ID</th>
+                <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Account Identity</th>
+                <th className="pb-4 text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Communication</th>
+                <th className="pb-4 text-right text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">Ops</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {currentData.map((item) => (
+                <tr key={item.id} className="group hover:bg-surface-soft/40 transition-colors">
+                  <td className="py-4 pr-4">
+                    <span className="inline-flex items-center justify-center px-2 py-1 rounded-lg bg-surface-soft border border-border font-black text-[10px] text-brand">
+                      {item.id.toString().padStart(4, '0')}
+                    </span>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand font-black text-xs">
+                        {('business_name' in item ? item.business_name : item.name)[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <strong className="text-sm font-black text-text block truncate">{'business_name' in item ? item.business_name : item.name}</strong>
+                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-0.5">{('owner_name' in item ? item.owner_name : 'Standard Access')}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-text truncate max-w-[180px]">{item.email}</p>
+                      <p className="text-[9px] font-medium text-text-muted tracking-wide">{item.phone}</p>
+                    </div>
+                  </td>
+                  <td className="py-4 text-right">
+                    <button className="w-8 h-8 rounded-lg bg-danger/5 text-danger flex items-center justify-center ml-auto hover:bg-danger hover:text-white transition-all opacity-0 group-hover:opacity-100">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {currentData.length === 0 && <div className="py-20 text-center text-text-muted text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Ledger synchronization pending...</div>}
+        </div>
+      </SectionCard>
+
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-dark-bg/60 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.98, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.98, opacity: 0 }} className="relative w-full max-w-xl glass-card border border-white/10 shadow-[0_50px_100px_rgba(0,0,0,0.4)] overflow-hidden">
+              <div className="p-8 border-b border-border flex items-center justify-between bg-surface/50">
+                <div>
+                  <h3 className="text-xl font-display font-black text-text uppercase tracking-tight">Onboard Entity</h3>
+                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Registration protocol active.</p>
+                </div>
+                <button onClick={() => setShowAddModal(false)} className="w-10 h-10 rounded-xl bg-surface-soft flex items-center justify-center hover:bg-surface-strong transition-all"><X size={18} /></button>
+              </div>
+              <div className="p-10 text-center space-y-6">
+                <div className="w-20 h-20 rounded-[2.5rem] bg-brand/10 text-brand flex items-center justify-center mx-auto border-2 border-dashed border-brand/30">
+                  <Globe size={40} className="animate-pulse" />
+                </div>
+                <p className="text-sm font-medium text-text-muted max-w-xs mx-auto leading-relaxed">Systematic registration of new marketplace entities requires identity validation.</p>
+              </div>
+              <div className="p-8 bg-surface-soft/80 border-t border-border flex justify-end gap-3">
+                <button onClick={() => setShowAddModal(false)} className="h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-text transition-all">Cancel</button>
+                <button className="h-12 px-8 bg-brand text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand/20 hover:bg-brand-strong transition-all">Confirm Protocol</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
+}
+>
+  );
+}
+
 }

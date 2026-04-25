@@ -2,7 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { env } from "../config/env";
 import { apiRequest } from "../lib/http";
+import { Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import type { DashboardAnalytics, DashboardChartPoint } from "../types/domain";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const CHART_WIDTH = 920;
 const CHART_HEIGHT = 280;
@@ -80,6 +89,7 @@ export function AdminDashboardPage() {
             recentSales: data.recentSales || [],
             peakPeriods: data.peakPeriods,
             customerPatterns: data.customerPatterns,
+            orderStatusBreakdown: data.orderStatusBreakdown || { Pending: 0, Completed: 0, Cancelled: 0 },
           });
         }
       } catch (err) {
@@ -95,13 +105,60 @@ export function AdminDashboardPage() {
     };
   }, []);
 
-  const revenueTrendChart = useMemo(() => buildVerticalBarChart(analytics.revenueOverTime), [analytics.revenueOverTime]);
-  const maxProductRevenue = useMemo(
-    () => Math.max(...analytics.revenueByProduct.map((item) => Number(item.value || 0)), 1),
-    [analytics.revenueByProduct],
-  );
-  const revenueTimeGraphUrl = resolveGraphUrl(analytics.graphs?.revenueOverTime);
-  const revenueProductGraphUrl = resolveGraphUrl(analytics.graphs?.revenueByProduct);
+   const revenueTrendChart = useMemo(() => buildVerticalBarChart(analytics.revenueOverTime), [analytics.revenueOverTime]);
+   const productRevenueChart = useMemo(() => buildVerticalBarChart(analytics.revenueByProduct), [analytics.revenueByProduct]);
+   const maxProductRevenue = useMemo(
+     () => Math.max(...analytics.revenueByProduct.map((item) => Number(item.value || 0)), 1),
+     [analytics.revenueByProduct],
+   );
+   const revenueTimeGraphUrl = resolveGraphUrl(analytics.graphs?.revenueOverTime);
+   const revenueProductGraphUrl = resolveGraphUrl(analytics.graphs?.revenueByProduct);
+
+   // Order status breakdown for pie chart
+   const orderStatusBreakdownData = useMemo(() => {
+     const breakdown = analytics.orderStatusBreakdown || { Pending: 0, Completed: 0, Cancelled: 0 };
+     const labels = Object.keys(breakdown);
+     const data = Object.values(breakdown);
+     const colors = [
+       '#f97316', // orange - pending
+       '#22c55e', // green - completed
+       '#ef4444', // red - cancelled
+     ];
+     return {
+       labels,
+       datasets: [{
+         data,
+         backgroundColor: colors.slice(0, labels.length),
+         borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')), // not needed but ok
+         borderWidth: 2,
+       }],
+     };
+   }, [analytics.orderStatusBreakdown]);
+
+   const orderStatusPieOptions = {
+     responsive: true,
+     plugins: {
+       legend: {
+         position: 'right' as const,
+         labels: {
+           padding: 20,
+           usePointStyle: true,
+           font: { size: 12 },
+         },
+       },
+       tooltip: {
+         callbacks: {
+           label: (context: any) => {
+             const label = context.label || '';
+             const value = context.parsed || 0;
+             const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+             const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+             return `${label}: ${value} orders (${percentage}%)`;
+           },
+         },
+       },
+     },
+   };
 
   if (user?.role === "user") {
     return (
@@ -239,27 +296,74 @@ export function AdminDashboardPage() {
                 <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
                   <img src={revenueProductGraphUrl} alt="Revenue by product graph" className="w-full h-auto" />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {!analytics.revenueByProduct.length ? <p className="text-sm text-slate-500 dark:text-slate-400">no product revenue data yet.</p> : null}
-                  {analytics.revenueByProduct.map((item) => (
-                    <div key={item.label} className="space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <strong className="text-slate-900 dark:text-white">{item.label}</strong>
-                        <span className="font-bold text-slate-900 dark:text-white">{formatMoney(item.value)}</span>
-                      </div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full bg-brand rounded-full transition-all duration-300"
-                          style={{ width: `${Math.max(10, Math.round((Number(item.value || 0) / maxProductRevenue) * 100))}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </article>
-          </div>
+               ) : productRevenueChart && productRevenueChart.bars.length ? (
+                 <div>
+                   <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                     <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} role="img" aria-label="Revenue by product" className="w-full h-auto">
+                       <defs>
+                         <linearGradient id="productRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+                           <stop offset="0%" stopColor="#16a34a" stopOpacity="0.8" />
+                           <stop offset="100%" stopColor="#16a34a" stopOpacity="0.4" />
+                         </linearGradient>
+                       </defs>
+                       {/* Grid lines */}
+                       <line x1={CHART_PADDING} y1={CHART_PADDING} x2={CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" strokeWidth="1" />
+                       <line x1={CHART_PADDING} y1={CHART_HEIGHT - CHART_PADDING} x2={CHART_WIDTH - CHART_PADDING} y2={CHART_HEIGHT - CHART_PADDING} stroke="rgba(19, 33, 42, 0.12)" strokeWidth="1" />
+                       {/* Bars */}
+                       {productRevenueChart.bars.map((bar, index) => (
+                         <rect
+                           key={`bar-${index}`}
+                           x={bar.x}
+                           y={bar.y}
+                           width={bar.width}
+                           height={bar.height}
+                           fill="url(#productRevenueGradient)"
+                           rx="2"
+                           ry="2"
+                         />
+                       ))}
+                       {/* Value labels on top */}
+                       {productRevenueChart.bars.map((bar, index) => (
+                         <text
+                           key={`label-${index}`}
+                           x={bar.x + bar.width / 2}
+                           y={bar.y - 5}
+                           textAnchor="middle"
+                           fontSize="10"
+                           fill="#166534"
+                           fontWeight="600"
+                         >
+                           {formatCompactMoney(bar.value)}
+                         </text>
+                       ))}
+                     </svg>
+                   </div>
+                   <div className="flex justify-between mt-2 text-xs text-slate-500 dark:text-slate-400">
+                     {analytics.revenueByProduct.map((point, index) => (
+                       <span key={`${point.label}-${index}`} className="truncate" title={point.label}>{point.label}</span>
+                     ))}
+                   </div>
+                 </div>
+               ) : (
+                 <p className="text-sm text-slate-500 dark:text-slate-400">no product revenue data yet.</p>
+               )}
+               </article>
+               {/* Order Status Breakdown */}
+               <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+                 <div className="mb-6">
+                   <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">Order Status Breakdown</h2>
+                   <p className="text-sm text-slate-500 dark:text-slate-400">distribution of orders by fulfillment stage.</p>
+                 </div>
+                 <div className="flex justify-center">
+                   <div className="w-full max-w-xs">
+                     {(() => {
+                       const total = orderStatusBreakdownData.datasets[0].data.reduce((a: number, b: number) => a + b, 0);
+                       return total > 0 ? <Pie data={orderStatusBreakdownData} options={orderStatusPieOptions} /> : <p className="text-sm text-slate-500 dark:text-slate-400 text-center">No data available.</p>;
+                     })()}
+                   </div>
+                 </div>
+               </article>
+             </div>
 
           {/* Recent Sales Table */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -297,8 +401,8 @@ export function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Secondary Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           {/* Secondary Charts Grid */}
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Peak Sales by Day */}
             {analytics.peakPeriods && (
               <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

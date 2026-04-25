@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiRequest } from "../lib/http";
 import type { NotificationEntry } from "../types/domain";
 import { useAuth } from "../features/auth/AuthContext";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
 
 interface NotificationResponse {
   items: NotificationEntry[];
@@ -54,15 +55,12 @@ export function NotificationsPage() {
       }
 
       const results = await Promise.all(
-        endpoints.map((ep) =>
-          apiRequest<NotificationResponse>(ep).catch(() => ({ items: [], unread_count: 0 }))
-        )
+        endpoints.map((ep) => apiRequest<NotificationResponse>(ep).catch(() => ({ items: [], unread_count: 0 }))),
       );
 
-      const allItems = results.flatMap((r) => r.items || []);
-      const totalUnread = results.reduce((acc, r) => acc + Number(r.unread_count || 0), 0);
+      const allItems = results.flatMap((result) => result.items || []);
+      const totalUnread = results.reduce((acc, result) => acc + Number(result.unread_count || 0), 0);
 
-      // Sort by created_at descending
       allItems.sort((a, b) => {
         const da = new Date(a.created_at || 0).getTime();
         const db = new Date(b.created_at || 0).getTime();
@@ -129,65 +127,107 @@ export function NotificationsPage() {
 
   return (
     <div className="space-y-6 animate-soft-enter">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand mb-2">Notifications</p>
-            <h1 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Alerts, emails, and account activity</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2">Track login alerts, payment updates, delivery events, and order activity in one inbox.</p>
-          </div>
-          <button className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={markAllRead} disabled={!unreadCount}>
+      <PageIntro
+        eyebrow="Notifications"
+        title="Alerts, emails, and account activity"
+        description="Keep every order, payment, delivery, and account signal in one production-ready inbox with cleaner prioritization and stronger mobile readability."
+        badges={
+          <>
+            <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
+              {String(user?.role || "user").replace(/_/g, " ")} workspace
+            </span>
+            <span className="inline-flex rounded-full bg-brand/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-brand">
+              {unreadCount} unread
+            </span>
+          </>
+        }
+        actions={
+          <button className="btn-secondary" type="button" onClick={markAllRead} disabled={!unreadCount}>
             Mark all read
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {error ? <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold flex items-center gap-3 border border-red-100 dark:border-red-800">{error}</div> : null}
-      {flash ? <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-xl font-bold flex items-center gap-3 border border-emerald-100 dark:border-emerald-800">{flash}</div> : null}
+      <StatCards
+        items={[
+          { id: "total", label: "Total notifications", value: loading ? "..." : notifications.length, note: "Combined account and role-specific events" },
+          { id: "unread", label: "Unread items", value: loading ? "..." : unreadCount, note: unreadCount ? "Still needs your attention" : "Inbox is clear" },
+          { id: "seller-feed", label: "Seller feed", value: isSeller ? "Enabled" : "Standard", note: isSeller ? "Business alerts are merged in" : "Showing account-level updates" },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total</span>
-          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{loading ? "..." : notifications.length}</strong>
-        </article>
-        <article className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Unread</span>
-          <strong className="text-2xl font-display font-black text-slate-900 dark:text-white">{loading ? "..." : unreadCount}</strong>
-        </article>
-      </div>
+      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
+      {flash ? <InlineNotice tone="success">{flash}</InlineNotice> : null}
 
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        {loading ? <p className="p-6 text-slate-500 dark:text-slate-400">Loading notifications...</p> : null}
-        {!loading && !notifications.length ? <p className="p-6 text-slate-500 dark:text-slate-400">No notifications yet.</p> : null}
-        <div className="divide-y divide-slate-100 dark:divide-slate-700">
-          {notifications.map((item) => (
-            <div key={item.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3">
-                <strong className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</strong>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  severityClass(item.severity) === "ok" ? "bg-green-100 text-green-800" :
-                  severityClass(item.severity) === "warn" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-red-100 text-red-800"
-                }`}>
-                  {item.is_read ? "Read" : "New"}
-                </span>
-              </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">{item.message}</p>
-              <div className="flex items-center gap-3 text-xs text-slate-400">
-                <span>{formatDateTime(item.created_at)}</span>
-                <span>{item.type || "system"}</span>
-                {item.email_status ? <span>Email: {item.email_status}</span> : null}
-                {item.action_href ? <Link to={item.action_href} className="text-brand hover:underline">Open related page</Link> : null}
-              </div>
-              {!item.is_read ? (
-                <button className="mt-3 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm font-medium" type="button" onClick={() => void markRead(item.id)}>
-                  Mark read
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
+      <SectionCard
+        title="Notification inbox"
+        description="The feed is grouped into clear cards so every message stays readable and actionable across screen sizes."
+      >
+        {loading ? <p className="text-sm text-slate-500 dark:text-slate-400">Loading notifications...</p> : null}
+        {!loading && !notifications.length ? (
+          <EmptyState
+            title="No notifications yet"
+            description="Your inbox will start filling as orders move, payments post, and platform events occur."
+          />
+        ) : null}
+
+        {!loading && notifications.length ? (
+          <div className="space-y-4">
+            {notifications.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-[1.5rem] border border-slate-200/80 bg-slate-50/70 p-5 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900/40 dark:hover:bg-slate-900/70"
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="font-display text-lg font-black tracking-tight text-slate-950 dark:text-white">{item.title}</strong>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                          severityClass(item.severity) === "ok"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : severityClass(item.severity) === "warn"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              : "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+                        }`}
+                      >
+                        {item.is_read ? "Read" : "New"}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{item.message}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <MetaPill value={formatDateTime(item.created_at)} />
+                      <MetaPill value={item.type || "system"} />
+                      {item.email_status ? <MetaPill value={`Email: ${item.email_status}`} /> : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {item.action_href ? (
+                      <Link className="btn-secondary" to={item.action_href}>
+                        Open page
+                      </Link>
+                    ) : null}
+                    {!item.is_read ? (
+                      <button className="btn-primary" type="button" onClick={() => void markRead(item.id)}>
+                        Mark read
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </SectionCard>
     </div>
+  );
+}
+
+function MetaPill({ value }: { value: string }) {
+  return (
+    <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
+      {value}
+    </span>
   );
 }

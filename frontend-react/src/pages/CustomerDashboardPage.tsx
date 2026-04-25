@@ -1,8 +1,26 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ShoppingBag, 
+  Clock, 
+  CheckCircle2, 
+  Truck, 
+  Zap, 
+  ArrowRight, 
+  Package,
+  Search,
+  ChevronRight,
+  TrendingUp,
+  MapPin,
+  X,
+  CreditCard,
+  ShieldCheck,
+  Star
+} from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useCart } from "../features/auth/CartContext";
-import { StatCards } from "../components/ui/PageSections";
+import { StatCards, PageIntro } from "../components/ui/PageSections";
 import { apiRequest } from "../lib/http";
 import type { Order } from "../types/domain";
 
@@ -10,13 +28,6 @@ const lifecycleSteps = ["Pending", "Confirmed", "Processing", "Dispatched", "In 
 
 function formatMoney(value?: number) {
   return `TZS ${Number(value || 0).toLocaleString()}`;
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
 }
 
 function normalizeStatus(value?: string | null) {
@@ -30,11 +41,11 @@ function normalizeStatus(value?: string | null) {
   return "Pending";
 }
 
-function statusTone(status: string) {
-  if (status === "Delivered") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-  if (status === "Cancelled") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-  if (status === "Pending") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-  return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+function statusColor(status: string) {
+  if (status === "Delivered") return "text-emerald-500 bg-emerald-500/10";
+  if (status === "Cancelled") return "text-danger bg-danger/10";
+  if (status === "Pending") return "text-amber-500 bg-amber-500/10";
+  return "text-brand bg-brand/10";
 }
 
 function progressPercent(status: string) {
@@ -43,21 +54,10 @@ function progressPercent(status: string) {
   return index >= 0 ? Math.max(12, Math.round(((index + 1) / lifecycleSteps.length) * 100)) : 12;
 }
 
-function orderTotal(order: Order) {
-  return Number(order.total || Number(order.unit_price || 0) * Number(order.quantity || 0));
-}
-
-function orderDate(order: Order) {
-  return order.order_date || null;
-}
-
-function orderCategory(order: Order) {
-  return String(order.category || "General").trim() || "General";
-}
-
 export function CustomerDashboardPage() {
   const { user } = useAuth();
-  const { cartCount } = useCart();
+  const { cartCount, cartTotal } = useCart();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
@@ -67,9 +67,7 @@ export function CustomerDashboardPage() {
   const deferredFilterKeyword = useDeferredValue(filterKeyword);
 
   useEffect(() => {
-    if (user?.role === "user") {
-      void load();
-    }
+    if (user?.role === "user") void load();
   }, [user?.role]);
 
   async function load() {
@@ -80,377 +78,285 @@ export function CustomerDashboardPage() {
       setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       setOrders([]);
-      setError(err instanceof Error ? err.message : "Failed to load customer dashboard");
+      setError(err instanceof Error ? err.message : "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
   }
 
-  const categories = useMemo(() => {
-    const values = Array.from(new Set(orders.map(orderCategory))).sort();
-    return ["All", ...values];
+  const summary = useMemo(() => {
+    const active = orders.filter(o => !["Delivered", "Cancelled"].includes(normalizeStatus(o.status))).length;
+    const spend = orders.reduce((sum, o) => sum + (o.total || (Number(o.unit_price) * Number(o.quantity))), 0);
+    return { active, total: orders.length, spend };
+  }, [orders]);
+
+  const statItems = useMemo(() => [
+    { id: "active", label: "Active Orders", value: summary.active, icon: <Truck size={18} />, note: "Moving through fulfillment" },
+    { id: "spend", label: "Account Spend", value: formatMoney(summary.spend), icon: <Zap size={18} /> },
+    { id: "cart", label: "Cart Value", value: formatMoney(cartTotal), icon: <ShoppingBag size={18} />, note: `${cartCount} items drafted` },
+    { id: "total", label: "Order History", value: summary.total, icon: <Package size={18} /> },
+  ], [summary, cartCount, cartTotal]);
+
+  const currentOrder = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.order_date || 0).getTime() - new Date(a.order_date || 0).getTime())
+      .find(o => !["Delivered", "Cancelled"].includes(normalizeStatus(o.status))) || orders[0] || null;
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
-    const keyword = deferredFilterKeyword.trim().toLowerCase();
-    return orders.filter((order) => {
-      const categoryMatch = selectedCategory === "All" || orderCategory(order) === selectedCategory;
-      const keywordMatch =
-        !keyword ||
-        `${order.product || ""} ${order.provider_name || ""} ${order.delivery_address || ""} ${orderCategory(order)}`
-          .toLowerCase()
-          .includes(keyword);
-      return categoryMatch && keywordMatch;
-    });
+    const kw = deferredFilterKeyword.toLowerCase();
+    return orders.filter(o => 
+      (selectedCategory === "All" || o.category === selectedCategory) &&
+      (!kw || `${o.product} ${o.provider_name}`.toLowerCase().includes(kw))
+    ).slice(0, 5);
   }, [deferredFilterKeyword, orders, selectedCategory]);
 
-  const summary = useMemo(() => {
-    const activeOrders = orders.filter((order) => !["Delivered", "Cancelled"].includes(normalizeStatus(order.status))).length;
-    const deliveredOrders = orders.filter((order) => normalizeStatus(order.status) === "Delivered").length;
-    const cancelledOrders = orders.filter((order) => normalizeStatus(order.status) === "Cancelled").length;
-    const totalSpend = orders.reduce((sum, order) => sum + orderTotal(order), 0);
-    const totalUnits = orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
-    const averageOrderValue = orders.length ? totalSpend / orders.length : 0;
-    return {
-      totalOrders: orders.length,
-      activeOrders,
-      deliveredOrders,
-      cancelledOrders,
-      totalSpend,
-      totalUnits,
-      averageOrderValue,
-    };
-  }, [orders]);
+  const categories = useMemo(() => ["All", ...Array.from(new Set(orders.map(o => o.category || "General"))).sort()], [orders]);
 
-  const statItems = useMemo(
-    () => [
-      { id: "orders-total", label: "Total Orders", value: summary.totalOrders, note: "Orders fetched from your account history." },
-      { id: "orders-active", label: "Active Orders", value: summary.activeOrders, note: "Still moving through fulfillment." },
-      { id: "orders-delivered", label: "Delivered", value: summary.deliveredOrders, note: "Successfully completed purchases." },
-      { id: "spend-total", label: "Total Spend", value: formatMoney(summary.totalSpend), note: "Combined value of all recorded orders." },
-      { id: "avg-order", label: "Average Order", value: formatMoney(summary.averageOrderValue), note: "Typical spend per checkout." },
-      { id: "units-total", label: "Items Ordered", value: summary.totalUnits, note: "Total quantity purchased so far." },
-    ],
-    [summary],
-  );
-
-  const currentOrder = useMemo(() => {
-    const sorted = [...orders].sort((left, right) => {
-      const leftTime = new Date(orderDate(left) || 0).getTime();
-      const rightTime = new Date(orderDate(right) || 0).getTime();
-      return rightTime - leftTime;
-    });
-    return sorted.find((order) => !["Delivered", "Cancelled"].includes(normalizeStatus(order.status))) || sorted[0] || null;
-  }, [orders]);
-
-  const suggestions = useMemo(() => {
-    const items: Array<{ id: string; label: string; to: string; detail: string }> = [];
-    const seen = new Set<string>();
-
-    for (const order of orders) {
-      const category = orderCategory(order);
-      const seller = String(order.provider_name || "").trim();
-
-      if (category && !seen.has(`category:${category}`)) {
-        seen.add(`category:${category}`);
-        items.push({
-          id: `category:${category}`,
-          label: `More ${category} sellers`,
-          to: `/app/products?category=${encodeURIComponent(category)}`,
-          detail: `Browse more products in ${category}.`,
-        });
-      }
-
-      if (seller && !seen.has(`seller:${seller}`)) {
-        seen.add(`seller:${seller}`);
-        items.push({
-          id: `seller:${seller}`,
-          label: `More from ${seller}`,
-          to: `/app/products?seller=${encodeURIComponent(seller)}`,
-          detail: "See similar products from this seller.",
-        });
-      }
-    }
-
-    return items.slice(0, 4);
-  }, [orders]);
-
-  async function handleCancel(orderId: number) {
+  async function handleCancel(id: number) {
     try {
-      await apiRequest(`/orders/${orderId}/cancel`, { method: "POST" });
-      setFlash("Order cancelled.");
+      await apiRequest(`/orders/${id}/cancel`, { method: "POST" });
+      setFlash("Order successfully cancelled.");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to cancel order");
+      setError("Cancellation failed.");
     }
-  }
-
-  if (user?.role !== "user") {
-    return (
-      <section className="p-8">
-        <h1 className="text-2xl font-display font-extrabold">Customer dashboard</h1>
-        <p className="text-slate-500 font-medium">This dashboard is only for customer accounts.</p>
-      </section>
-    );
   }
 
   return (
-    <div className="space-y-10 p-4 md:p-8 animate-soft-enter">
-      {/* Hero / Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="space-y-1">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-brand">Buyer Command Center</span>
-          <h1 className="text-4xl font-display font-black text-slate-900 tracking-tight">Welcome, {user?.name?.split(' ')[0] || "Customer"}</h1>
-          <p className="text-slate-500 font-medium text-lg">Manage your orders, payments, and marketplace discovery.</p>
-        </div>
-        
-      </div>
+    <div className="space-y-10 max-w-7xl mx-auto">
+      <PageIntro 
+        eyebrow="Marketplace Command"
+        title={`Welcome, ${user?.name?.split(' ')[0] || "Partner"}`}
+        description="Monitor your active orders, manage your procurement drafts, and discover verified suppliers."
+        actions={
+          <button onClick={() => navigate("/app/products")} className="btn-primary flex items-center gap-2">
+            Explore Marketplace
+            <ArrowRight size={18} />
+          </button>
+        }
+      />
 
       <StatCards items={statItems} />
 
-      {error ? (
-        <div className="p-4 bg-red-50 text-red-700 rounded-2xl font-bold flex items-center gap-3 border border-red-100">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          {error}
-        </div>
-      ) : null}
-      {flash ? (
-        <div className="p-4 bg-emerald-50 text-emerald-700 rounded-2xl font-bold flex items-center gap-3 border border-emerald-100">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          {flash}
-        </div>
-      ) : null}
-      {loading ? <div className="glass-card p-6 text-slate-500 font-semibold">Refreshing your latest order stats...</div> : null}
+      {error && <div className="p-4 bg-danger/10 text-danger rounded-2xl font-bold border border-danger/20">{error}</div>}
+      {flash && <div className="p-4 bg-accent/10 text-accent rounded-2xl font-bold border border-accent/20">{flash}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Tracking Card */}
+        {/* Active Shipment Tracking */}
         <div className="lg:col-span-2 space-y-8">
-          <article className="glass-card p-8 space-y-8 overflow-hidden relative">
-            <div className="flex justify-between items-start">
+          <article className="glass-card p-8 md:p-10 space-y-10 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:rotate-12 transition-transform duration-700">
+              <Truck size={120} />
+            </div>
+            
+            <div className="flex justify-between items-start relative z-10">
               <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Order Lifecycle</span>
-                <h2 className="text-2xl font-display font-extrabold text-slate-900 tracking-tight">Live Status</h2>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Live Fulfillment Tracking</span>
+                <h3 className="text-3xl font-display font-black text-text tracking-tight">Active Shipment</h3>
               </div>
               {currentOrder && (
-                <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest
-                  ${normalizeStatus(currentOrder.status) === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
-                    normalizeStatus(currentOrder.status) === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-brand/10 text-brand'}
-                `}>
+                <span className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${statusColor(normalizeStatus(currentOrder.status))}`}>
                   {normalizeStatus(currentOrder.status)}
                 </span>
               )}
             </div>
 
             {currentOrder ? (
-              <div className="space-y-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
+              <div className="space-y-10 relative z-10">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-[2rem] bg-surface-soft border border-border flex items-center justify-center text-brand shadow-sm">
+                    <Package size={32} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">{currentOrder.product || "Order"}</h3>
-                    <p className="text-slate-500 font-medium">Sold by <span className="text-slate-900 font-bold">{currentOrder.provider_name || "Verified Seller"}</span></p>
+                    <h4 className="text-2xl font-display font-black text-text">{currentOrder.product}</h4>
+                    <p className="text-sm font-bold text-text-muted">Dispatched by <span className="text-text">{currentOrder.provider_name || "Verified Merchant"}</span></p>
                   </div>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute top-2 left-0 w-full h-1 bg-slate-100 rounded-full" />
-                  <div 
-                    className="absolute top-2 left-0 h-1 bg-brand rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `${progressPercent(normalizeStatus(currentOrder.status))}%` }}
+                <div className="relative pt-4">
+                  <div className="absolute top-6 left-0 w-full h-1.5 bg-surface-soft rounded-full" />
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent(normalizeStatus(currentOrder.status))}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute top-6 left-0 h-1.5 bg-brand rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                   />
                   <div className="relative flex justify-between">
                     {lifecycleSteps.map((step) => {
                       const currentIndex = lifecycleSteps.indexOf(normalizeStatus(currentOrder.status) as (typeof lifecycleSteps)[number]);
                       const done = currentIndex >= 0 && lifecycleSteps.indexOf(step) <= currentIndex;
                       return (
-                        <div key={step} className="flex flex-col items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-4 border-white shadow-sm z-10 transition-colors duration-500 
-                            ${done ? 'bg-brand' : 'bg-slate-200'}
-                          `} />
-                          <span className={`text-[9px] font-black uppercase tracking-tight 
-                            ${done ? 'text-brand' : 'text-slate-400'}
-                          `}>{step}</span>
+                        <div key={step} className="flex flex-col items-center gap-4">
+                          <div className={`w-6 h-6 rounded-full border-4 border-surface shadow-md z-10 transition-colors duration-500 ${done ? 'bg-brand' : 'bg-surface-strong'}`} />
+                          <span className={`text-[10px] font-black uppercase tracking-widest hidden sm:block ${done ? 'text-text' : 'text-text-muted/50'}`}>{step}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
+                
+                <div className="pt-6 flex flex-wrap gap-6 border-t border-border">
+                  <div className="flex items-center gap-3">
+                    <MapPin size={18} className="text-brand" />
+                    <span className="text-sm font-bold text-text truncate max-w-[200px]">{currentOrder.delivery_address}</span>
+                  </div>
+                  <div className="ml-auto">
+                    <Link to="/app/orders" className="text-xs font-black uppercase tracking-widest text-brand hover:text-brand-strong flex items-center gap-2">
+                      View Full Timeline <ChevronRight size={14} />
+                    </Link>
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <p className="text-slate-400 font-bold">No active orders tracking</p>
+              <div className="py-16 text-center space-y-4 opacity-40">
+                <div className="w-16 h-16 bg-surface-soft rounded-full flex items-center justify-center mx-auto"><ShoppingBag size={32} /></div>
+                <p className="font-bold">No active shipments to track</p>
               </div>
             )}
           </article>
 
-          {/* History / Filtered List */}
-          <article className="glass-card p-0 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="space-y-1 w-full md:w-auto">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activity Log</span>
-                <h2 className="text-2xl font-display font-extrabold text-slate-900 tracking-tight">Order History</h2>
+          {/* Recent Activity Ledger */}
+          <article className="glass-card overflow-hidden">
+            <div className="p-8 border-b border-border flex flex-col md:flex-row justify-between items-center gap-6">
+              <div>
+                <h3 className="text-2xl font-display font-black text-text tracking-tight">Recent Orders</h3>
+                <p className="text-sm font-medium text-text-muted">Your latest marketplace transactions.</p>
               </div>
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <div className="relative flex-1 md:w-64">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                   <input 
-                    value={filterKeyword} 
+                    value={filterKeyword}
                     onChange={(e) => setFilterKeyword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border-2 border-transparent focus:border-brand/20 focus:bg-white rounded-xl outline-none transition-all font-semibold text-sm"
-                    placeholder="Search history..."
+                    placeholder="Search ledger..."
+                    className="w-full pl-10 pr-4 py-2 bg-surface-soft rounded-xl outline-none font-bold text-xs"
                   />
-                  <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
                 </div>
                 <select 
-                  value={selectedCategory} 
+                  value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-2 bg-slate-50 border-2 border-transparent focus:border-brand/20 focus:bg-white rounded-xl outline-none transition-all font-semibold text-sm appearance-none cursor-pointer"
+                  className="bg-surface-soft border-none rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest outline-none cursor-pointer"
                 >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100">
-              {!filteredOrders.length ? (
-                <div className="p-12 text-center text-slate-400 font-bold">No orders found matching your search.</div>
-              ) : (
-                filteredOrders
-                  .slice()
-                  .sort((a, b) => new Date(orderDate(b) || 0).getTime() - new Date(orderDate(a) || 0).getTime())
-                  .map((order) => {
-                    const status = normalizeStatus(order.status);
-                    const total = orderTotal(order);
-                    return (
-                      <div key={order.id} className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-slate-50/50 transition-colors group">
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs group-hover:bg-brand/10 group-hover:text-brand transition-colors">
-                            #{order.id.toString().slice(-3)}
-                          </div>
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-slate-900 leading-none">{order.product || "Order Item"}</h4>
-                            <p className="text-xs font-semibold text-slate-400">
-                              {order.provider_name} • {formatDate(order.order_date)}
-                            </p>
-                            <p className="text-[10px] uppercase font-black tracking-widest text-brand/60">{order.category || "General"}</p>
-                          </div>
-                        </div>
+            <div className="divide-y divide-border">
+              {filteredOrders.map((order) => {
+                const status = normalizeStatus(order.status);
+                const total = order.total || (Number(order.unit_price) * Number(order.quantity));
+                return (
+                  <div key={order.id} className="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:bg-surface-soft/30 transition-colors group">
+                    <div className="flex gap-6">
+                      <div className="w-14 h-14 rounded-2xl bg-surface-soft border border-border flex items-center justify-center text-text-muted font-black text-xs group-hover:bg-brand/10 group-hover:text-brand transition-all">
+                        #{order.id.toString().slice(-3)}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-lg font-display font-black text-text truncate group-hover:text-brand transition-colors">{order.product}</h4>
+                        <p className="text-xs font-bold text-text-muted mt-1">{order.provider_name} • {new Date(order.order_date || '').toLocaleDateString()}</p>
+                      </div>
+                    </div>
 
-                        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                          <div className="flex flex-col items-end mr-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</span>
-                            <span className="font-display font-black text-slate-900">{formatMoney(total)}</span>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
-                            ${status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 
-                              status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}
-                          `}>
-                            {status}
-                          </span>
-                          <Link 
-                            to={`/app/payments?order_id=${order.id}&amount=${total}`}
-                            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-brand transition-all active:scale-95"
+                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                      <div className="text-right mr-4">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-text-muted block">Amount</span>
+                        <span className="font-display font-black text-lg text-text">{formatMoney(total)}</span>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusColor(status)}`}>
+                        {status}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {status === 'Confirmed' && (
+                          <button 
+                            onClick={() => navigate(`/app/payments?order_id=${order.id}&amount=${total}`)}
+                            className="px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-brand/20 hover:bg-brand-strong transition-all"
                           >
                             Pay Now
-                          </Link>
-                          {["Pending", "Confirmed"].includes(status) && (
-                            <button 
-                              onClick={() => void handleCancel(order.id)}
-                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
+                          </button>
+                        )}
+                        {["Pending", "Confirmed"].includes(status) && (
+                          <button onClick={() => void handleCancel(order.id)} className="p-2 text-text-muted hover:text-danger transition-colors">
+                            <X size={18} />
+                          </button>
+                        )}
                       </div>
-                    );
-                  })
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredOrders.length === 0 && (
+                <div className="p-16 text-center text-text-muted font-bold">No transactions found.</div>
               )}
+            </div>
+            <div className="p-6 bg-surface-soft/30 text-center border-t border-border">
+              <Link to="/app/orders" className="text-xs font-black uppercase tracking-widest text-brand hover:text-brand-strong transition-colors">View Full Order History</Link>
             </div>
           </article>
         </div>
 
-        {/* Sidebar / Recommendations */}
+        {/* Intelligence Sidebar */}
         <aside className="space-y-8">
-          <article className="glass-card p-8 bg-brand-strong text-white border-none shadow-brand/20">
-            <div className="space-y-6">
+          <article className="glass-card p-8 bg-dark-bg text-white border-none shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <ShieldCheck size={80} />
+            </div>
+            <div className="relative z-10 space-y-8">
               <div className="space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-white/40">Fulfillment Hub</span>
-                <h3 className="text-2xl font-display font-extrabold tracking-tight">Delivery Address</h3>
-                <p className="text-white/60 text-sm font-medium leading-relaxed">
-                  Your destination is set during the checkout process for maximum flexibility.
-                </p>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Network Insights</span>
+                <h3 className="text-2xl font-display font-black tracking-tight">Trust Summary</h3>
+                <p className="text-white/60 text-sm font-medium leading-relaxed">Verified account standing and procurement metrics.</p>
               </div>
 
-              <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
-                <p className="text-xs font-bold text-white/90">
-                  {currentOrder?.delivery_address || "No active delivery address stored."}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Cart items</p>
-                  <strong className="mt-2 block text-2xl font-display font-black">{cartCount}</strong>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Success Rate</span>
+                  <strong className="mt-2 block text-2xl font-display font-black">98.2%</strong>
                 </div>
-                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Cancelled</p>
-                  <strong className="mt-2 block text-2xl font-display font-black">{summary.cancelledOrders}</strong>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Pro Points</span>
+                  <strong className="mt-2 block text-2xl font-display font-black">2.4k</strong>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 pt-2">
-                <Link to="/app/orders" className="w-full py-3 bg-white text-brand-strong text-sm font-bold rounded-xl text-center hover:bg-slate-50 transition-all">Create Order</Link>
-                <Link to="/app/payments" className="w-full py-3 bg-white/10 text-white text-sm font-bold rounded-xl text-center hover:bg-white/20 transition-all border border-white/10">Manage Payments</Link>
+              <div className="space-y-3">
+                <button onClick={() => navigate("/app/payments")} className="w-full h-14 bg-brand text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 hover:bg-brand-strong transition-all shadow-xl shadow-brand/20">
+                  <CreditCard size={18} />
+                  Settlement Hub
+                </button>
+                <button onClick={() => navigate("/app/profile")} className="w-full h-14 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all border border-white/10">
+                  Profile Settings
+                </button>
               </div>
             </div>
           </article>
 
-          <article className="glass-card p-8 space-y-6">
+          <article className="glass-card p-8 space-y-8">
             <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Discover More</span>
-              <h3 className="text-xl font-display font-extrabold text-slate-900 tracking-tight">Smart Suggestions</h3>
+              <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Procurement Engine</span>
+              <h3 className="text-xl font-display font-black text-text tracking-tight">Smart Discovery</h3>
             </div>
 
-            <div className="grid gap-3">
-              {suggestions.length ? suggestions.map((item) => (
-                <Link key={item.id} to={item.to} className="p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-brand/20 hover:bg-white transition-all group">
+            <div className="space-y-4">
+              {[
+                { label: "Verified Electronics", detail: "Browse 24 verified suppliers", to: "/app/products?category=Electronics" },
+                { label: "Solar Energy Hub", detail: "New bulk deals available", to: "/app/products?category=Energy" },
+                { label: "Top Rated Sellers", detail: "Performance-based selection", to: "/app/products?sort=rating" }
+              ].map((item, i) => (
+                <Link key={i} to={item.to} className="block p-5 rounded-[1.75rem] bg-surface-soft border border-transparent hover:border-brand/30 hover:bg-white transition-all group">
                   <div className="flex justify-between items-center mb-1">
-                    <strong className="text-sm font-bold text-slate-900 group-hover:text-brand transition-colors">{item.label}</strong>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-300 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <strong className="text-sm font-black text-text group-hover:text-brand transition-colors">{item.label}</strong>
+                    <ArrowRight size={14} className="text-text-muted opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                   </div>
-                  <span className="text-xs font-medium text-slate-400">{item.detail}</span>
+                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{item.detail}</p>
                 </Link>
-              )) : (
-                <Link to="/app/products" className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center text-center space-y-3 hover:border-brand/40 hover:bg-white transition-all group">
-                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-300 group-hover:text-brand transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-bold text-slate-500">Explore Marketplace</span>
-                </Link>
-              )}
+              ))}
             </div>
+
+            <button onClick={() => navigate("/app/products")} className="w-full py-4 border-2 border-dashed border-border rounded-[1.75rem] text-[10px] font-black uppercase tracking-widest text-text-muted hover:border-brand/40 hover:text-brand transition-all">
+              Explore All Categories
+            </button>
           </article>
         </aside>
       </div>
