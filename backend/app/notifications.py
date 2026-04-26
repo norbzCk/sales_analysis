@@ -78,11 +78,14 @@ async def delivery_websocket(websocket: WebSocket, order_id: int, token: str = N
             return
             
         buyer_id = getattr(sale, "buyer_id", None) or getattr(sale, "created_by", None) or getattr(delivery, "buyer_id", None)
-        is_buyer = buyer_id == user.id and user.role == "user"
-        is_rider = delivery and delivery.logistics_id == user.id and user.role == "logistics"
+        seller_id = getattr(sale, "seller_id", None) or getattr(delivery, "seller_id", None)
         
-        # Only buyer or rider can join
-        if not (is_buyer or is_rider):
+        is_buyer = buyer_id is not None and int(buyer_id) == user.id and user.role == "user"
+        is_rider = delivery and delivery.logistics_id == user.id and user.role == "logistics"
+        is_seller = seller_id is not None and int(seller_id) == user.id and user.role == "seller"
+        
+        # Only buyer, rider or seller can join
+        if not (is_buyer or is_rider or is_seller):
             await websocket.close(code=1008)
             return
 

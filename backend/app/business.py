@@ -17,12 +17,13 @@ from backend.models import (
     DeliveryOrder,
     LogisticsUser,
     User,
+    PaymentTransaction,
 )
 from backend.app.schemas import (
     BusinessRegister, BusinessLogin, BusinessProfile, 
     BusinessUpdate, BusinessVerificationSubmit
 )
-from backend.app.auth import hash_password, verify_password, create_token, decode_token
+from backend.app.auth import hash_password, verify_password, verify_and_upgrade_password, create_token, decode_token, _normalize_phone, _phone_matches
 from backend.app.notification_service import build_login_email, create_notification, list_notifications_for_subject, resolve_subject, serialize_notification
 from backend.app.marketplace_intelligence import (
     compute_seller_badges,
@@ -45,6 +46,96 @@ def get_business_inventory_forecast(
     user = get_current_business_user(db, auth)
     forecasts = sales_analysis.calculate_inventory_forecast(db, user.id)
     return {"items": forecasts}
+
+
+@router.get("/market-share")
+def get_market_share(
+    db: Session = Depends(get_db),
+    auth: Optional[str] = Header(None, alias="Authorization"),
+):
+    """Get market share data for the current seller's category and region"""
+    user = get_current_business_user(db, auth)
+    
+    # If user doesn't have category or region, return empty data
+    if not user.category or not user.region:
+        return {
+            "category": user.category or "Unknown",
+            "region": user.region or "Unknown",
+            "seller_revenue": 0,
+            "total_category_revenue": 0,
+            "market_share_percent": 0,
+            "rank": 0,
+            "total_sellers": 0,
+            "percentile": 0
+        }
+    
+    # Calculate total revenue for this seller in their category and region
+    seller_revenue = db.query(
+        func.sum(Sale.quantity * Sale.unit_price)
+    ).filter(
+        Sale.seller_id == user.id,
+        Sale.category == user.category,
+        # Note: We don't have region directly on Sale, so we'll need to join with BusinessUser
+        # For now, we'll filter by category only and note this limitation
+    ).scalar() or 0
+    
+    # Calculate total revenue for all sellers in this category
+    total_category_revenue = db.query(
+        func.sum(Sale.quantity * Sale.unit_price)
+    ).join(
+        BusinessUser, Sale.seller_id == BusinessUser.id
+    ).filter(
+        BusinessUser.category == user.category,
+        BusinessUser.region == user.region,
+        BusinessUser.is_active == True
+    ).scalar() or 0
+    
+    # Calculate market share percentage
+    market_share_percent = 0
+    if total_category_revenue > 0:
+        market_share_percent = round((seller_revenue / total_category_revenue) * 100, 2)
+    
+    # Get rank among sellers in this category/region
+    # We'll calculate revenue for each seller and rank them
+    seller_revenues = db.query(
+        BusinessUser.id,
+        func.sum(Sale.quantity * Sale.unit_price).label("revenue")
+    ).join(
+        Sale, BusinessUser.id == Sale.seller_id
+    ).filter(
+        BusinessUser.category == user.category,
+        BusinessUser.region == user.region,
+        BusinessUser.is_active == True,
+        Sale.date.isnot(None)
+    ).group_by(
+        BusinessUser.id
+    ).order_by(
+        func.sum(Sale.quantity * Sale.unit_price).desc()
+    ).all()
+    
+    # Find the current seller's rank
+    rank = 0
+    total_sellers = len(seller_revenues)
+    for i, (seller_id, revenue) in enumerate(seller_revenues):
+        if seller_id == user.id:
+            rank = i + 1
+            break
+    
+    # Calculate percentile (what percentage of sellers they're better than)
+    percentile = 0
+    if total_sellers > 0:
+        percentile = round(((total_sellers - rank) / total_sellers) * 100, 1)
+    
+    return {
+        "category": user.category,
+        "region": user.region,
+        "seller_revenue": round(seller_revenue, 2),
+        "total_category_revenue": round(total_category_revenue, 2),
+        "market_share_percent": market_share_percent,
+        "rank": rank,
+        "total_sellers": total_sellers,
+        "percentile": percentile
+    }
 
 
 def _load_business_analysis_modules():
@@ -169,7 +260,15 @@ def _validate_new_password(current_password: str, new_password: str, password_ha
 
 def _get_business_user(db: Session, phone: str = None, email: str = None):
     if phone:
-        return db.query(BusinessUser).filter(BusinessUser.phone == phone).first()
+        user = db.query(BusinessUser).filter(BusinessUser.phone == phone).first()
+        if user:
+            return user
+        normalized_phone = _normalize_phone(phone)
+        if normalized_phone:
+            candidates = db.query(BusinessUser).filter(BusinessUser.phone.isnot(None)).all()
+            for candidate in candidates:
+                if _phone_matches(candidate.phone, normalized_phone):
+                    return candidate
     if email:
         return db.query(BusinessUser).filter(func.lower(BusinessUser.email) == email.lower()).first()
     return None
@@ -262,7 +361,7 @@ def login_business(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not verify_password(payload.password, user.password_hash):
+    if not verify_and_upgrade_password(payload.password, user):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not user.is_active:
@@ -510,7 +609,23 @@ def _seller_sales_query(db: Session, user: BusinessUser):
     )
 
 
-def _serialize_seller_order(order: Sale) -> dict:
+def _serialize_seller_order(
+    order: Sale,
+    *,
+    buyer: User | None = None,
+    payment: PaymentTransaction | None = None,
+    delivery: DeliveryOrder | None = None,
+    logistics: LogisticsUser | None = None,
+) -> dict:
+    priority = "normal"
+    order_status = str(order.status or "Pending").strip().title()
+    if order_status == "Pending" and order.delivery_method == "Express":
+        priority = "urgent"
+    elif order_status == "Pending" and order.date and (date.today() - order.date).days >= 2:
+        priority = "delayed"
+    elif order_status in {"Packed", "Ready For Shipping"} and order.delivery_method == "Express":
+        priority = "urgent"
+
     return {
         "id": order.id,
         "order_date": order.date.isoformat() if order.date else None,
@@ -530,7 +645,86 @@ def _serialize_seller_order(order: Sale) -> dict:
         "delivery_notes": order.delivery_notes,
         "delivery_method": order.delivery_method or "Standard",
         "product_id": order.product_id,
+        "customer_name": buyer.name if buyer else None,
+        "customer_email": buyer.email if buyer else None,
+        "customer_phone": buyer.phone if buyer else None,
+        "payment_status": payment.status if payment else "not_started",
+        "payment_method": payment.payment_method if payment else None,
+        "payment_transaction_id": payment.transaction_id if payment else None,
+        "delivery_id": delivery.id if delivery else None,
+        "delivery_status": delivery.status if delivery else None,
+        "delivery_price": delivery.price if delivery else None,
+        "logistics_id": logistics.id if logistics else (delivery.logistics_id if delivery else None),
+        "logistics_name": logistics.name if logistics else None,
+        "estimated_distance_km": delivery.estimated_distance_km if delivery else None,
+        "priority": priority,
     }
+
+
+def _serialize_seller_orders(db: Session, orders: list[Sale]) -> list[dict]:
+    if not orders:
+        return []
+
+    buyer_ids = []
+    for item in orders:
+        try:
+            if item.created_by is not None:
+                buyer_ids.append(int(item.created_by))
+        except (TypeError, ValueError):
+            continue
+
+    buyers = (
+        db.query(User).filter(User.id.in_(buyer_ids)).all()
+        if buyer_ids
+        else []
+    )
+    buyer_map = {buyer.id: buyer for buyer in buyers}
+
+    order_ids = [item.id for item in orders]
+    payments = (
+        db.query(PaymentTransaction)
+        .filter(PaymentTransaction.order_id.in_(order_ids))
+        .order_by(PaymentTransaction.created_at.desc(), PaymentTransaction.id.desc())
+        .all()
+    )
+    payment_map: dict[int, PaymentTransaction] = {}
+    for payment in payments:
+        payment_map.setdefault(payment.order_id, payment)
+
+    deliveries = (
+        db.query(DeliveryOrder).filter(DeliveryOrder.order_id.in_(order_ids)).all()
+        if order_ids
+        else []
+    )
+    delivery_map = {delivery.order_id: delivery for delivery in deliveries}
+
+    logistics_ids = [delivery.logistics_id for delivery in deliveries if delivery.logistics_id]
+    logistics_users = (
+        db.query(LogisticsUser).filter(LogisticsUser.id.in_(logistics_ids)).all()
+        if logistics_ids
+        else []
+    )
+    logistics_map = {logistics.id: logistics for logistics in logistics_users}
+
+    serialized: list[dict] = []
+    for order in orders:
+        buyer = None
+        try:
+            buyer = buyer_map.get(int(order.created_by)) if order.created_by is not None else None
+        except (TypeError, ValueError):
+            buyer = None
+        delivery = delivery_map.get(order.id)
+        logistics = logistics_map.get(delivery.logistics_id) if delivery and delivery.logistics_id else None
+        serialized.append(
+            _serialize_seller_order(
+                order,
+                buyer=buyer,
+                payment=payment_map.get(order.id),
+                delivery=delivery,
+                logistics=logistics,
+            )
+        )
+    return serialized
 
 
 def _ensure_order_owner(order: Sale, user: BusinessUser):
@@ -802,7 +996,7 @@ def get_business_orders(
         term = f"%{q.strip()}%"
         query = query.filter(or_(Sale.product.ilike(term), Sale.category.ilike(term), Sale.delivery_address.ilike(term)))
     orders = query.order_by(Sale.date.desc(), Sale.id.desc()).limit(250).all()
-    return {"items": [_serialize_seller_order(order) for order in orders]}
+    return {"items": _serialize_seller_orders(db, orders)}
 
 
 @router.get("/logistics-options")
@@ -887,7 +1081,7 @@ def business_order_decision(
     )
     db.commit()
     db.refresh(order)
-    return {"message": "Order decision recorded", "order": _serialize_seller_order(order)}
+    return {"message": "Order decision recorded", "order": _serialize_seller_orders(db, [order])[0]}
 
 
 @router.patch("/orders/{order_id}/status")
@@ -940,7 +1134,7 @@ def business_update_order_status(
     )
     db.commit()
     db.refresh(order)
-    return {"message": "Order status updated", "order": _serialize_seller_order(order)}
+    return {"message": "Order status updated", "order": _serialize_seller_orders(db, [order])[0]}
 
 
 @router.post("/orders/{order_id}/assign-delivery")
@@ -956,6 +1150,16 @@ def business_assign_delivery(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     _ensure_order_owner(order, user)
+
+    if (order.status or "").strip().title() in {"Cancelled", "Received"}:
+        raise HTTPException(status_code=400, detail="Delivery cannot be assigned to a finalized order.")
+
+    paid = db.query(PaymentTransaction).filter(
+        PaymentTransaction.order_id == order.id,
+        PaymentTransaction.status == "completed"
+    ).first()
+    if not paid:
+        raise HTTPException(status_code=400, detail="Delivery can only be assigned after payment is completed.")
 
     logistics_id = payload.get("logistics_id")
     if logistics_id:

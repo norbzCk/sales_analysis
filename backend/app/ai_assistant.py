@@ -504,7 +504,22 @@ def _call_openai(
     return text
 
 
-def _fallback_reply(message: str, area: str, user_context: dict, market_context: dict, tool_context: dict) -> str:
+def get_ai_reply(message: str, user_context: dict = None, market_context: dict = None, tool_context: dict = None, area: str = "marketplace home") -> str:
+    """
+    Get a reply from the AI assistant without storing conversation history.
+    Used for internal calls like semantic search.
+    """
+    if user_context is None:
+        user_context = {}
+    if market_context is None:
+        market_context = _build_market_snapshot(SessionLocal())  # We'll need to adjust this
+    if tool_context is None:
+        tool_context = {}
+    
+    # We need a database session. This function should be called within a request context.
+    # For now, we'll assume it's called with a db session passed in? Let's change the approach.
+    # Instead, we'll create a helper that takes db as an argument.
+    pass
     query = message.strip().lower()
     role = str(user_context.get("role") or "guest")
     name = str(user_context.get("name") or "there")

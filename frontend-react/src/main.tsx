@@ -8,22 +8,41 @@ import { AIAssistantProvider } from "./features/ai/AIAssistantContext";
 import { CartProvider } from "./features/auth/CartContext";
 import { ThemeProvider } from "./features/auth/ThemeContext";
 import { CartSidebar } from "./features/cart/CartSidebar";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/global.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <AIAssistantProvider>
-            <CartProvider>
-              <App />
-              <CartSidebar />
-              <GlobalAIAssistant />
-            </CartProvider>
-          </AIAssistantProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <AIAssistantProvider>
+              <QueryClientProvider client={new QueryClient()}>
+                <CartProvider>
+                  <App />
+                  <CartSidebar />
+                  <GlobalAIAssistant />
+                </CartProvider>
+              </QueryClientProvider>
+            </AIAssistantProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
+
+// Register service worker for PWA functionality
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(registration => {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      })
+      .catch(err => {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+  });
+}

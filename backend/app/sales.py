@@ -311,8 +311,6 @@ def create_order(
             provider_name = seller.business_name
 
     initial_status = "Pending"
-    if seller and seller.auto_confirm:
-        initial_status = "Confirmed"
 
     model = Sale(
         date=(datetime.fromisoformat(sale_date.replace('Z', '+00:00')).date() if sale_date else date.today()) if isinstance(sale_date, str) else (sale_date or date.today()),
@@ -339,7 +337,7 @@ def create_order(
         background_tasks,
         model,
         buyer_title=f"Order #{model.id} created successfully",
-        buyer_message=f"Your order for {model.product} has been placed and is awaiting seller confirmation.",
+        buyer_message=f"Your order for {model.product} has been created and is now awaiting payment.",
         seller_title=f"New order #{model.id} requires attention",
         seller_message=f"You received a new order for {model.product} x{model.quantity}.",
         severity="info",
@@ -377,8 +375,20 @@ def update_order_status(
             detail=f"Cannot move order from {current_status} to {target_status}",
         )
 
-    # Check for payment before shipping
-    if target_status == "Shipped":
+    # Require completed payment before processing the order beyond a customer draft.
+    if target_status != "Cancelled":
+        payment = db.query(PaymentTransaction).filter(
+            PaymentTransaction.order_id == order_id,
+            PaymentTransaction.status == "completed"
+        ).first()
+        if not payment:
+            raise HTTPException(
+                status_code=400,
+                detail="Payment must be completed before the order can be processed."
+            )
+
+    # Keep explicit shipping guard for clarity.
+    if target_status == "Shipped" and payment is None:
         payment = db.query(PaymentTransaction).filter(
             PaymentTransaction.order_id == order_id,
             PaymentTransaction.status == "completed"

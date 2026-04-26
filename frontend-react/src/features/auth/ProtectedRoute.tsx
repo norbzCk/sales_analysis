@@ -8,7 +8,14 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   if (loading) {
-    return <div className="center-screen">Loading session...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-brand/30 border-t-brand rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-bold text-text-muted">Loading session...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!token) {
@@ -29,7 +36,14 @@ export function RoleRoute({
   const location = useLocation();
 
   if (loading) {
-    return <div className="center-screen">Loading session...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-brand/30 border-t-brand rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-bold text-text-muted">Loading session...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!token) {

@@ -18,7 +18,7 @@ from backend.app.schemas import (
     LogisticsRegister, LogisticsLogin, LogisticsProfile,
     DeliveryOrderCreate, DeliveryOrderResponse, DeliveryStatusUpdate
 )
-from backend.app.auth import hash_password, verify_password, create_token, decode_token
+from backend.app.auth import hash_password, verify_password, verify_and_upgrade_password, create_token, decode_token, _normalize_phone, _phone_matches
 from backend.app.business import get_current_business_user
 from backend.app.notification_service import build_login_email, create_notification, resolve_subject
 
@@ -49,7 +49,15 @@ def _serialize_logistics(user: LogisticsUser, include_email: bool = True) -> dic
 
 def _get_logistics_user(db: Session, phone: str = None, email: str = None):
     if phone:
-        return db.query(LogisticsUser).filter(LogisticsUser.phone == phone).first()
+        user = db.query(LogisticsUser).filter(LogisticsUser.phone == phone).first()
+        if user:
+            return user
+        normalized_phone = _normalize_phone(phone)
+        if normalized_phone:
+            candidates = db.query(LogisticsUser).filter(LogisticsUser.phone.isnot(None)).all()
+            for candidate in candidates:
+                if _phone_matches(candidate.phone, normalized_phone):
+                    return candidate
     if email:
         return db.query(LogisticsUser).filter(func.lower(LogisticsUser.email) == email.lower()).first()
     return None
@@ -212,7 +220,7 @@ def login_logistics(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    if not verify_password(payload.password, user.password_hash):
+    if not verify_and_upgrade_password(payload.password, user):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not user.is_active:

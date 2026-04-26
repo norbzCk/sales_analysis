@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -27,6 +27,29 @@ class Sale(Base):
     delivery_phone = Column(String, nullable=True)
     delivery_notes = Column(String, nullable=True)
     delivery_method = Column(String, nullable=True, default="Standard")
+    
+    # Relationship to disputes
+    disputes = relationship("Dispute", back_populates="sale")
+
+
+class Dispute(Base):
+    __tablename__ = "disputes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sale_id = Column(Integer, ForeignKey("sales.id"), nullable=False)
+    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    seller_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    logistics_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String, nullable=False, default="open")  # open, resolved_seller, resolved_buyer, resolved_mutual, arbitration
+    resolution_details = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    sale = relationship("Sale", back_populates="disputes")
+    buyer = relationship("User", foreign_keys=[buyer_id])
+    seller = relationship("User", foreign_keys=[seller_id])
+    logistics = relationship("User", foreign_keys=[logistics_id])
 
 
 class Provider(Base):

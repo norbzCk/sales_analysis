@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-presence";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Truck, 
   MapPin, 
@@ -50,7 +50,7 @@ interface LogisticsProfile {
   };
 }
 
-function formatMoney(value?: number) {
+function formatMoney(value?: number | null) {
   return `TZS ${Number(value || 0).toLocaleString()}`;
 }
 

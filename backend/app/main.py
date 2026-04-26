@@ -18,6 +18,7 @@ from backend.app.payments import router as payments_router
 from backend.app.business import router as business_router
 from backend.app.logistics import router as logistics_router
 from backend.app.notifications import router as notifications_router
+from backend.app.disputes import router as disputes_router
 from backend.models import Base, User, BusinessMetrics, BusinessUser, LogisticsMetrics, LogisticsUser, Product, Provider
 from fastapi.staticfiles import StaticFiles
 from backend.app.marketplace_intelligence import build_superadmin_overview
@@ -685,6 +686,7 @@ app.include_router(logistics_router)
 app.include_router(notifications_router)
 app.include_router(auth_router)
 app.include_router(ai_assistant_router)
+app.include_router(disputes_router)
 
 
 @app.get("/superadmin/stats")

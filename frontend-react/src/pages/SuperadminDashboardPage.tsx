@@ -23,7 +23,9 @@ import {
   PieChart,
   Calendar,
   Activity,
-  ArrowUpRight
+  ArrowUpRight,
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { apiRequest } from "../lib/http";
@@ -57,6 +59,18 @@ interface LogisticsUser {
   created_at?: string;
 }
 
+interface Dispute {
+  id: number;
+  sale_id: number;
+  buyer_id: number;
+  seller_id: number;
+  logistics_id: number | null;
+  status: string;
+  resolution_details: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
 interface GlobalAnalytics {
   graphs: {
     revenueByProduct: string | null;
@@ -84,6 +98,7 @@ export function SuperadminDashboardPage() {
   const [businessmen, setBusinessmen] = useState<Businessman[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [logistics, setLogistics] = useState<LogisticsUser[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
@@ -99,33 +114,35 @@ export function SuperadminDashboardPage() {
     void loadData();
   }, []);
 
-  async function loadData() {
-    setLoading(true);
-    setError("");
-    try {
-      const [overviewData, businessmenData, customersData, logisticsData, analyticsData] = await Promise.all([
-        apiRequest<SuperadminOverview>("/superadmin/stats"),
-        apiRequest<Businessman[]>("/superadmin/businessmen"),
-        apiRequest<Customer[]>("/superadmin/customers"),
-        apiRequest<LogisticsUser[]>("/superadmin/logistics"),
-        apiRequest<GlobalAnalytics>("/dashboard/analytics"),
-      ]);
-      const verifications = await apiRequest<{
-        businessmen: VerificationBusinessman[];
-        logistics: VerificationLogistics[];
-      }>("/superadmin/verifications");
-      setOverview(overviewData);
-      setBusinessmen(businessmenData);
-      setCustomers(customersData);
-      setLogistics(logisticsData);
-      setVerificationData(verifications);
-      setAnalytics(analyticsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load superadmin overview");
-    } finally {
-      setLoading(false);
-    }
-  }
+   async function loadData() {
+     setLoading(true);
+     setError("");
+     try {
+       const [overviewData, businessmenData, customersData, logisticsData, analyticsData, disputesData] = await Promise.all([
+         apiRequest<SuperadminOverview>("/superadmin/stats"),
+         apiRequest<Businessman[]>("/superadmin/businessmen"),
+         apiRequest<Customer[]>("/superadmin/customers"),
+         apiRequest<LogisticsUser[]>("/superadmin/logistics"),
+         apiRequest<GlobalAnalytics>("/dashboard/analytics"),
+         apiRequest<Dispute[]>("/disputes"),
+       ]);
+       const verifications = await apiRequest<{
+         businessmen: VerificationBusinessman[];
+         logistics: VerificationLogistics[];
+       }>("/superadmin/verifications");
+       setOverview(overviewData);
+       setBusinessmen(businessmenData);
+       setCustomers(customersData);
+       setLogistics(logisticsData);
+       setDisputes(disputesData);
+       setVerificationData(verifications);
+       setAnalytics(analyticsData);
+     } catch (err) {
+       setError(err instanceof Error ? err.message : "Failed to load superadmin overview");
+     } finally {
+       setLoading(false);
+     }
+   }
 
   async function updateVerification(kind: "businessmen" | "logistics", id: number, status: string) {
     try {
@@ -185,7 +202,61 @@ export function SuperadminDashboardPage() {
         }
       />
 
-      <StatCards items={statItems} />
+       <StatCards items={statItems} />
+       
+       {/* Dispute Resolution Center */}
+       <motion.article 
+         initial={{ opacity: 0, y: 20 }}
+         animate={{ opacity: 1, y: 0 }}
+         className="lg:col-span-1 glass-card p-8 space-y-6"
+       >
+         <div className="flex items-center justify-between">
+           <div className="space-y-1">
+             <h3 className="text-xl font-display font-black text-text tracking-tight flex items-center gap-2">
+               <ShieldCheck size={20} className="text-danger" />
+               Dispute Resolution
+             </h3>
+             <p className="text-xs text-text-muted font-medium">Monitor and resolve transaction disputes between buyers and sellers.</p>
+           </div>
+           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-danger/10 text-danger text-[10px] font-black uppercase tracking-widest border border-danger/20">
+             <AlertTriangle size={14} />
+             Active Disputes
+           </div>
+         </div>
+         
+         <div className="space-y-4 max-h-[300px] overflow-y-auto no-scrollbar pr-2">
+           {disputes.length === 0 ? (
+             <p className="py-8 text-center text-text-muted text-[10px] font-black uppercase tracking-widest opacity-40">
+               No disputes found
+             </p>
+           ) : (
+             disputes.map((dispute) => (
+               <div key={dispute.id} className="p-4 rounded-xl bg-surface-soft/50 border border-border flex items-center justify-between group hover:border-brand/40 transition-all">
+                 <div className="min-w-0">
+                   <strong className="text-text font-bold block truncate text-sm">Order #{dispute.sale_id}</strong>
+                   <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider mt-1">
+                     Buyer: {dispute.buyer_id} | Seller: {dispute.seller_id}
+                   </p>
+                 </div>
+                 <div className="flex gap-2">
+                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase 
+                     ${dispute.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
+                       dispute.status === 'resolved_seller' ? 'bg-emerald-100 text-emerald-800' :
+                       dispute.status === 'resolved_buyer' ? 'bg-blue-100 text-blue-800' :
+                       dispute.status === 'resolved_mutual' ? 'bg-purple-100 text-purple-800' :
+                       'bg-red-100 text-red-800'}`}>
+                   {dispute.status.replace('_', ' ').toUpperCase()}
+                   </span>
+                 </div>
+               </div>
+             ))
+           )}
+         </div>
+         
+         <button className="w-full mt-4 py-3 rounded-xl border border-dashed border-border text-[9px] font-black uppercase tracking-[0.2em] text-text-muted hover:text-brand hover:border-brand/40 transition-all">
+           View All Disputes
+         </button>
+       </motion.article>
 
       {error && <div className="p-4 bg-danger/10 text-danger rounded-2xl font-bold border border-danger/20 animate-soft-enter text-xs">{error}</div>}
       {success && <div className="p-4 bg-accent/10 text-accent rounded-2xl font-bold border border-accent/20 animate-soft-enter text-xs">{success}</div>}
@@ -390,13 +461,8 @@ export function SuperadminDashboardPage() {
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
->
-  );
-}
-
-}
+         )}
+       </AnimatePresence>
+     </div>
+   );
+ }

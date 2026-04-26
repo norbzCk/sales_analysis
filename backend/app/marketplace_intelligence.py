@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from math import atan2, cos, radians, sin, sqrt
-from typing import Any
+from typing import Any, List, Dict
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from backend.models import (

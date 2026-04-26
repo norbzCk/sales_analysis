@@ -234,7 +234,5 @@ export function CustomersPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-}
+   );
+ }

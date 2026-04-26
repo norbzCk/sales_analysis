@@ -17,7 +17,8 @@ import {
   Download,
   LogOut,
   Zap,
-  Globe
+  Globe,
+  ChevronRight
 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../features/auth/ThemeContext";

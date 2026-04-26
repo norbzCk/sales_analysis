@@ -155,7 +155,18 @@ def initiate_payment(
         raise HTTPException(status_code=404, detail="Order not found")
     if str(order.created_by) != str(current.id):
         raise HTTPException(status_code=403, detail="You can only pay for your own orders")
-    
+
+    order_status = (order.status or "").strip().title()
+    if order_status in {"Cancelled", "Received"}:
+        raise HTTPException(status_code=400, detail="Cannot pay for an order that is already finalized")
+
+    existing_payment = db.query(PaymentTransaction).filter(
+        PaymentTransaction.order_id == order.id,
+        PaymentTransaction.status == "completed"
+    ).first()
+    if existing_payment:
+        raise HTTPException(status_code=400, detail="Order has already been paid")
+
     if abs(order.unit_price * order.quantity - payload.amount) > 0.01:
         raise HTTPException(status_code=400, detail="Amount does not match order total")
     
@@ -214,6 +225,18 @@ def stk_push_payment(
         raise HTTPException(status_code=404, detail="Order not found")
     if str(order.created_by) != str(current.id):
         raise HTTPException(status_code=403, detail="You can only pay for your own orders")
+
+    order_status = (order.status or "").strip().title()
+    if order_status in {"Cancelled", "Received"}:
+        raise HTTPException(status_code=400, detail="Cannot pay for an order that is already finalized")
+
+    existing_payment = db.query(PaymentTransaction).filter(
+        PaymentTransaction.order_id == order.id,
+        PaymentTransaction.status == "completed"
+    ).first()
+    if existing_payment:
+        raise HTTPException(status_code=400, detail="Order has already been paid")
+
     if abs(order.unit_price * order.quantity - amount) > 0.01:
         raise HTTPException(status_code=400, detail="Amount does not match order total")
     

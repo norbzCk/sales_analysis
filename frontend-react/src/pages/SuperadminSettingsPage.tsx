@@ -14,7 +14,8 @@ import {
   Save,
   Fingerprint,
   FileSearch,
-  Users
+  Users,
+  ShieldAlert
 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";

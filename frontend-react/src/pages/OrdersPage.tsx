@@ -1,367 +1,786 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ShoppingBag, 
-  Clock, 
-  CheckCircle2, 
-  Truck, 
-  X, 
-  AlertTriangle,
-  Search,
-  Filter,
-  Plus,
-  ArrowRight,
-  Package,
-  MapPin,
-  Phone,
-  FileText,
-  Zap,
-  Star,
-  ChevronRight,
-  CreditCard,
-  MessageSquare,
-  Navigation
-} from "lucide-react";
-import { useAuth } from "../features/auth/AuthContext";
-import { useCart } from "../features/auth/CartContext";
-import { apiRequest } from "../lib/http";
-import { StatCards, SectionCard, PageIntro } from "../components/ui/PageSections";
-import { Modal } from "../components/Modal";
-import { DeliveryChat } from "../features/logistics/DeliveryChat";
-import { useDeliverySocket } from "../features/logistics/useDeliverySocket";
-import { LiveTrackingMap } from "../features/logistics/LiveTrackingMap";
-import { getStoredToken } from "../features/auth/authStorage";
-import type { LogisticsDelivery, Order, OrderTracking, Product } from "../types/domain";
-import { Pie } from "react-chartjs-2";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Filter,
+  MessageSquare,
+  Navigation,
+  Package,
+  Search,
+  ShieldCheck,
+  ShoppingBag,
+  Truck,
+  XCircle,
+} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+import { useAuth } from "../features/auth/AuthContext";
+import { getStoredToken } from "../features/auth/authStorage";
+import { useDeliverySocket } from "../features/logistics/useDeliverySocket";
+import { DeliveryChat } from "../features/logistics/DeliveryChat";
+import { LiveTrackingMap } from "../features/logistics/LiveTrackingMap";
+import { apiRequest } from "../lib/http";
+import { Modal } from "../components/Modal";
+import { EmptyState, InlineNotice, PageIntro, SectionCard, StatCards } from "../components/ui/PageSections";
+import type { Order, SellerLogisticsOption } from "../types/domain";
 
-const TRACKING_STEPS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received"];
-const STATUS_OPTIONS = ["Pending", "Confirmed", "Packed", "Ready For Shipping", "Shipped", "Received", "Cancelled"];
+const SELLER_FLOW = [
+  "Pending",
+  "Confirmed",
+  "Packed",
+  "Ready For Shipping",
+  "Shipped",
+  "Received",
+  "Cancelled",
+] as const;
 
-interface LogisticsOption {
-  id: number;
-  name: string;
-}
+type SellerOrderStage = typeof SELLER_FLOW[number];
 
-interface BusinessmanOption {
-  id: number;
-  business_name: string;
-}
-
-function formatMoney(value?: number) {
-  return `TZS ${Number(value || 0).toLocaleString()}`;
-}
-
-function normalizedStatus(value?: string | null) {
-  const status = String(value || "").trim();
-  if (status === "Delivered") return "Received";
-  if (STATUS_OPTIONS.includes(status)) return status;
+function normalizeStatus(value?: string | null): SellerOrderStage {
+  const status = String(value || "").trim().toLowerCase();
+  if (status === "ready for shipping") return "Ready For Shipping";
+  if (status.includes("cancel")) return "Cancelled";
+  if (status.includes("receive") || status.includes("deliver")) return "Received";
+  if (status.includes("ship")) return "Shipped";
+  if (status.includes("pack")) return "Packed";
+  if (status.includes("confirm")) return "Confirmed";
   return "Pending";
 }
 
-function statusColor(status?: string) {
-  const normalized = normalizedStatus(status);
-  if (normalized === "Received") return "text-emerald-500 bg-emerald-500/10";
-  if (normalized === "Cancelled") return "text-danger bg-danger/10";
-  if (normalized === "Pending") return "text-amber-500 bg-amber-500/10";
-  return "text-brand bg-brand/10";
+
+function nextStatus(status: SellerOrderStage): SellerOrderStage | null {
+  const flow: Record<SellerOrderStage, SellerOrderStage | null> = {
+    Pending: "Confirmed",
+    Confirmed: "Packed",
+    Packed: "Ready For Shipping",
+    "Ready For Shipping": "Shipped",
+    Shipped: null,
+    Received: null,
+    Cancelled: null,
+  };
+  return flow[status];
 }
 
-export function OrdersPage() {
+function stageTone(stage: SellerOrderStage) {
+  if (stage === "Received") return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+  if (stage === "Cancelled") return "bg-danger/10 text-danger border-danger/20";
+  if (stage === "Shipped") return "bg-sky-500/10 text-sky-600 border-sky-500/20";
+  if (stage === "Ready For Shipping") return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
+  if (stage === "Packed") return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+  if (stage === "Confirmed") return "bg-brand/10 text-brand border-brand/20";
+  return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+}
+
+function paymentTone(status?: string | null) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "completed") return "success";
+  if (normalized === "failed") return "error";
+  if (normalized === "pending_delivery") return "warning";
+  if (normalized === "pending") return "warning";
+  return "info";
+}
+
+function paymentLabel(status?: string | null) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "completed") return "Paid";
+  if (normalized === "pending_delivery") return "Cash on Delivery";
+  if (normalized === "pending") return "Payment Pending";
+  if (normalized === "failed") return "Payment Failed";
+  return "Not Started";
+}
+
+function priorityTone(priority?: string | null) {
+  const normalized = String(priority || "").trim().toLowerCase();
+  if (normalized === "urgent") return "bg-danger/10 text-danger border-danger/20";
+  if (normalized === "delayed") return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+  return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+}
+
+function formatMoney(value?: number | null) {
+  return `TZS ${Number(value || 0).toLocaleString()}`;
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "Unknown date";
+  return new Date(value).toLocaleDateString();
+}
+
+function workflowNote(order: Order, stage: SellerOrderStage) {
+  const payment = paymentLabel(order.payment_status);
+  if (stage === "Pending") return `Review items, stock, address, and ${payment.toLowerCase()}.`;
+  if (stage === "Confirmed") return "Accepted and ready for fulfillment handling.";
+  if (stage === "Packed") return "Items are prepared. Next step is shipping readiness.";
+  if (stage === "Ready For Shipping") return "Assign logistics and handoff the parcel.";
+  if (stage === "Shipped") return order.logistics_name ? `In motion with ${order.logistics_name}.` : "Delivery is underway.";
+  if (stage === "Received") return "Customer confirmed the order lifecycle is complete.";
+  return order.status_reason || "This order was cancelled and may need review.";
+}
+
+function SellerOrdersBoard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [error, setError] = useState("");
-  const [flash, setFlash] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const queryClient = useQueryClient();
+  const token = getStoredToken();
+
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  
-  // Chat & Tracking State
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<SellerOrderStage | "All">("All");
+  const [priorityFilter, setPriorityFilter] = useState<"All" | "urgent" | "delayed" | "normal">("All");
+  const [reason, setReason] = useState("");
+  const [selectedLogisticsId, setSelectedLogisticsId] = useState("");
+  const [shippingDestination, setShippingDestination] = useState("");
+  const [shippingInstructions, setShippingInstructions] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
-  const activeOrder = useMemo(() => orders.find(o => o.id === selectedId), [orders, selectedId]);
-  const token = getStoredToken();
-  const { messages, sendChat, sendTyping, location: liveLoc, isConnected, isOtherPartyTyping } = useDeliverySocket(selectedId || undefined, token);
 
-  const sellerMode = String(user?.role || "") === "seller";
+  const { data: orders = [], isLoading, error } = useQuery({
+    queryKey: ["seller-orders"],
+    queryFn: async () => {
+      const response = await apiRequest<{ items: Order[] }>("/business/orders");
+      return response.items || [];
+    },
+    refetchInterval: 30000,
+  });
 
-  useEffect(() => {
-    void load();
-  }, [sellerMode]);
+  const { data: logisticsOptions = [] } = useQuery({
+    queryKey: ["seller-logistics-options"],
+    queryFn: async () => {
+      const response = await apiRequest<{ items: SellerLogisticsOption[] }>("/business/logistics-options");
+      return response.items || [];
+    },
+  });
 
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      if (sellerMode) {
-        const orderData = await apiRequest<{ items: Order[] }>("/business/orders");
-        setOrders(orderData.items || []);
-      } else {
-        const [orderData, productData] = await Promise.all([
-          apiRequest<Order[]>("/orders/"),
-          apiRequest<Product[]>("/products/"),
-        ]);
-        setOrders(Array.isArray(orderData) ? orderData : []);
-        setProducts(Array.isArray(productData) ? productData : []);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to synchronize orders");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const visibleOrders = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      const q = search.trim().toLowerCase();
-      const haystack = `${order.product || ""} ${order.category || ""} ${order.provider_name || ""}`.toLowerCase();
-      const okText = !q || haystack.includes(q);
-      const okStatus = statusFilter === "all" || normalizedStatus(order.status) === statusFilter;
-      return okText && okStatus;
+      const stage = normalizeStatus(order.status);
+      const priority = String(order.priority || "normal").toLowerCase();
+      const haystack = [
+        order.product,
+        order.category,
+        order.customer_name,
+        order.customer_phone,
+        order.customer_email,
+        order.delivery_address,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (statusFilter !== "All" && stage !== statusFilter) return false;
+      if (priorityFilter !== "All" && priority !== priorityFilter) return false;
+      if (search.trim() && !haystack.includes(search.trim().toLowerCase())) return false;
+      return true;
     });
-  }, [orders, search, statusFilter]);
+  }, [orders, priorityFilter, search, statusFilter]);
+
+  const groupedOrders = useMemo(() => {
+    const initial: Record<SellerOrderStage, Order[]> = {
+      Pending: [],
+      Confirmed: [],
+      Packed: [],
+      "Ready For Shipping": [],
+      Shipped: [],
+      Received: [],
+      Cancelled: [],
+    };
+    for (const order of filteredOrders) {
+      initial[normalizeStatus(order.status)].push(order);
+    }
+    return initial;
+  }, [filteredOrders]);
 
   useEffect(() => {
-    if (!selectedId && visibleOrders.length) {
-      setSelectedId(visibleOrders[0].id);
+    if (!filteredOrders.length) {
+      setSelectedId(null);
+      return;
     }
-  }, [selectedId, visibleOrders]);
+    if (!selectedId || !filteredOrders.some((order) => order.id === selectedId)) {
+      setSelectedId(filteredOrders[0].id);
+    }
+  }, [filteredOrders, selectedId]);
 
-  const orderStatusData = useMemo(() => {
-    const counts = STATUS_OPTIONS.reduce((acc, status) => { acc[status] = 0; return acc; }, {} as Record<string, number>);
-    orders.forEach((order) => {
-      const status = normalizedStatus(order.status);
-      if (counts.hasOwnProperty(status)) counts[status]++;
-    });
-    return {
-      labels: Object.keys(counts),
-      datasets: [{
-        data: Object.values(counts),
-        backgroundColor: ['#3b82f6', '#8b5cf6', '#eab308', '#f97316', '#06b6d4', '#22c55e', '#ef4444'],
-        borderWidth: 0,
-      }],
-    };
-  }, [orders]);
+  const activeOrder = useMemo(
+    () => filteredOrders.find((order) => order.id === selectedId) || filteredOrders[0] || null,
+    [filteredOrders, selectedId],
+  );
+
+  useEffect(() => {
+    if (!activeOrder) return;
+    setShippingDestination(activeOrder.delivery_address || "");
+    setShippingInstructions(activeOrder.delivery_notes || "");
+    setSelectedLogisticsId(activeOrder.logistics_id ? String(activeOrder.logistics_id) : "");
+    setReason(activeOrder.status_reason || "");
+  }, [activeOrder?.id]);
+
+  const {
+    messages,
+    sendChat,
+    sendTyping,
+    location: liveLoc,
+    isConnected,
+    isOtherPartyTyping,
+  } = useDeliverySocket(activeOrder?.id, token);
+
+  const acceptRejectMutation = useMutation({
+    mutationFn: async ({
+      orderId,
+      decision,
+      nextReason,
+    }: {
+      orderId: number;
+      decision: "accept" | "reject";
+      nextReason?: string;
+    }) =>
+      apiRequest(`/business/orders/${orderId}/decision`, {
+        method: "PATCH",
+        body: { decision, reason: nextReason || undefined },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["seller-orders"] });
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: async ({
+      orderId,
+      status,
+      nextReason,
+    }: {
+      orderId: number;
+      status: SellerOrderStage;
+      nextReason?: string;
+    }) =>
+      apiRequest(`/business/orders/${orderId}/status`, {
+        method: "PATCH",
+        body: { status, reason: nextReason || undefined },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["seller-orders"] });
+    },
+  });
+
+  const assignDeliveryMutation = useMutation({
+    mutationFn: async (orderId: number) =>
+      apiRequest(`/business/orders/${orderId}/assign-delivery`, {
+        method: "POST",
+        body: {
+          logistics_id: selectedLogisticsId ? Number(selectedLogisticsId) : undefined,
+          delivery_location: shippingDestination || undefined,
+          special_instructions: shippingInstructions || undefined,
+        },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["seller-orders"] });
+      void queryClient.invalidateQueries({ queryKey: ["seller-logistics-options"] });
+    },
+  });
 
   const statItems = useMemo(() => {
-    const counts = orders.reduce((acc, order) => {
-      const s = normalizedStatus(order.status);
-      acc[s] = (acc[s] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const pending = groupedOrders.Pending.length;
+    const active = groupedOrders.Confirmed.length + groupedOrders.Packed.length + groupedOrders["Ready For Shipping"].length;
+    const shipped = groupedOrders.Shipped.length;
+    const completed = groupedOrders.Received.length;
     return [
-      { id: "total", label: "Total Orders", value: orders.length, icon: <ShoppingBag size={18} /> },
-      { id: "pending", label: "Pending", value: counts.Pending || 0, icon: <Clock size={18} /> },
-      { id: "transit", label: "Shipped", value: counts.Shipped || 0, icon: <Truck size={18} /> },
-      { id: "done", label: "Fulfilled", value: counts.Received || 0, icon: <CheckCircle2 size={18} /> },
+      { id: "total", label: "Order Intake", value: orders.length, note: "Visible orders in pipeline", icon: <ShoppingBag size={18} /> },
+      { id: "review", label: "Needs Review", value: pending, note: "Pending intake decisions", icon: <Clock size={18} /> },
+      { id: "fulfillment", label: "In Fulfillment", value: active, note: "Accepted and being prepared", icon: <Package size={18} /> },
+      { id: "shipping", label: "In Transit", value: shipped, note: "Currently with logistics", icon: <Truck size={18} /> },
+      { id: "done", label: "Completed", value: completed, note: "Confirmed by customer", icon: <CheckCircle2 size={18} /> },
     ];
-  }, [orders]);
+  }, [groupedOrders, orders.length]);
+
+  const activeStage = normalizeStatus(activeOrder?.status);
+  const primaryNextStatus = activeOrder ? nextStatus(activeStage) : null;
+  const availableLogistics = logisticsOptions;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      <PageIntro 
-        eyebrow="Order Protocols"
-        title={sellerMode ? "Sales Command" : "Order History"}
-        description={sellerMode ? "Manage incoming marketplace demand and fulfillment nodes." : "Track your procurement activity and direct communications."}
+    <div className="space-y-8">
+      <PageIntro
+        eyebrow="Seller Order Control"
+        title="Order Command Center"
+        description="Review, accept, fulfill, ship, and resolve orders from one seller workflow. Each action here follows your real marketplace lifecycle."
+        badges={
+          <>
+            <span className="rounded-full border border-brand/20 bg-brand/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand">
+              Live lifecycle
+            </span>
+            <span className="rounded-full border border-border bg-surface px-3 py-1 text-[10px] font-black uppercase tracking-widest text-text-muted">
+              {user?.business_name || user?.owner_name || "Seller workspace"}
+            </span>
+          </>
+        }
       />
 
       <StatCards items={statItems} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex flex-col md:flex-row gap-4 bg-surface border border-border p-3 rounded-2xl shadow-sm">
-            <div className="flex-1 relative">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input 
+      <SectionCard
+        title="Order Intake"
+        description="Search, filter, and prioritize new and active orders before you move them through fulfillment."
+      >
+        <div className="grid gap-4 lg:grid-cols-[2fr,1fr,1fr]">
+          <label className="space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Search Orders</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-soft px-4 py-3">
+              <Search size={16} className="text-text-muted" />
+              <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search ledger..."
-                className="w-full pl-11 pr-4 py-2.5 bg-surface-soft rounded-xl outline-none font-bold text-xs"
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-full bg-transparent text-sm font-semibold text-text outline-none placeholder:text-text-muted"
+                placeholder="Product, category, customer, address..."
               />
             </div>
-            <select 
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Stage</span>
+            <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-surface-soft border border-border rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
+              onChange={(event) => setStatusFilter(event.target.value as SellerOrderStage | "All")}
+              className="h-[50px] w-full rounded-2xl border border-border bg-surface-soft px-4 text-sm font-semibold text-text outline-none"
             >
-              <option value="all">All Stages</option>
-              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-
-          <div className="glass-card overflow-hidden">
-            <div className="divide-y divide-border">
-              {visibleOrders.map((order) => (
-                <button
-                  key={order.id}
-                  onClick={() => setSelectedId(order.id)}
-                  className={`w-full text-left p-6 flex items-center justify-between group transition-all ${selectedId === order.id ? 'bg-brand/5 border-l-4 border-l-brand' : 'hover:bg-surface-soft/40'}`}
-                >
-                  <div className="flex items-center gap-5">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${statusColor(order.status)}`}>
-                      <Package size={20} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black text-brand uppercase tracking-widest">#{order.id}</span>
-                        <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{order.category || "General"}</span>
-                      </div>
-                      <h4 className="font-display font-black text-base text-text truncate group-hover:text-brand transition-colors">{order.product}</h4>
-                      <p className="text-[10px] font-bold text-text-muted mt-1">{new Date(order.order_date).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-text">{formatMoney(order.total || (Number(order.unit_price) * Number(order.quantity)))}</p>
-                    <span className={`text-[9px] font-black uppercase tracking-widest mt-1 block ${statusColor(order.status)} px-2 py-0.5 rounded-md text-center`}>
-                      {normalizedStatus(order.status)}
-                    </span>
-                  </div>
-                </button>
+              <option value="All">All stages</option>
+              {SELLER_FLOW.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
+            </select>
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Priority</span>
+            <select
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value as "All" | "urgent" | "delayed" | "normal")}
+              className="h-[50px] w-full rounded-2xl border border-border bg-surface-soft px-4 text-sm font-semibold text-text outline-none"
+            >
+              <option value="All">All priorities</option>
+              <option value="urgent">Urgent</option>
+              <option value="delayed">Delayed</option>
+              <option value="normal">Normal</option>
+            </select>
+          </label>
+        </div>
+      </SectionCard>
+
+      {error ? <InlineNotice tone="error">{error instanceof Error ? error.message : "Failed to load seller orders."}</InlineNotice> : null}
+
+      {isLoading ? (
+        <SectionCard title="Loading Orders" description="Syncing your seller workflow and preparing lifecycle actions.">
+          <div className="flex min-h-[280px] items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-14 w-14 animate-spin rounded-full border-4 border-brand/10 border-t-brand" />
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted">Synchronizing orders</p>
             </div>
           </div>
-        </div>
+        </SectionCard>
+      ) : filteredOrders.length === 0 ? (
+        <EmptyState
+          title="No Orders Match These Filters"
+          description="Try widening the stage or priority filters, or search by customer name, product, or delivery address."
+          icon={<Filter size={32} />}
+        />
+      ) : (
+        <div className="grid gap-8 xl:grid-cols-[1.4fr,0.95fr]">
+          <SectionCard
+            title="Lifecycle Pipeline"
+            description="A kanban-style view helps sellers move orders clearly from review to completion."
+          >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+              {SELLER_FLOW.filter((stage) => stage !== "Received" && stage !== "Cancelled").map((stage) => (
+                <div key={stage} className="rounded-[1.75rem] border border-border bg-surface-soft/35 p-4">
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${stageTone(stage)}`}>
+                      {stage}
+                    </span>
+                    <span className="text-xs font-black text-text-muted">{groupedOrders[stage].length}</span>
+                  </div>
 
-        <div className="space-y-8">
-          <SectionCard title="Lifecycle" description="Nexus transactional status.">
-            <div className="h-56 relative flex items-center justify-center">
-              <Pie 
-                data={orderStatusData} 
-                options={{ 
-                  plugins: { legend: { display: false } }, 
-                  maintainAspectRatio: false,
-                  cutout: '75%'
-                }} 
-              />
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-display font-black text-text">{orders.length}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-text-muted">Total</span>
+                  <div className="space-y-3">
+                    {groupedOrders[stage].length ? (
+                      groupedOrders[stage].map((order) => (
+                        <button
+                          key={order.id}
+                          onClick={() => setSelectedId(order.id)}
+                          className={`w-full rounded-[1.5rem] border p-4 text-left transition-all ${
+                            activeOrder?.id === order.id
+                              ? "border-brand bg-brand/6 shadow-premium"
+                              : "border-border bg-surface hover:border-brand/30 hover:bg-brand/5"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-black text-text">{order.product || "Order item"}</p>
+                              <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-text-muted">
+                                #{order.id} • {formatDate(order.order_date)}
+                              </p>
+                            </div>
+                            <span className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest ${priorityTone(order.priority)}`}>
+                              {order.priority || "normal"}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-xs font-bold text-text-muted">
+                            <span>{order.customer_name || "Customer pending"}</span>
+                            <span>{formatMoney(order.total)}</span>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="rounded-[1.5rem] border border-dashed border-border px-4 py-6 text-center text-xs font-bold uppercase tracking-widest text-text-muted">
+                        No orders
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-[1.75rem] border border-border bg-surface-soft/35 p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${stageTone("Received")}`}>
+                    Closed
+                  </span>
+                  <span className="text-xs font-black text-text-muted">
+                    {groupedOrders.Received.length + groupedOrders.Cancelled.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {[...groupedOrders.Received, ...groupedOrders.Cancelled].slice(0, 8).map((order) => (
+                    <button
+                      key={order.id}
+                      onClick={() => setSelectedId(order.id)}
+                      className={`w-full rounded-[1.5rem] border p-4 text-left transition-all ${
+                        activeOrder?.id === order.id
+                          ? "border-brand bg-brand/6 shadow-premium"
+                          : "border-border bg-surface hover:border-brand/30 hover:bg-brand/5"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-black text-text">{order.product || "Order item"}</p>
+                        <span className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-widest ${stageTone(normalizeStatus(order.status))}`}>
+                          {normalizeStatus(order.status)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-text-muted">
+                        #{order.id} • {order.customer_name || "Customer"}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </SectionCard>
 
           <AnimatePresence mode="wait">
             {activeOrder ? (
-              <motion.div
-                key={activeOrder.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-              >
-                <article className="glass-card p-6 space-y-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[9px] font-black text-brand uppercase tracking-[0.2em]">Fulfillment Protocol</span>
-                      <h3 className="text-xl font-display font-black text-text leading-tight mt-1">{activeOrder.product}</h3>
+              <motion.div key={activeOrder.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}>
+                <SectionCard
+                  title={`Order #${activeOrder.id}`}
+                  description={workflowNote(activeOrder, activeStage)}
+                  action={
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-widest ${stageTone(activeStage)}`}>
+                        {activeStage}
+                      </span>
+                      <span className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-widest ${priorityTone(activeOrder.priority)}`}>
+                        {activeOrder.priority || "normal"}
+                      </span>
                     </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setIsChatOpen(true)}
-                        className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center hover:bg-brand hover:text-white transition-all shadow-sm"
-                      >
-                        <MessageSquare size={18} />
-                      </button>
-                      {activeOrder.status === 'Shipped' && (
-                        <button 
-                          onClick={() => setIsMapOpen(true)}
-                          className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                  }
+                >
+                  <div className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[1.5rem] border border-border bg-surface-soft/35 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Customer</p>
+                        <p className="mt-2 text-lg font-black text-text">{activeOrder.customer_name || "Unknown customer"}</p>
+                        <p className="mt-1 text-sm font-medium text-text-muted">{activeOrder.customer_phone || activeOrder.delivery_phone || "Phone not available"}</p>
+                        <p className="text-sm font-medium text-text-muted">{activeOrder.customer_email || "Email not available"}</p>
+                      </div>
+                      <div className="rounded-[1.5rem] border border-border bg-surface-soft/35 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Order Value</p>
+                        <p className="mt-2 text-lg font-black text-text">{formatMoney(activeOrder.total)}</p>
+                        <p className="mt-1 text-sm font-medium text-text-muted">
+                          {activeOrder.quantity || 0} units • {activeOrder.category || "Uncategorized"}
+                        </p>
+                        <p className="text-sm font-medium text-text-muted">{formatDate(activeOrder.order_date)}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-[1.5rem] border border-border bg-surface-soft/35 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Payment Check</p>
+                        <div className="mt-3">
+                          <InlineNotice tone={paymentTone(activeOrder.payment_status) as "info" | "success" | "warning" | "error"}>
+                            {paymentLabel(activeOrder.payment_status)}
+                          </InlineNotice>
+                        </div>
+                        <p className="mt-3 text-sm font-medium text-text-muted">
+                          Method: {activeOrder.payment_method || "Not chosen yet"}
+                        </p>
+                        {activeOrder.payment_transaction_id ? (
+                          <p className="text-sm font-medium text-text-muted">Txn: {activeOrder.payment_transaction_id}</p>
+                        ) : null}
+                      </div>
+                      <div className="rounded-[1.5rem] border border-border bg-surface-soft/35 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Delivery Feasibility</p>
+                        <p className="mt-2 text-sm font-semibold text-text">{activeOrder.delivery_address || "No delivery address on file"}</p>
+                        <p className="mt-1 text-sm font-medium text-text-muted">
+                          Method: {activeOrder.delivery_method || "Standard"}
+                        </p>
+                        {activeOrder.estimated_distance_km ? (
+                          <p className="text-sm font-medium text-text-muted">Estimated distance: {activeOrder.estimated_distance_km} km</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {activeOrder.status_reason ? (
+                      <InlineNotice tone={activeStage === "Cancelled" ? "warning" : "info"}>
+                        Reason / note: {activeOrder.status_reason}
+                      </InlineNotice>
+                    ) : null}
+
+                    <div className="rounded-[1.75rem] border border-border bg-surface-soft/35 p-5">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={18} className="text-brand" />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-text">Lifecycle Actions</h3>
+                      </div>
+
+                      <div className="mt-4 space-y-4">
+                        <label className="block space-y-2">
+                          <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Decision / Status Note</span>
+                          <textarea
+                            value={reason}
+                            onChange={(event) => setReason(event.target.value)}
+                            rows={3}
+                            className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-text outline-none"
+                            placeholder="Out of stock, address issue, customer clarified request, packaging note..."
+                          />
+                        </label>
+
+                        <div className="flex flex-wrap gap-3">
+                          {activeStage === "Pending" ? (
+                            <>
+                              <button
+                                onClick={() => acceptRejectMutation.mutate({ orderId: activeOrder.id, decision: "accept", nextReason: reason })}
+                                disabled={acceptRejectMutation.isPending}
+                                className="btn-primary"
+                                type="button"
+                              >
+                                Accept Order
+                              </button>
+                              <button
+                                onClick={() => acceptRejectMutation.mutate({ orderId: activeOrder.id, decision: "reject", nextReason: reason })}
+                                disabled={acceptRejectMutation.isPending}
+                                className="btn-secondary text-danger hover:border-danger/30 hover:bg-danger/5"
+                                type="button"
+                              >
+                                Reject Order
+                              </button>
+                            </>
+                          ) : null}
+
+                          {primaryNextStatus ? (
+                            <button
+                              onClick={() => statusMutation.mutate({ orderId: activeOrder.id, status: primaryNextStatus, nextReason: reason })}
+                              disabled={statusMutation.isPending}
+                              className="btn-primary"
+                              type="button"
+                            >
+                              Move to {primaryNextStatus}
+                            </button>
+                          ) : null}
+
+                          {activeStage !== "Cancelled" && activeStage !== "Received" ? (
+                            <button
+                              onClick={() => statusMutation.mutate({ orderId: activeOrder.id, status: "Cancelled", nextReason: reason })}
+                              disabled={statusMutation.isPending}
+                              className="btn-secondary text-danger hover:border-danger/30 hover:bg-danger/5"
+                              type="button"
+                            >
+                              Cancel Order
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-border bg-surface-soft/35 p-5">
+                      <div className="flex items-center gap-2">
+                        <Truck size={18} className="text-brand" />
+                        <h3 className="text-sm font-black uppercase tracking-widest text-text">Shipping & Logistics</h3>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Delivery Partner</span>
+                          <select
+                            value={selectedLogisticsId}
+                            onChange={(event) => setSelectedLogisticsId(event.target.value)}
+                            className="h-[50px] w-full rounded-2xl border border-border bg-surface px-4 text-sm font-semibold text-text outline-none"
+                          >
+                            <option value="">Choose logistics partner</option>
+                            {availableLogistics.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name} {item.vehicle_type ? `(${item.vehicle_type})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="space-y-2">
+                          <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Destination</span>
+                          <input
+                            value={shippingDestination}
+                            onChange={(event) => setShippingDestination(event.target.value)}
+                            className="h-[50px] w-full rounded-2xl border border-border bg-surface px-4 text-sm font-semibold text-text outline-none"
+                            placeholder="Delivery destination"
+                          />
+                        </label>
+                      </div>
+
+                      <label className="mt-4 block space-y-2">
+                        <span className="text-[11px] font-black uppercase tracking-widest text-text-muted">Shipping Instructions</span>
+                        <textarea
+                          value={shippingInstructions}
+                          onChange={(event) => setShippingInstructions(event.target.value)}
+                          rows={3}
+                          className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-text outline-none"
+                          placeholder="Fragile item, call before arrival, pickup constraints..."
+                        />
+                      </label>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <button
+                          onClick={() => assignDeliveryMutation.mutate(activeOrder.id)}
+                          disabled={assignDeliveryMutation.isPending || !["Packed", "Ready For Shipping", "Confirmed"].includes(activeStage)}
+                          className="btn-primary"
+                          type="button"
                         >
-                          <Navigation size={18} />
+                          Assign Delivery
                         </button>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-xl bg-surface-soft border border-border">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-1">Units</span>
-                      <strong className="text-sm font-black text-text">{activeOrder.quantity}</strong>
-                    </div>
-                    <div className="p-3 rounded-xl bg-surface-soft border border-border">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted block mb-1">Settlement</span>
-                      <strong className="text-sm font-black text-brand">{formatMoney(activeOrder.total)}</strong>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t border-border">
-                    <div className="flex gap-3">
-                      <MapPin size={16} className="text-text-muted shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">Target Hub</p>
-                        <p className="text-xs font-bold text-text leading-tight mt-1">{activeOrder.delivery_address || "TBD"}</p>
+                        <span className="text-sm font-medium text-text-muted">
+                          {activeOrder.logistics_name
+                            ? `Current partner: ${activeOrder.logistics_name}${activeOrder.delivery_status ? ` • ${activeOrder.delivery_status}` : ""}`
+                            : "No logistics partner assigned yet."}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex gap-3">
-                      <Truck size={16} className="text-text-muted shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">Deployment Method</p>
-                        <p className="text-xs font-bold text-text mt-1">{activeOrder.delivery_method || "Standard Sourcing"}</p>
-                      </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={() => setIsChatOpen(true)} className="btn-secondary flex items-center gap-2" type="button">
+                        <MessageSquare size={16} />
+                        Customer / Delivery Chat
+                      </button>
+
+                      {activeOrder.delivery_status ? (
+                        <button onClick={() => setIsMapOpen(true)} className="btn-secondary flex items-center gap-2" type="button">
+                          <Navigation size={16} />
+                          Track Delivery
+                        </button>
+                      ) : null}
                     </div>
                   </div>
-
-                  {user?.role === "user" && normalizedStatus(activeOrder.status) === "Confirmed" && (
-                    <button 
-                      onClick={() => navigate(`/app/payments?order_id=${activeOrder.id}&amount=${activeOrder.total}`)}
-                      className="btn-primary w-full h-14 !text-[10px] shadow-brand/40"
-                    >
-                      <CreditCard size={16} className="mr-2" />
-                      Execute Payment Protocol
-                    </button>
-                  )}
-                </article>
+                </SectionCard>
               </motion.div>
             ) : null}
           </AnimatePresence>
         </div>
-      </div>
+      )}
 
-      {/* Communication Modal */}
-      <Modal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} title="Operational Comms">
+      <Modal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} title="Order Communication">
         <div className="p-4">
-          <DeliveryChat 
-            messages={messages} 
-            onSend={sendChat} 
+          <DeliveryChat
+            messages={messages}
+            onSend={sendChat}
             onTyping={sendTyping}
-            currentUserId={user?.id} 
-            otherPartyName={sellerMode ? "Buyer" : (activeOrder?.provider_name || "Merchant")} 
+            currentUserId={user?.id}
+            otherPartyName={activeOrder?.customer_name || activeOrder?.logistics_name || "Order Contact"}
             isConnected={isConnected}
             isOtherPartyTyping={isOtherPartyTyping}
           />
         </div>
       </Modal>
 
-      {/* Telemetry Modal */}
-      <Modal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} title="Deployment Telemetry">
-        <div className="p-4 space-y-4">
-          <div className="h-[400px] rounded-2xl overflow-hidden border border-border shadow-inner">
-            <LiveTrackingMap 
-              currentLocation={liveLoc ? [liveLoc.lat, liveLoc.lng] : null}
-              destination={activeOrder ? [0,0] : null} // Map component handles lookup if coords missing
-              pickup={null}
-            />
-          </div>
-          <div className="flex justify-between items-center bg-surface-soft p-4 rounded-xl border border-border">
-             <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Live GPS Signal</span>
-             </div>
-             <span className="text-xs font-bold text-text-muted italic">Rider: {liveLoc?.rider_name || "Syncing..."}</span>
-          </div>
+      <Modal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} title="Delivery Tracking">
+        <div className="p-4">
+          <LiveTrackingMap
+            currentLocation={liveLoc ? [liveLoc.lat, liveLoc.lng] : null}
+            destination={null}
+            pickup={null}
+          />
         </div>
       </Modal>
     </div>
   );
+}
+
+function CustomerOrdersView() {
+  const { data: orders = [], isLoading, error } = useQuery({
+    queryKey: ["customer-orders"],
+    queryFn: async () => {
+      const response = await apiRequest<Order[]>("/orders/");
+      return Array.isArray(response) ? response : [];
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <SectionCard title="Loading Orders" description="Preparing your customer order history.">
+        <div className="flex min-h-[240px] items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand/10 border-t-brand" />
+        </div>
+      </SectionCard>
+    );
+  }
+
+  if (error) {
+    return <InlineNotice tone="error">{error instanceof Error ? error.message : "Failed to load orders."}</InlineNotice>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageIntro
+        eyebrow="Customer Orders"
+        title="Order History"
+        description="Track your order status, delivery details, and purchase history."
+      />
+
+      {!orders.length ? (
+        <EmptyState
+          title="No Orders Yet"
+          description="Once you place orders, they will appear here with status updates and delivery progress."
+          icon={<ShoppingBag size={32} />}
+        />
+      ) : (
+        <SectionCard title="Orders" description="Your current and completed purchases.">
+          <div className="space-y-4">
+            {orders.map((order) => {
+              const stage = normalizeStatus(order.status);
+              return (
+                <div key={order.id} className="rounded-[1.75rem] border border-border bg-surface-soft/35 p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-lg font-black text-text">{order.product || "Order item"}</p>
+                      <p className="text-sm font-medium text-text-muted">
+                        {formatDate(order.order_date)} • {order.quantity || 0} units • {formatMoney(order.total)}
+                      </p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-2 text-[10px] font-black uppercase tracking-widest ${stageTone(stage)}`}>
+                      {stage}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+export function OrdersPage() {
+  const { user } = useAuth();
+  return user?.role === "seller" ? <SellerOrdersBoard /> : <CustomerOrdersView />;
 }

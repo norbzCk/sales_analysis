@@ -42,14 +42,47 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
+    if not stored:
+        return False
+
     try:
         salt_hex, digest_hex = stored.split("$", 1)
         salt = bytes.fromhex(salt_hex)
         expected = bytes.fromhex(digest_hex)
+        check = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120_000)
+        return hmac.compare_digest(check, expected)
     except ValueError:
+        pass
+
+    # Backward compatibility for legacy databases that stored plain text or
+    # unsalted hex digests before the PBKDF2 format was introduced.
+    if hmac.compare_digest(stored, password):
+        return True
+
+    legacy_hashers = {
+        32: "md5",
+        40: "sha1",
+        64: "sha256",
+        128: "sha512",
+    }
+    normalized = stored.strip().lower()
+    algorithm = legacy_hashers.get(len(normalized))
+    if algorithm and all(ch in "0123456789abcdef" for ch in normalized):
+        legacy_digest = hashlib.new(algorithm, password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(legacy_digest, normalized)
+    return False
+
+
+def password_needs_rehash(stored: str | None) -> bool:
+    return "$" not in (stored or "")
+
+
+def verify_and_upgrade_password(password: str, account: User | BusinessUser | LogisticsUser) -> bool:
+    if not verify_password(password, account.password_hash):
         return False
-    check = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120_000)
-    return hmac.compare_digest(check, expected)
+    if password_needs_rehash(account.password_hash):
+        account.password_hash = hash_password(password)
+    return True
 
 
 def _sign(payload: bytes) -> str:
@@ -109,6 +142,17 @@ def _normalize_email(value: str | None) -> str:
     return _normalize_identifier(value).lower()
 
 
+def _normalize_phone(value: str | None) -> str | None:
+    digits = "".join(ch for ch in (value or "") if ch.isdigit())
+    return digits or None
+
+
+def _phone_matches(stored: str | None, provided: str | None) -> bool:
+    stored_digits = _normalize_phone(stored)
+    provided_digits = _normalize_phone(provided)
+    return bool(stored_digits and provided_digits and stored_digits == provided_digits)
+
+
 def _superadmin_matches(email: str | None, password: str | None) -> bool:
     return _normalize_email(email) == SUPERADMIN_EMAIL and (password or "") == SUPERADMIN_PASSWORD
 
@@ -119,20 +163,42 @@ def _find_recovery_account(db: Session, identifier: str):
         return None, None
 
     lowered = lookup.lower()
-    user = db.query(User).filter(or_(func.lower(User.email) == lowered, User.phone == lookup)).first()
-    if user and user.is_active:
-        user.role = _normalize_role(user.role)
-        return "user", user
+    normalized_phone = _normalize_phone(lookup)
 
-    business = db.query(BusinessUser).filter(or_(func.lower(BusinessUser.email) == lowered, BusinessUser.phone == lookup)).first()
-    if business and business.is_active:
-        business.role = _normalize_role(business.role)
-        return "business", business
+    if "@" in lookup:
+        user = db.query(User).filter(func.lower(User.email) == lowered).first()
+        if user and user.is_active:
+            user.role = _normalize_role(user.role)
+            return "user", user
 
-    logistics = db.query(LogisticsUser).filter(or_(func.lower(LogisticsUser.email) == lowered, LogisticsUser.phone == lookup)).first()
-    if logistics and logistics.is_active:
-        logistics.role = "logistics"
-        return "logistics", logistics
+        business = db.query(BusinessUser).filter(func.lower(BusinessUser.email) == lowered).first()
+        if business and business.is_active:
+            business.role = _normalize_role(business.role)
+            return "business", business
+
+        logistics = db.query(LogisticsUser).filter(func.lower(LogisticsUser.email) == lowered).first()
+        if logistics and logistics.is_active:
+            logistics.role = "logistics"
+            return "logistics", logistics
+
+    if normalized_phone:
+        users = db.query(User).filter(User.phone.isnot(None)).all()
+        for user in users:
+            if _phone_matches(user.phone, normalized_phone) and user.is_active:
+                user.role = _normalize_role(user.role)
+                return "user", user
+
+        businesses = db.query(BusinessUser).filter(BusinessUser.phone.isnot(None)).all()
+        for business in businesses:
+            if _phone_matches(business.phone, normalized_phone) and business.is_active:
+                business.role = _normalize_role(business.role)
+                return "business", business
+
+        logistics = db.query(LogisticsUser).filter(LogisticsUser.phone.isnot(None)).all()
+        for logistics_user in logistics:
+            if _phone_matches(logistics_user.phone, normalized_phone) and logistics_user.is_active:
+                logistics_user.role = "logistics"
+                return "logistics", logistics_user
 
     return None, None
 
@@ -484,7 +550,7 @@ def login(
     db: Session = Depends(get_db),
 ):
     email = _normalize_email(payload.get("email"))
-    phone = _normalize_identifier(payload.get("phone"))
+    phone = _normalize_phone(payload.get("phone"))
     password = payload.get("password") or ""
     
     if not password:
@@ -538,11 +604,17 @@ def login(
     # Support login by email OR phone
     user = None
     if email:
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(func.lower(User.email) == email).first()
     elif phone:
         user = db.query(User).filter(User.phone == phone).first()
+        if not user:
+            candidates = db.query(User).filter(User.phone.isnot(None)).all()
+            for candidate in candidates:
+                if _phone_matches(candidate.phone, phone):
+                    user = candidate
+                    break
     
-    if not user or not verify_password(password, user.password_hash):
+    if not user or not verify_and_upgrade_password(password, user):
         raise HTTPException(status_code=401, detail="Invalid phone or password")
 
     role = _normalize_role(user.role)

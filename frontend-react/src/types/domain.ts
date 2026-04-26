@@ -133,6 +133,29 @@ export interface Order {
   delivery_phone?: string | null;
   delivery_notes?: string | null;
   delivery_method?: string | null;
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  payment_transaction_id?: string | null;
+  delivery_id?: number | null;
+  delivery_status?: string | null;
+  delivery_price?: number | null;
+  logistics_id?: number | null;
+  logistics_name?: string | null;
+  estimated_distance_km?: number | null;
+  priority?: string | null;
+}
+
+export interface SellerLogisticsOption {
+  id: number;
+  name: string;
+  vehicle_type?: string | null;
+  base_area?: string | null;
+  status?: string | null;
+  availability?: string | null;
+  verification_status?: string | null;
 }
 
 export interface PaymentMethod {
