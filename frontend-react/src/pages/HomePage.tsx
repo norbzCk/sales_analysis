@@ -199,6 +199,8 @@ export function HomePage() {
 
   const categoryValues = useMemo(() => categories, [categories]);
 
+  const [displayCount, setDisplayCount] = useState(12);
+
   const filteredItems = useMemo(() => {
     if (!search.trim() && activeCategory === "all") {
       return allItems;
@@ -213,7 +215,7 @@ export function HomePage() {
     });
   }, [activeCategory, allItems, search]);
 
-  const featuredItems = filteredItems.slice(0, 8);
+  const displayedItems = filteredItems.slice(0, displayCount);
 
   function activateMode(newMode: "marketplace" | "ai") {
     if (newMode === "ai") {
@@ -227,6 +229,7 @@ export function HomePage() {
     if (!search.trim()) return;
     setError("");
     await fetchProducts(search, activeCategory);
+    setDisplayCount(12);
     document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -329,6 +332,7 @@ export function HomePage() {
                   e.preventDefault();
                   setActiveCategory(cat);
                   await fetchProducts(search, cat);
+                  setDisplayCount(12);
                   document.getElementById("products")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
                 className={`text-[10px] font-black uppercase tracking-[0.15em] transition-all relative py-1
@@ -454,7 +458,7 @@ export function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredItems.map((product, idx) => (
+            {displayedItems.map((product, idx) => (
               <motion.article
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -485,7 +489,7 @@ export function HomePage() {
                       </span>
                       <div className="flex items-center gap-1 text-amber-500">
                         <Star size={10} className="fill-current" />
-                        <span className="text-[9px] font-black text-text">4.9</span>
+                        <span className="text-[9px] font-black text-text">{product.rating_avg || '4.9'}</span>
                       </div>
                     </div>
                     <h3 className="font-display font-black text-base text-text leading-tight group-hover:text-brand transition-colors line-clamp-2">
@@ -505,6 +509,18 @@ export function HomePage() {
               </motion.article>
             ))}
           </div>
+
+          {filteredItems.length > displayCount && (
+            <div className="flex justify-center pt-8">
+              <button 
+                onClick={() => setDisplayCount(prev => prev + 12)}
+                className="btn-secondary group flex items-center gap-2 !px-12"
+              >
+                Show More Products
+                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Global Sourcing - Scaled down */}

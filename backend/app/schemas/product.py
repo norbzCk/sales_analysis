@@ -303,3 +303,7 @@ class DeliveryStatusUpdate(BaseModel):
     current_lat: float | None = None
     current_lng: float | None = None
     current_location: str | None = None
+    failure_reason: str | None = None
+    proof_type: str | None = None
+    proof_note: str | None = None
+    cod_amount_received: float | None = None

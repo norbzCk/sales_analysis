@@ -52,6 +52,8 @@ export function ProductDetailPage() {
   const [zoom, setZoom] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+
   useEffect(() => {
     void load();
   }, [productId]);
@@ -62,6 +64,12 @@ export function ProductDetailPage() {
     try {
       const data = await apiRequest<Product>(`/products/${productId}`);
       setProduct(data);
+      
+      // Load similar products
+      if (data.category) {
+        const similar = await apiRequest<{ items: Product[] }>(`/products/public/search?category=${encodeURIComponent(data.category)}&limit=5`);
+        setSimilarProducts((similar.items || []).filter(p => p.id !== data.id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Product not found");
     } finally {
@@ -81,7 +89,7 @@ export function ProductDetailPage() {
     }
 
     setSubmitting(true);
-    navigate(`/app/orders?product=${product?.id || productId}&quantity=${quantity}`);
+    navigate(`/app/checkout?product=${product?.id || productId}&quantity=${quantity}`);
   }
 
   function handleImageMouseMove(e: MouseEvent<HTMLImageElement>) {
@@ -226,6 +234,17 @@ export function ProductDetailPage() {
             <p className="text-xl text-text-muted font-medium leading-relaxed max-w-2xl">
               {product.description || "Designed for mission-critical operations, this premium listing features systematic quality control and optimized fulfillment compatibility."}
             </p>
+            <div className="pt-2">
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('similar-products');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="text-[10px] font-black uppercase tracking-[0.2em] text-brand hover:underline"
+              >
+                View Like Products
+              </button>
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 py-10 border-y border-border">
@@ -325,6 +344,57 @@ export function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Similar Products Section */}
+      <section id="similar-products" className="pt-20 space-y-12 border-t border-border">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-border pb-8">
+          <div className="space-y-2">
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand">Recommendations</span>
+            <h2 className="text-3xl font-display font-black text-text tracking-tight">Similar Product Assets</h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {similarProducts.map((p) => (
+            <motion.article
+              key={p.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="group glass-card overflow-hidden hover:-translate-y-2 flex flex-col h-full cursor-pointer"
+              onClick={() => {
+                navigate(`/product/${p.id}`);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="relative aspect-[4/5] overflow-hidden bg-surface-soft">
+                <img
+                  src={resolveImageUrl(p.image_url)}
+                  alt={p.name}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  loading="lazy"
+                />
+              </div>
+
+              <div className="p-6 flex flex-col flex-1 space-y-4">
+                <div className="space-y-1">
+                  <h3 className="font-display font-black text-base text-text leading-tight group-hover:text-brand transition-colors line-clamp-2">
+                    {p.name}
+                  </h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">{p.category}</p>
+                </div>
+
+                <div className="mt-auto pt-4 border-t border-border">
+                  <span className="text-lg font-display font-black text-text tracking-tight">{formatMoney(p.price)}</span>
+                </div>
+              </div>
+            </motion.article>
+          ))}
+          {similarProducts.length === 0 && (
+            <p className="text-sm font-medium text-text-muted col-span-full py-12 text-center">No similar products found at this time.</p>
+          )}
+        </div>
+      </section>
 
       {/* Enhanced Lightbox Overlay */}
       <Modal isOpen={showLightbox} onClose={() => setShowLightbox(false)} title={product.name}>

@@ -48,14 +48,14 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const isAdmin = role === "admin";
   
   const displayName = user?.name || user?.business_name || user?.owner_name || user?.email || "User";
-  const roleLabel = isSeller ? "Business Hub" : isCustomer ? "Customer Hub" : isLogistics ? "Logistics Center" : "Admin Panel";
+  const roleLabel = isSeller ? "Business Hub" : isCustomer ? "Customer Hub" : isLogistics ? "Delivery Workspace" : "Admin Panel";
 
   const navItems = [
     { to: "/app/superadmin", label: "Dashboard", icon: LayoutDashboard, show: isSuperadmin, end: true },
     { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, show: isAdmin, end: true },
     { to: "/app/seller", label: "Dashboard", icon: LayoutDashboard, show: isSeller, end: true },
     { to: "/app/customer", label: "Dashboard", icon: LayoutDashboard, show: isCustomer, end: true },
-    { to: "/app/logistics", label: "Dashboard", icon: LayoutDashboard, show: isLogistics, end: true },
+    { to: "/app/logistics", label: "Deliveries", icon: LayoutDashboard, show: isLogistics, end: true },
     
     { to: "/app/products", label: "Marketplace", icon: Store, show: isSeller || isCustomer || isAdmin },
     { to: "/app/orders", label: "Orders", icon: ShoppingCart, show: isSeller || isCustomer || isAdmin },

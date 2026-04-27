@@ -235,8 +235,18 @@ export interface LogisticsDelivery {
   pickup_location: string;
   delivery_location: string;
   delivery_address?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_phone_masked?: string | null;
+  pickup_phone?: string | null;
+  delivery_phone?: string | null;
   status: string;
   price?: number | null;
+  payment_method?: string | null;
+  payment_status?: string | null;
+  cod_amount?: number | null;
+  cod_amount_received?: number | null;
+  delivery_notes?: string | null;
   special_instructions?: string | null;
   verification_code?: string | null;
   pickup_lat?: number | null;
@@ -245,9 +255,17 @@ export interface LogisticsDelivery {
   destination_lng?: number | null;
   current_lat?: number | null;
   current_lng?: number | null;
+  estimated_distance_km?: number | null;
+  last_location_name?: string | null;
+  tracking_updated_at?: string | null;
   created_at?: string | null;
+  accepted_at?: string | null;
   picked_at?: string | null;
   delivered_at?: string | null;
+  failed_at?: string | null;
+  failure_reason?: string | null;
+  proof_type?: string | null;
+  proof_note?: string | null;
 }
 
 export interface LogisticsUser {
@@ -432,6 +450,7 @@ export interface OrderTracking {
     phone?: string | null;
     vehicle_type?: string | null;
   };
+  buyer_id?: number | null;
   map: {
     pickup: { label: string; lat: number; lng: number };
     current: { label: string; lat: number; lng: number };
@@ -444,6 +463,14 @@ export interface OrderTracking {
     location?: string | null;
     timestamp?: string | null;
   }>;
+  order: {
+    id?: number | null;
+    product?: string | null;
+    status?: string | null;
+  };
+  rating?: number | null;
+  rated_at?: string | null;
+  rating_comment?: string | null;
 }
 
 export interface CartOptimization {

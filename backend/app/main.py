@@ -205,6 +205,78 @@ def ensure_schema_columns():
         conn.execute(
             text(
                 """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS failed_at TIMESTAMPTZ
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS failure_reason VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS proof_type VARCHAR
+                """
+            )
+        )
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS delivery_orders
+                ADD COLUMN IF NOT EXISTS proof_note TEXT
+                """
+            )
+        )
+        conn.execute(
+             text(
+                 """
+                 ALTER TABLE IF EXISTS delivery_orders
+                 ADD COLUMN IF NOT EXISTS cod_amount_received DOUBLE PRECISION
+                 """
+             )
+         )
+        conn.execute(
+             text(
+                 """
+                 ALTER TABLE IF EXISTS delivery_orders
+                 ADD COLUMN IF NOT EXISTS rating INTEGER
+                 """
+             )
+         )
+        conn.execute(
+             text(
+                 """
+                 ALTER TABLE IF EXISTS delivery_orders
+                 ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ
+                 """
+             )
+         )
+        conn.execute(
+             text(
+                 """
+                 ALTER TABLE IF EXISTS delivery_orders
+                 ADD COLUMN IF NOT EXISTS rating_comment TEXT
+                 """
+             )
+         )
+        conn.execute(
+            text(
+                """
                 ALTER TABLE IF EXISTS sales
                 ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()
                 """

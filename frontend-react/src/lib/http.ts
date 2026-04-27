@@ -21,6 +21,7 @@ export class ApiError extends Error {
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   const token = getStoredToken();
+  const method = options.method || "GET";
 
   if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -32,8 +33,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const response = await fetch(`${env.apiBase}${path}`, {
     ...options,
+    method,
     headers,
     body: serializeBody(options.body),
+    cache: options.cache ?? (method === "GET" ? "no-store" : options.cache),
   });
 
   if (response.status === 401) {

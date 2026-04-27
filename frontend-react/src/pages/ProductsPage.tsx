@@ -88,6 +88,15 @@ function canManage(role?: string) {
   return ["admin", "super_admin", "owner", "seller"].includes(String(role || ""));
 }
 
+function canEditProduct(product: Product, userRole?: string, userId?: number | null) {
+  const role = String(userRole || "");
+  if (["admin", "super_admin", "owner"].includes(role)) return true;
+  if (role === "seller") {
+    return Number(product.seller_id || 0) === Number(userId || 0);
+  }
+  return false;
+}
+
 export function ProductsPage() {
   const { user } = useAuth();
   const { addToCart, setIsOpen } = useCart();
@@ -128,12 +137,12 @@ export function ProductsPage() {
     setError("");
     try {
       const [productData, providerData, inventoryData, forecastData] = await Promise.all([
-        apiRequest<Product[]>("/products/"),
+        apiRequest<{ items: Product[] }>("/products/marketplace"),
         apiRequest<Provider[]>("/providers/"),
         !adminMode && !sellerMode ? Promise.resolve(null) : apiRequest<InventoryStats>("/products/inventory/stats"),
         sellerMode ? apiRequest<{ items: InventoryForecastItem[] }>("/business/inventory/forecast") : Promise.resolve(null),
       ]);
-      setProducts(productData);
+      setProducts(productData.items || []);
       setProviders(providerData);
       setInventory(inventoryData);
       setForecast(forecastData?.items || []);
@@ -656,7 +665,7 @@ export function ProductsPage() {
                         </span>
                       )}
                     </div>
-                    {canManage(user?.role) && (
+                    {canEditProduct(product, user?.role, user?.id) && (
                       <div className="absolute top-4 right-4 flex gap-2 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
                         <button 
                           onClick={(e) => { e.stopPropagation(); beginEdit(product); }}

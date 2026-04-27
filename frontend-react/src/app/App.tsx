@@ -31,6 +31,7 @@ import { SuperadminSettingsPage } from "../pages/SuperadminSettingsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 import { ProductDetailPage } from "../pages/ProductDetailPage";
+import { TrackDeliveryPage } from "../pages/TrackDeliveryPage";
 
 function AppLanding() {
   const { user } = useAuth();
@@ -79,6 +80,8 @@ export function App() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="customers" element={<RoleRoute allowedRoles={["super_admin", "owner"]}><CustomersPage /></RoleRoute>} />
         <Route path="product/:productId" element={<ProductDetailPage />} />
+        <Route path="track/:trackingCode" element={<TrackDeliveryPage />} />
+        <Route path="track" element={<TrackDeliveryPage />} />
         <Route path="providers" element={<RoleRoute allowedRoles={["seller", "admin", "super_admin", "owner"]}><ProvidersPage /></RoleRoute>} />
         <Route path="payments" element={<RoleRoute allowedRoles={["user"]}><PaymentsPage /></RoleRoute>} />
         <Route path="profile" element={<RoleRoute allowedRoles={["admin", "owner"]}><ProfilePage /></RoleRoute>} />

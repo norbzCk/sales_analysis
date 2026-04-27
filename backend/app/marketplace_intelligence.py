@@ -273,35 +273,39 @@ def build_tracking_payload(
     ]
 
     return {
-        "order_id": delivery.order_id,
-        "delivery_id": delivery.id,
-        "status": status,
-        "progress_percent": progress_percent,
-        "eta_minutes": eta_minutes,
-        "distance_km": round(float(delivery.estimated_distance_km or total_distance or 0), 1),
-        "last_updated_at": delivery.tracking_updated_at.isoformat() if delivery.tracking_updated_at else None,
-        "logistics_partner": {
-            "id": logistics.id if logistics else delivery.logistics_id,
-            "name": logistics.name if logistics else "Delivery partner",
-            "phone": logistics.phone if logistics else None,
-            "vehicle_type": logistics.vehicle_type if logistics else None,
-        },
-        "map": {
-            "pickup": {"label": delivery.pickup_location or "Pickup", "lat": pickup[0], "lng": pickup[1]},
-            "current": {
-                "label": delivery.last_location_name or ("Delivered" if status == "delivered" else "Current rider position"),
-                "lat": current[0],
-                "lng": current[1],
-            },
-            "destination": {"label": delivery.delivery_location or "Destination", "lat": destination[0], "lng": destination[1]},
-        },
-        "checkpoints": checkpoints,
-        "order": {
-            "id": order.id if order else delivery.order_id,
-            "product": order.product if order else None,
-            "status": order.status if order else None,
-        },
-    }
+         "order_id": delivery.order_id,
+         "delivery_id": delivery.id,
+         "status": status,
+         "progress_percent": progress_percent,
+         "eta_minutes": eta_minutes,
+         "distance_km": round(float(delivery.estimated_distance_km or total_distance or 0), 1),
+         "last_updated_at": delivery.tracking_updated_at.isoformat() if delivery.tracking_updated_at else None,
+         "logistics_partner": {
+             "id": logistics.id if logistics else delivery.logistics_id,
+             "name": logistics.name if logistics else "Delivery partner",
+             "phone": logistics.phone if logistics else None,
+             "vehicle_type": logistics.vehicle_type if logistics else None,
+         },
+         "buyer_id": delivery.buyer_id,
+         "map": {
+             "pickup": {"label": delivery.pickup_location or "Pickup", "lat": pickup[0], "lng": pickup[1]},
+             "current": {
+                 "label": delivery.last_location_name or ("Delivered" if status == "delivered" else "Current rider position"),
+                 "lat": current[0],
+                 "lng": current[1],
+             },
+             "destination": {"label": delivery.delivery_location or "Destination", "lat": destination[0], "lng": destination[1]},
+         },
+         "checkpoints": checkpoints,
+         "order": {
+             "id": order.id if order else delivery.order_id,
+             "product": order.product if order else None,
+             "status": order.status if order else None,
+         },
+         "rating": delivery.rating,
+         "rated_at": delivery.rated_at.isoformat() if delivery.rated_at else None,
+         "rating_comment": delivery.rating_comment,
+     }
 
 
 def build_cart_optimization(

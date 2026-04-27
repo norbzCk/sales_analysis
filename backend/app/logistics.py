@@ -13,12 +13,12 @@ from backend.app.marketplace_intelligence import (
     haversine_km,
     interpolate_coords,
 )
-from backend.models import LogisticsUser, LogisticsMetrics, DeliveryOrder, BusinessUser, Sale, User
+from backend.models import LogisticsUser, LogisticsMetrics, DeliveryOrder, BusinessUser, Sale, User, PaymentTransaction
 from backend.app.schemas import (
     LogisticsRegister, LogisticsLogin, LogisticsProfile,
     DeliveryOrderCreate, DeliveryOrderResponse, DeliveryStatusUpdate
 )
-from backend.app.auth import hash_password, verify_password, verify_and_upgrade_password, create_token, decode_token, _normalize_phone, _phone_matches
+from backend.app.auth import hash_password, verify_password, verify_and_upgrade_password, create_token, decode_token, _normalize_phone, _phone_matches, get_current_user
 from backend.app.business import get_current_business_user
 from backend.app.notification_service import build_login_email, create_notification, resolve_subject
 
@@ -68,6 +68,13 @@ def _validate_new_password(current_password: str, new_password: str, password_ha
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     if len(new_password) < 8:
         raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+
+def _mask_phone(phone: str | None) -> str | None:
+    raw = str(phone or "").strip()
+    if len(raw) <= 4:
+        return raw or None
+    return f"{raw[:3]}{'*' * max(2, len(raw) - 5)}{raw[-2:]}"
 
 
 def _notify_delivery_event(
@@ -539,22 +546,99 @@ def get_my_deliveries(
         query = query.filter(DeliveryOrder.status == status)
     
     deliveries = query.order_by(DeliveryOrder.created_at.desc()).limit(50).all()
+
+    order_ids = [d.order_id for d in deliveries if d.order_id]
+    orders = db.query(Sale).filter(Sale.id.in_(order_ids)).all() if order_ids else []
+    order_map = {order.id: order for order in orders}
+
+    buyer_ids = {
+        d.buyer_id for d in deliveries if d.buyer_id
+    } | {
+        order.created_by for order in orders if order.created_by
+    }
+    buyers = db.query(User).filter(User.id.in_(buyer_ids)).all() if buyer_ids else []
+    buyer_map = {buyer.id: buyer for buyer in buyers}
+
+    payments = (
+        db.query(PaymentTransaction)
+        .filter(PaymentTransaction.order_id.in_(order_ids))
+        .order_by(PaymentTransaction.created_at.desc())
+        .all()
+        if order_ids
+        else []
+    )
+    payment_map: dict[int, PaymentTransaction] = {}
+    for payment in payments:
+        if payment.order_id not in payment_map:
+            payment_map[payment.order_id] = payment
     
     return {
         "deliveries": [
             {
-                "id": d.id,
-                "order_id": d.order_id,
-                "pickup_location": d.pickup_location,
-                "delivery_location": d.delivery_location,
-                "status": d.status,
-                "price": d.price,
-                "verification_code": d.verification_code,
-                "last_location_name": d.last_location_name,
-                "tracking_updated_at": d.tracking_updated_at.isoformat() if d.tracking_updated_at else None,
-                "created_at": d.created_at.isoformat() if d.created_at else None,
-                "picked_at": d.picked_at.isoformat() if d.picked_at else None,
-                "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None
+                **{
+                    "id": d.id,
+                    "order_id": d.order_id,
+                    "pickup_location": d.pickup_location,
+                    "delivery_location": d.delivery_location,
+                    "delivery_address": (order_map.get(d.order_id).delivery_address if d.order_id and order_map.get(d.order_id) else None) or d.delivery_location,
+                    "pickup_phone": d.pickup_phone,
+                    "delivery_phone": d.delivery_phone,
+                    "customer_phone": (
+                        (order_map.get(d.order_id).delivery_phone if d.order_id and order_map.get(d.order_id) else None)
+                        or d.delivery_phone
+                        or (buyer_map.get(d.buyer_id).phone if d.buyer_id and buyer_map.get(d.buyer_id) else None)
+                    ),
+                    "customer_phone_masked": _mask_phone(
+                        (order_map.get(d.order_id).delivery_phone if d.order_id and order_map.get(d.order_id) else None)
+                        or d.delivery_phone
+                        or (buyer_map.get(d.buyer_id).phone if d.buyer_id and buyer_map.get(d.buyer_id) else None)
+                    ),
+                    "customer_name": (
+                        buyer_map.get(d.buyer_id).name if d.buyer_id and buyer_map.get(d.buyer_id)
+                        else (
+                            buyer_map.get(order_map.get(d.order_id).created_by).name
+                            if d.order_id and order_map.get(d.order_id) and order_map.get(d.order_id).created_by and buyer_map.get(order_map.get(d.order_id).created_by)
+                            else None
+                        )
+                    ),
+                    "status": d.status,
+                    "price": d.price,
+                    "payment_method": payment_map.get(d.order_id).payment_method if d.order_id and payment_map.get(d.order_id) else None,
+                    "payment_status": payment_map.get(d.order_id).status if d.order_id and payment_map.get(d.order_id) else None,
+                    "cod_amount": (
+                        payment_map.get(d.order_id).amount
+                        if d.order_id and payment_map.get(d.order_id)
+                        else (
+                            round(float(order_map.get(d.order_id).quantity or 0) * float(order_map.get(d.order_id).unit_price or 0), 2)
+                            if d.order_id and order_map.get(d.order_id)
+                            else None
+                        )
+                    ),
+                    "delivery_notes": (
+                        (order_map.get(d.order_id).delivery_notes if d.order_id and order_map.get(d.order_id) else None)
+                        or d.special_instructions
+                    ),
+                    "verification_code": d.verification_code,
+                    "special_instructions": d.special_instructions,
+                    "estimated_distance_km": d.estimated_distance_km,
+                    "pickup_lat": d.pickup_lat,
+                    "pickup_lng": d.pickup_lng,
+                    "destination_lat": d.destination_lat,
+                    "destination_lng": d.destination_lng,
+                    "current_lat": d.current_lat,
+                    "current_lng": d.current_lng,
+                    "last_location_name": d.last_location_name,
+                    "tracking_updated_at": d.tracking_updated_at.isoformat() if d.tracking_updated_at else None,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                    "accepted_at": d.accepted_at.isoformat() if d.accepted_at else None,
+                    "picked_at": d.picked_at.isoformat() if d.picked_at else None,
+                    "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None,
+                    "failed_at": d.failed_at.isoformat() if d.failed_at else None,
+                    "failure_reason": d.failure_reason,
+                    "proof_type": d.proof_type,
+                    "proof_note": d.proof_note,
+                    "cod_amount_received": d.cod_amount_received,
+                }
             }
             for d in deliveries
         ]
@@ -580,17 +664,22 @@ def update_delivery_status(
         raise HTTPException(status_code=404, detail="Delivery not found")
     
     valid_transitions = {
-        "assigned": "picked_up",
-        "picked_up": "in_transit",
-        "in_transit": "delivered"
+        "assigned": {"picked_up", "failed"},
+        "picked_up": {"in_transit", "failed"},
+        "in_transit": {"delivered", "failed"},
     }
     
-    if payload.status not in valid_transitions.values():
+    if delivery.status not in valid_transitions or payload.status not in valid_transitions[delivery.status]:
         raise HTTPException(status_code=400, detail="Invalid status")
     
-    if payload.status == "delivered" and payload.verification_code:
-        if payload.verification_code != delivery.verification_code:
+    if payload.status == "delivered":
+        if delivery.verification_code and not payload.verification_code:
+            raise HTTPException(status_code=400, detail="Verification code is required")
+        if payload.verification_code and payload.verification_code != delivery.verification_code:
             raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    if payload.status == "failed" and not (payload.failure_reason or "").strip():
+        raise HTTPException(status_code=400, detail="Failure reason is required")
     
     delivery.status = payload.status
     pickup_coords = (
@@ -603,7 +692,11 @@ def update_delivery_status(
     )
     
     if payload.status == "picked_up":
+        if not delivery.accepted_at:
+            delivery.accepted_at = datetime.utcnow()
         delivery.picked_at = datetime.utcnow()
+        delivery.failed_at = None
+        delivery.failure_reason = None
         current_coords = interpolate_coords(pickup_coords, destination_coords, 0.28)
         delivery.current_lat = current_coords[0]
         delivery.current_lng = current_coords[1]
@@ -623,10 +716,15 @@ def update_delivery_status(
             db.add(order)
     elif payload.status == "delivered":
         delivery.delivered_at = datetime.utcnow()
+        delivery.failed_at = None
+        delivery.failure_reason = None
         user.availability = "available"
         delivery.current_lat = destination_coords[0]
         delivery.current_lng = destination_coords[1]
         delivery.last_location_name = payload.current_location or delivery.delivery_location or "Delivered"
+        delivery.proof_type = (payload.proof_type or "").strip() or "otp"
+        delivery.proof_note = (payload.proof_note or "").strip() or None
+        delivery.cod_amount_received = payload.cod_amount_received
         order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
         if order and (order.status or "").strip().title() != "Cancelled":
             order.status = "Received"
@@ -637,6 +735,27 @@ def update_delivery_status(
         if metrics:
             metrics.total_deliveries += 1
             metrics.success_rate = (metrics.total_deliveries / (metrics.total_deliveries + metrics.cancel_rate)) * 100
+    elif payload.status == "failed":
+        delivery.failed_at = datetime.utcnow()
+        delivery.failure_reason = (payload.failure_reason or "").strip()
+        delivery.proof_type = (payload.proof_type or "").strip() or None
+        delivery.proof_note = (payload.proof_note or "").strip() or None
+        delivery.cod_amount_received = payload.cod_amount_received
+        user.availability = "available"
+        delivery.current_lat = payload.current_lat if payload.current_lat is not None else delivery.current_lat or pickup_coords[0]
+        delivery.current_lng = payload.current_lng if payload.current_lng is not None else delivery.current_lng or pickup_coords[1]
+        delivery.last_location_name = payload.current_location or "Delivery issue reported"
+        order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
+        if order and (order.status or "").strip().title() != "Cancelled":
+            order.status = "Delivery Failed"
+            order.status_reason = delivery.failure_reason
+            db.add(order)
+
+        metrics = db.query(LogisticsMetrics).filter(LogisticsMetrics.logistics_id == user.id).first()
+        if metrics:
+            metrics.cancel_rate += 1
+            total_attempts = metrics.total_deliveries + metrics.cancel_rate
+            metrics.success_rate = (metrics.total_deliveries / total_attempts) * 100 if total_attempts else 0
     else:
         delivery.current_lat = payload.current_lat if payload.current_lat is not None else pickup_coords[0]
         delivery.current_lng = payload.current_lng if payload.current_lng is not None else pickup_coords[1]
@@ -653,14 +772,22 @@ def update_delivery_status(
         buyer_message=(
             "Delivery completed successfully. Thank you for using SokoLnk."
             if payload.status == "delivered"
-            else f"Your delivery is now {delivery.status}."
+            else (
+                f"We could not complete your delivery: {delivery.failure_reason}."
+                if payload.status == "failed"
+                else f"Your delivery is now {delivery.status}."
+            )
         ),
         seller_message=(
             "Delivery completed and order marked as delivered."
             if payload.status == "delivered"
-            else f"Order delivery is now {delivery.status}."
+            else (
+                f"Delivery failed: {delivery.failure_reason}."
+                if payload.status == "failed"
+                else f"Order delivery is now {delivery.status}."
+            )
         ),
-        severity="success" if payload.status == "delivered" else "info",
+        severity="success" if payload.status == "delivered" else ("warning" if payload.status == "failed" else "info"),
     )
     
     db.commit()
@@ -670,7 +797,9 @@ def update_delivery_status(
         "delivery": {
             "id": delivery.id,
             "status": delivery.status,
-            "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None
+            "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
+            "failed_at": delivery.failed_at.isoformat() if delivery.failed_at else None,
+            "failure_reason": delivery.failure_reason,
         }
     }
 
@@ -742,6 +871,104 @@ def get_logistics_public_profile(
         "metrics": {
             "rating": metrics.rating if metrics else 0,
             "total_deliveries": metrics.total_deliveries if metrics else 0,
-            "success_rate": metrics.success_rate if metrics else 0
-        } if metrics else {"rating": 0, "total_deliveries": 0, "success_rate": 0}
-    }
+         "success_rate": metrics.success_rate if metrics else 0
+         } if metrics else {"rating": 0, "total_deliveries": 0, "success_rate": 0}
+     }
+
+
+@router.get("/track")
+def public_track_delivery(
+    order_id: Optional[str] = None,
+    code: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Public endpoint: customers can track delivery by order ID or verification code.
+    No authentication required.
+    """
+    if not order_id and not code:
+        raise HTTPException(status_code=400, detail="Provide order_id or verification code")
+    
+    query = db.query(DeliveryOrder)
+    if order_id:
+        try:
+            oid = int(order_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid order ID format")
+        query = query.filter(DeliveryOrder.order_id == oid)
+    else:
+        query = query.filter(DeliveryOrder.verification_code == code)
+    
+    delivery = query.first()
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    
+    # Load related objects for tracking payload
+    order = db.query(Sale).filter(Sale.id == delivery.order_id).first() if delivery.order_id else None
+    logistics = db.query(LogisticsUser).filter(LogisticsUser.id == delivery.logistics_id).first() if delivery.logistics_id else None
+    
+    return build_tracking_payload(delivery, order, logistics)
+
+
+@router.post("/deliveries/{delivery_id}/rating")
+def rate_delivery(
+    delivery_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """
+    Buyer can rate a delivered delivery experience (logistics partner).
+    """
+    try:
+        rating_val = int(payload.get("rating", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="rating must be an integer")
+    
+    if rating_val < 1 or rating_val > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    
+    delivery = db.query(DeliveryOrder).filter(DeliveryOrder.id == delivery_id).first()
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    
+    # Verify the current user is the buyer
+    buyer_id = delivery.buyer_id
+    if buyer_id is None and delivery.order_id:
+        order = db.query(Sale).filter(Sale.id == delivery.order_id).first()
+        buyer_id = order.created_by if order else None
+    
+    if buyer_id is None or current.id != buyer_id:
+        raise HTTPException(status_code=403, detail="Only the buyer can rate this delivery")
+    
+    if delivery.status != "delivered":
+        raise HTTPException(status_code=400, detail="Only delivered orders can be rated")
+    
+    if delivery.rating is not None:
+        raise HTTPException(status_code=400, detail="This delivery has already been rated")
+    
+    delivery.rating = rating_val
+    delivery.rated_at = datetime.utcnow()
+    delivery.rating_comment = payload.get("comment", "").strip() or None
+    db.add(delivery)
+    
+    # Update logistics partner average rating
+    if delivery.logistics_id:
+        metrics = db.query(LogisticsMetrics).filter(LogisticsMetrics.logistics_id == delivery.logistics_id).first()
+        if not metrics:
+            metrics = LogisticsMetrics(logistics_id=delivery.logistics_id)
+            db.add(metrics)
+        # Recalculate average
+        all_ratings = db.query(DeliveryOrder).filter(
+            DeliveryOrder.logistics_id == delivery.logistics_id,
+            DeliveryOrder.rating.isnot(None)
+        ).all()
+        ratings = [r.rating for r in all_ratings if r.rating]
+        if ratings:
+            metrics.rating = round(sum(ratings) / len(ratings), 2)
+            metrics.total_deliveries = len(ratings)
+        db.add(metrics)
+    
+    db.commit()
+    db.refresh(delivery)
+    return {"message": "Rating submitted", "delivery_id": delivery.id, "rating": delivery.rating}

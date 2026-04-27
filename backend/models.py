@@ -236,8 +236,14 @@ class DeliveryOrder(Base):
     estimated_distance_km = Column(Float, nullable=True)
     last_location_name = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
     picked_at = Column(DateTime(timezone=True), nullable=True)
     delivered_at = Column(DateTime(timezone=True), nullable=True)
+    failed_at = Column(DateTime(timezone=True), nullable=True)
+    failure_reason = Column(String, nullable=True)
+    proof_type = Column(String, nullable=True)
+    proof_note = Column(Text, nullable=True)
+    cod_amount_received = Column(Float, nullable=True)
     tracking_updated_at = Column(DateTime(timezone=True), nullable=True)
 
 
